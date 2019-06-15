@@ -8,6 +8,7 @@ from netCDF4 import Dataset
 import pickle
 
 
+##Plots Bathymetry of Arctic
 
 d = Dataset("data/ver1_netcdf_geo.nc")
 z = d.variables["z"]

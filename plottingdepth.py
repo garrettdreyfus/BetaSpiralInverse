@@ -6,6 +6,7 @@ from numpy import meshgrid
 import numpy as np
 from netCDF4 import Dataset
 
+#get the max depth at each profile
 def extractProfileDepth(fname):
     f = open(fname, 'r')
     lons = []
@@ -31,6 +32,8 @@ def extractProfileDepth(fname):
         except:
             print(line)
     return maxDepthDict
+
+#plot stations
 def mapLocations(lats,lons):
     mapy = Basemap(projection='ortho', lat_0=90,lon_0=0)
     mapy.drawmapboundary(fill_color='aqua')
@@ -38,6 +41,8 @@ def mapLocations(lats,lons):
     mapy.drawcoastlines()
     x,y = mapy(lons,lats)
     mapy.scatter(x,y)
+
+#plot a heatmap of maximum depths
 def depthHeatMap(depthmap):
     fig, ax1 = plt.subplots(1,1)
     lons = []
@@ -56,6 +61,8 @@ def depthHeatMap(depthmap):
     mapy.colorbar()
     fig.suptitle("Profiles deeper than 500m 2008 UDASH")
     plt.show()
+
+#return seafloor depth at a certain latitude and longitude
 def searchBath(bathDataset,lat,lon):
     spacing = bathDataset.variables["spacing"][0]
     startlon = bathDataset.variables["x_range"][0]
@@ -67,6 +74,8 @@ def searchBath(bathDataset,lat,lon):
         return 0
     else:
         return float(z[j+i*ret])
+
+#map the difference between the deepest profile and bathymetry
 def diffHeatMap(depthmap):
     fig, ax1 = plt.subplots(1,1)
     lons = []
@@ -95,6 +104,8 @@ def diffHeatMap(depthmap):
     ax1.set_ylabel("Number of Profiles")
     ax1.hist(depths,bins=50)
     plt.show()
+
+#plot bathymetry on map
 def bathCheck():
     fig, ax1 = plt.subplots(1,1)
     lons = []

@@ -44,7 +44,7 @@ def search(profiles,deepestindex):
                 surfaces[r][2].append(ns)
     return surfaces
 
-def graphSurfaces(profiles,deepestindex,surfaces):
+def graphSurfaces(profiles,deepestindex,surfaces,contour=False):
     for i in surfaces.keys():
         print(i,len(surfaces[i][1]))
         if len(surfaces[i][0])>3:
@@ -54,9 +54,13 @@ def graphSurfaces(profiles,deepestindex,surfaces):
             mapy.fillcontinents(color='coral',lake_color='aqua')
             mapy.drawcoastlines()
             x,y = mapy(surfaces[i][0],surfaces[i][1])
-            #plt.tricontourf(x,y,surfaces[i][2],cmap="plasma")
-            mapy.scatter(x,y,c=(np.asarray(surfaces[i][2])-i))
+            #Plot the surface 
+            if contour:
+                plt.tricontourf(x,y,np.asarray(surfaces[i][2])-i,cmap="plasma")
+            else:
+                plt.scatter(x,y,c=np.asarray(surfaces[i][2])-i,cmap="plasma")
             mapy.colorbar()
+            #map the reference profile
             x,y = mapy(profiles[deepestindex].lon,profiles[deepestindex].lat)
             mapy.scatter(x,y,c="red")
             fig.suptitle("NS: "+str(i))
