@@ -18,6 +18,7 @@ class Profile:
         self.isals = []
         self.ipres = []
         self.idensities = []
+        self.neutraldepth = {}
         self.interpolate()
 
     def interpolate(self):
@@ -37,10 +38,11 @@ class Profile:
             return None
         if startindexp2 < 0 or startindexp2 + searchrange*2 > len(p2.ipres):
             return None
-        Es = (self.idensities[startindexself:startindexself + 2*searchrange]-p2.idensities[startindexp2:startindexp2 + 2*searchrange]) 
+        Es = self.idensities[startindexself:startindexself + 2*searchrange]-p2.idensities[startindexp2:startindexp2 + 2*searchrange] 
         E = np.argmin(Es)
+        self.neutraldepth[depth] = self.ipres[startindexself+E]
         if abs(Es[E])<0.01:
-            return self.pres[startindexself+E]
+            return self.ipres[startindexself+E]
         else:
             return None
 

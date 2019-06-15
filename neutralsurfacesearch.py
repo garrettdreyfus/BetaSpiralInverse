@@ -44,23 +44,24 @@ def search(profiles,deepestindex):
                 surfaces[r][2].append(ns)
     return surfaces
 
+def graphSurfaces(profiles,deepestindex,surfaces):
+    for i in surfaces.keys():
+        print(i,len(surfaces[i][1]))
+        if len(surfaces[i][0])>3:
+            fig,ax = plt.subplots(1,1)
+            mapy = Basemap(projection='ortho', lat_0=90,lon_0=0)
+            mapy.drawmapboundary(fill_color='aqua')
+            mapy.fillcontinents(color='coral',lake_color='aqua')
+            mapy.drawcoastlines()
+            x,y = mapy(surfaces[i][0],surfaces[i][1])
+            #plt.tricontourf(x,y,surfaces[i][2],cmap="plasma")
+            mapy.scatter(x,y,c=(np.asarray(surfaces[i][2])-i))
+            mapy.colorbar()
+            x,y = mapy(profiles[deepestindex].lon,profiles[deepestindex].lat)
+            mapy.scatter(x,y,c="red")
+            fig.suptitle("NS: "+str(i))
+            plt.show()
+
 profiles,deepestindex = extractProfiles('data/profiles.json')
 surfaces = search(profiles,deepestindex)
-for i in surfaces.keys():
-    print(i,len(surfaces[i][1]))
-    if len(surfaces[i][0])>3:
-        fig,ax = plt.subplots(1,1)
-        mapy = Basemap(projection='ortho', lat_0=90,lon_0=0)
-        mapy.drawmapboundary(fill_color='aqua')
-        mapy.fillcontinents(color='coral',lake_color='aqua')
-        mapy.drawcoastlines()
-        x,y = mapy(surfaces[i][0],surfaces[i][1])
-        #plt.tricontourf(x,y,surfaces[i][2],cmap="plasma")
-        mapy.scatter(x,y,c=(np.asarray(surfaces[i][2])-i))
-        mapy.colorbar()
-        x,y = mapy(profiles[deepestindex].lon,profiles[deepestindex].lat)
-        mapy.scatter(x,y,c="red")
-        fig.suptitle("NS: "+str(i))
-        plt.show()
-
-
+graphSurfaces(profiles,deepestindex,surfaces)
