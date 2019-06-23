@@ -6,6 +6,7 @@ from numpy import meshgrid
 import numpy as np
 from netCDF4 import Dataset
 import json
+import glob
 
 
 def extractProfiles(fnames):
@@ -36,8 +37,9 @@ def extractProfiles(fnames):
 
     return profileDict
 
+
 with open('data/profiles.json', 'w') as outfile:
-    json.dump(extractProfiles(["data/2008.txt","data/2015.txt"]), outfile) 
+    json.dump(extractProfiles(glob.glob("data/*.txt")), outfile)
 
 
 

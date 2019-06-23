@@ -25,6 +25,26 @@ def extractProfiles(fname):
                 deepestdepth=data[p]["pres"][-1]
     return profiles, deepestindex
 
+def extractProfilesMonths(fname,months):
+    ##Load JSON data into profile objects
+    ##and return index of deepest one
+    json_file = open(fname) 
+    data = json.load(json_file)
+    profiles = []
+    deepestindex =[] 
+    deepestdepth = 0 
+    for p in data.keys():
+        profile = Profile(p,data[p])
+        if profile.time.month in months :
+            if len(profile.ipres)>0:
+                profiles.append(profile)
+                if data[p]["pres"][-1] > deepestdepth:
+                    deepestindex = len(profiles)-1
+                    deepestdepth=data[p]["pres"][-1]
+    return profiles, deepestindex
+
+
+
 def search(profiles,deepestindex):
     #Lets look for neutral surfaces every 200 dbar below 1000 dbar
     deeprange = range(1000,max(profiles[deepestindex].ipres),200)
@@ -66,6 +86,6 @@ def graphSurfaces(profiles,deepestindex,surfaces,contour=False):
             fig.suptitle("NS: "+str(i))
             plt.show()
 
-profiles,deepestindex = extractProfiles('data/profiles.json')
+profiles,deepestindex = extractProfilesMonths('data/profiles.json',[11,12,1,2])
 surfaces = search(profiles,deepestindex)
 graphSurfaces(profiles,deepestindex,surfaces)
