@@ -19,6 +19,7 @@ def extractProfiles(fnames):
             line = line.split()
             try:
                 eyed = int(line[0])
+                cruise = str(line[1])
                 depth = float(line[9])
                 lon = float(line[6])
                 lat = float(line[7])
@@ -27,7 +28,7 @@ def extractProfiles(fnames):
                 temp = float(line[11])
                 sal = float(line[13])
                 if eyed not in profileDict.keys():
-                    profileDict[eyed] = {"time":time,"lat":lat,
+                    profileDict[eyed] = {"time":time,"lat":lat,"cruise":cruise,
                         "lon":lon, "pres":[],"sal":[],"temp":[]}
                 profileDict[eyed]["sal"].append(sal)
                 profileDict[eyed]["temp"].append(temp)
@@ -38,8 +39,11 @@ def extractProfiles(fnames):
     return profileDict
 
 
-with open('data/profiles.json', 'w') as outfile:
-    json.dump(extractProfiles(glob.glob("data/*.txt")), outfile)
+#with open('data/profiles.json', 'w') as outfile:
+    #json.dump(extractProfiles(glob.glob("data/udashtxtdata/*.txt")), outfile)
+
+with open('data/2008profiles.json', 'w') as outfile:
+    json.dump(extractProfiles(["data/udashtxtdata/ArcticOcean_phys_oce_2008.txt"]), outfile)
 
 
 

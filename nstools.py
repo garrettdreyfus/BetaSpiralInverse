@@ -25,6 +25,22 @@ def extractProfiles(fname):
                 deepestdepth=data[p]["pres"][-1]
     return profiles, deepestindex
 
+def cruiseCount(fname):
+    json_file = open(fname) 
+    data = json.load(json_file)
+    profiles = []
+    deepestindex =[] 
+    deepestdepth = 0 
+    cruises ={"null"}
+    for p in data.keys():
+        profile = Profile(p,data[p])
+        if profile.cruise not in cruises:
+            print(len(cruises))
+        cruises.add(profile.cruise)
+    print(len(cruises))
+    print(cruises)
+
+
 def extractProfilesMonths(fname,months):
     ##Load JSON data into profile objects
     ##and return index of deepest one
@@ -47,7 +63,7 @@ def extractProfilesMonths(fname,months):
 
 def search(profiles,deepestindex):
     #Lets look for neutral surfaces every 200 dbar below 1000 dbar
-    deeprange = range(1000,max(profiles[deepestindex].ipres),200)
+    deeprange = range(200,max(profiles[deepestindex].ipres),200)
     #A dictionary mapping neutral surface pressures to pressures at lat,lon
     surfaces = {}
     for r in deeprange:
@@ -64,7 +80,7 @@ def search(profiles,deepestindex):
                 surfaces[r][2].append(ns)
     return surfaces
 
-def graphSurfaces(profiles,deepestindex,surfaces,contour=False):
+def graphSurfaces(surfaces,contour=False,profiles=None,deepestindex=None):
     for i in surfaces.keys():
         print(i,len(surfaces[i][1]))
         if len(surfaces[i][0])>3:
@@ -76,16 +92,27 @@ def graphSurfaces(profiles,deepestindex,surfaces,contour=False):
             x,y = mapy(surfaces[i][0],surfaces[i][1])
             #Plot the surface 
             if contour:
-                plt.tricontourf(x,y,np.asarray(surfaces[i][2])-i,cmap="plasma")
+                plt.tricontourf(x,y,np.asarray(surfaces[i][2]),cmap="plasma")
             else:
-                plt.scatter(x,y,c=np.asarray(surfaces[i][2])-i,cmap="plasma")
+                plt.scatter(x,y,c=np.asarray(surfaces[i][2]),cmap="plasma")
             mapy.colorbar()
             #map the reference profile
-            x,y = mapy(profiles[deepestindex].lon,profiles[deepestindex].lat)
-            mapy.scatter(x,y,c="red")
+            if profiles and deepestindex:
+                x,y = mapy(profiles[deepestindex].lon,profiles[deepestindex].lat)
+                mapy.scatter(x,y,c="red")
             fig.suptitle("NS: "+str(i))
             plt.show()
 
-profiles,deepestindex = extractProfilesMonths('data/profiles.json',[11,12,1,2])
-surfaces = search(profiles,deepestindex)
-graphSurfaces(profiles,deepestindex,surfaces)
+#
+cruiseCount('data/2008profiles.json')
+
+#profiles,deepestindex = extractProfilesMonths('data/profiles.json',range(13))
+#print("DONE WITH EXTRACTING PROFILES")
+#surfaces = search(profiles,deepestindex)
+#print("DONE FINDING SURFACES")
+#with open('data/surfaces.json', 'w') as outfile:
+    #json.dump(surfaces, outfile)
+##json_file = open("data/surfaces.json") 
+##surfaces = json.load(json_file)
+#print("NOW GRAPHING")
+#graphSurfaces(surfaces)

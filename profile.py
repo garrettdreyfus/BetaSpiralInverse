@@ -4,9 +4,10 @@ from mpl_toolkits.mplot3d import Axes3D
 import datetime
 
 class Profile:
-    def __init__(self, eyed, data):
+    def __init__(self,eyed, data):
         ##id of profiles plus info
         self.eyed = eyed
+        self.cruise = data["cruise"]
         self.lat = data["lat"]
         self.lon = data["lon"]
         self.time = self.processDate(data["time"])
@@ -26,16 +27,23 @@ class Profile:
         split = datestring.split("-")
         m = int(split[1])
         y = int(split[0])
-        d = int(split[2].split("T")[0])
-        h = int(split[2].split("T")[1].split(":")[0])
-        return datetime.datetime(y,m,d,h)
+        try:
+            d = int(split[2].split("T")[0])
+            #h = int(split[2].split("T")[1].split(":")[0])
+            result = datetime.datetime(y,m,d)
+        except:
+            print(datestring,m,y)
+            d = np.clip(int(split[2].split("T")[0]),1,27)
+            result = datetime.datetime(y,m,d)
+            print(datestring,result)
+        return result
         
 
     #interpolate all quantities on a 1 dbar line
     def interpolate(self):
         self.ipres = range(int(min(self.pres)),int(max(self.pres)))
         self.isals = np.interp(self.ipres,self.pres,self.sals)
-        self.itemps = gsw.pt_from_t(self.isals,np.interp(self.ipres,self.pres,self.temps),self.ipres,0)
+        self.itemps = gsw.CT_from_t(self.isals,np.interp(self.ipres,self.pres,self.temps),self.ipres)
             
     #
     def neutralDepthWrong(self,p2,depth,debug=False,searchrange=50):
@@ -96,6 +104,9 @@ class Profile:
         if len(zero_crossings)==1 :
             p2.neutraldepth[depth] = p2.ipres[startindexp2+zero_crossings[0]]
             return p2.ipres[startindexp2+zero_crossings[0]]
+        elif len(zero_crossings) > 1 :
+            p2.neutraldepth[depth] = (p2.ipres[startindexp2+zero_crossings[0]] + p2.ipres[startindexp2+zero_crossings[-1]])/2.0
+            return p2.neutraldepth[depth]
         elif len(zeroes)==1:
             p2.neutraldepth[depth] = p2.ipres[startindexp2+zeroes[0]]
             return p2.ipres[startindexp2+zeroes[0]]
