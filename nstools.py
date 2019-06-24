@@ -1,6 +1,5 @@
 import csv
 from mpl_toolkits.basemap import Basemap
-import matplotlib.pyplot as plt
 from numpy import linspace
 from numpy import meshgrid
 import numpy as np
@@ -103,16 +102,4 @@ def graphSurfaces(surfaces,contour=False,profiles=None,deepestindex=None):
             fig.suptitle("NS: "+str(i))
             plt.show()
 
-#
-cruiseCount('data/2008profiles.json')
 
-#profiles,deepestindex = extractProfilesMonths('data/profiles.json',range(13))
-#print("DONE WITH EXTRACTING PROFILES")
-#surfaces = search(profiles,deepestindex)
-#print("DONE FINDING SURFACES")
-#with open('data/surfaces.json', 'w') as outfile:
-    #json.dump(surfaces, outfile)
-##json_file = open("data/surfaces.json") 
-##surfaces = json.load(json_file)
-#print("NOW GRAPHING")
-#graphSurfaces(surfaces)
