@@ -9,7 +9,7 @@ import json
 import glob
 
 
-def extractProfiles(fnames):
+def extractProfiles(fnames,depth):
     lons = []
     lats=[]
     profileDict = {}
@@ -27,23 +27,28 @@ def extractProfiles(fnames):
                 pres = float(line[8])
                 temp = float(line[11])
                 sal = float(line[13])
-                if eyed not in profileDict.keys():
-                    profileDict[eyed] = {"time":time,"lat":lat,"cruise":cruise,
-                        "lon":lon, "pres":[],"sal":[],"temp":[]}
-                profileDict[eyed]["sal"].append(sal)
-                profileDict[eyed]["temp"].append(temp)
-                profileDict[eyed]["pres"].append(pres)
+                if abs(temp) != 999 and abs(sal) != 999:
+                    if eyed not in profileDict.keys():
+                        profileDict[eyed] = {"time":time,"lat":lat,"cruise":cruise,
+                            "lon":lon, "pres":[],"sal":[],"temp":[]}
+                    profileDict[eyed]["sal"].append(sal)
+                    profileDict[eyed]["temp"].append(temp)
+                    profileDict[eyed]["pres"].append(pres)
             except:
                 print("something went wrong: ",line)
+    finalDict = {}
+    for i in profileDict.keys():
+        if np.max(profileDict[i]["pres"])>=depth:
+            finalDict[i] = profileDict[i]
 
-    return profileDict
+    return finalDict
 
 
 #with open('data/profiles.json', 'w') as outfile:
     #json.dump(extractProfiles(glob.glob("data/udashtxtdata/*.txt")), outfile)
 
-with open('data/2008profiles.json', 'w') as outfile:
-    json.dump(extractProfiles(["data/udashtxtdata/ArcticOcean_phys_oce_2008.txt"]), outfile)
+with open('data/3000mprofiles.json', 'w') as outfile:
+    json.dump(extractProfiles(glob.glob("data/udashtxt/*.txt"),3000), outfile)
 
 
 

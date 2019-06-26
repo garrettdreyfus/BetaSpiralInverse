@@ -1,6 +1,7 @@
 import csv
 from mpl_toolkits.basemap import Basemap
 from numpy import linspace
+import matplotlib.pyplot as plt
 from numpy import meshgrid
 import numpy as np
 from netCDF4 import Dataset
@@ -24,20 +25,88 @@ def extractProfiles(fname):
                 deepestdepth=data[p]["pres"][-1]
     return profiles, deepestindex
 
-def cruiseCount(fname):
-    json_file = open(fname) 
-    data = json.load(json_file)
-    profiles = []
-    deepestindex =[] 
-    deepestdepth = 0 
+def cruiseCount(profiles):
     cruises ={"null"}
-    for p in data.keys():
-        profile = Profile(p,data[p])
+    for profile in profiles:
         if profile.cruise not in cruises:
-            print(len(cruises))
-        cruises.add(profile.cruise)
-    print(len(cruises))
-    print(cruises)
+            cruises.add(profile.cruise)
+    return cruises
+
+def cruiseSearch(profiles,cruisename,year=None):
+    results =[]
+    for p in profiles:
+        if p.cruise == cruisename:
+            if year:
+                if year == p.time.year:
+                    results.append(p)
+            else:
+                results.append(p)
+    return results
+
+def plotCruise(profiles,cruisename,show=True):
+    lats, lons, depths=[],[],[]
+    for p in profiles:
+        lats.append(p.lat)
+        lons.append(p.lon)
+        depths.append(np.max(p.pres))
+    fig,ax = plt.subplots(1,1)
+    fig.suptitle(cruisename)
+    mapy = Basemap(projection='ortho', lat_0=90,lon_0=0)
+    mapy.drawmapboundary(fill_color='aqua')
+    mapy.fillcontinents(color='coral',lake_color='aqua')
+    mapy.drawcoastlines()
+    x,y = mapy(lons,lats)
+    plt.scatter(x,y,c=depths,cmap="plasma")
+    mapy.colorbar()
+    if show:
+        plt.show()
+def plotCruiseAndRef(cruises,refcruises,show=True):
+    fig,ax = plt.subplots(1,1)
+    lats, lons, depths=[],[],[]
+    for p in refcruises:
+        lats.append(p.lat)
+        lons.append(p.lon)
+        depths.append(np.max(p.pres))
+    #fig.suptitle(cruisename)
+    mapy = Basemap(projection='ortho', lat_0=90,lon_0=0)
+    mapy.drawmapboundary(fill_color='aqua')
+    mapy.fillcontinents(color='coral',lake_color='aqua')
+    mapy.drawcoastlines()
+    x,y = mapy(lons,lats)
+    plt.scatter(x,y)
+    lats, lons, depths=[],[],[]
+    for p in cruises:
+        lats.append(p.lat)
+        lons.append(p.lon)
+        depths.append(np.max(p.pres))
+    #fig.suptitle(cruisename)
+    mapy = Basemap(projection='ortho', lat_0=90,lon_0=0)
+    mapy.drawmapboundary(fill_color='aqua')
+    mapy.fillcontinents(color='coral',lake_color='aqua')
+    mapy.drawcoastlines()
+    x,y = mapy(lons,lats)
+    plt.scatter(x,y,c=depths,cmap="plasma")
+    mapy.colorbar()
+    if show:
+        plt.show()
+
+
+
+def transArcticSearch(profiles):
+    results = []
+    for name in cruiseCount(profiles):
+        westernprofile = False
+        easternprofile = False
+        for profile in cruiseSearch(profiles,name):
+            if profile.lat > 70 and abs(profile.lon)<20:
+                easternprofile =True
+            if profile.lat > 70 and abs(profile.lon)>160:
+                westernprofile = True
+        if westernprofile and easternprofile:
+            results.append(name)
+    return results
+
+        
 
 
 def extractProfilesMonths(fname,months):
