@@ -4,6 +4,8 @@ import numpy as np
 from functools import partial
 import nstools
 from geopy.distance import geodesic
+from matplotlib.widgets import Button
+
 
 def submit(profiles,cruisename,refprofile,fig,ax,s,text):
     val = eval(text)
@@ -22,11 +24,21 @@ def submit(profiles,cruisename,refprofile,fig,ax,s,text):
     plt.draw()
     s.answer = val
 
+def passCruise(s,event):
+    s.answer = None
+    plt.close('all')
+
+
 def selectorGraph(cruiseprofiles,cruisename,refprofile):
-    fig, ax1 = plt.subplots(1,1)
+    fig, (ax1,ax2) = plt.subplots(1,2)
+    nstools.plotCruise(cruiseprofiles,cruisename,fig=fig,ax=ax2,show=False)
+    print(refprofile.time,cruiseprofiles[0].time)
     plt.subplots_adjust(bottom=0.2)
     submit(cruiseprofiles,cruisename,refprofile,fig,ax1,selectorGraph,"0.0")
     axbox = plt.axes([0.1, 0.05, 0.2, 0.04])
+    axpass = plt.axes([0.81, 0.05, 0.1, 0.075])
+    bpass = Button(axpass, 'Pass')
+    bpass.on_clicked(partial(passCruise,selectorGraph))
     text_box = TextBox(axbox, 'Evaluate', initial="0.0")
     text_box.on_submit(partial(submit,cruiseprofiles,cruisename,refprofile,fig,ax1,selectorGraph))
     #mng = plt.get_current_fig_manager()
@@ -34,7 +46,7 @@ def selectorGraph(cruiseprofiles,cruisename,refprofile):
     plt.show()
     return selectorGraph.answer
     
-def closestRefSearch(refprofiles,profiles):
+def closestRefSearchAverage(refprofiles,profiles):
     mindistance = 100000000000000000
     minprofile = None
     for r in refprofiles:
@@ -43,8 +55,21 @@ def closestRefSearch(refprofiles,profiles):
             distancesum += geodesic((p.lat,p.lon),(r.lat,r.lon)).meters
         if distancesum<mindistance:
             minprofile = r
-            mindistance = distancesum
+            mindistancesum=distancesum
     return minprofile
+
+def closestRefSearch(refprofiles,profiles):
+    mindistance = 100000000000000000
+    minprofile = None
+    for r in refprofiles:
+        for p in profiles:
+            distance = geodesic((p.lat,p.lon),(r.lat,r.lon)).meters
+            if distance<mindistance:
+                minprofile = r
+                mindistance = distance
+    return minprofile
+
+
 
 def singleSalinityOffsetRun(filename,cruisename,refcruisename):
     profiles,deepestindex = nstools.extractProfilesMonths(filename,range(13))
@@ -53,17 +78,23 @@ def singleSalinityOffsetRun(filename,cruisename,refcruisename):
     nstools.plotCruiseAndRef(cruiseprofiles,refprofiles,False)
     offset = selectorGraph(cruiseprofiles,refcruisename,closestRefSearch(refprofiles,cruiseprofiles))
     return offset
+
 def runSalinityOffsetTool(filename,refcruisenames):
     profiles,deepestindex = nstools.extractProfilesMonths(filename,range(13))
     referenceprofiles = []
     for name in refcruisenames:
         referenceprofiles+= nstools.cruiseSearch(profiles,name)
     offsetDict = {}
-    for name in nstools.cruiseCount(profiles):
-        cruiseprofiles = nstools.cruiseSearch(profiles,name)
-        nstools.plotCruise(cruiseprofiles,name,False)
-        offset = selectorGraph(cruiseprofiles,"HUDSON_HUDSON2",closestRefSearch(referenceprofiles,cruiseprofiles))
-        offsetDict[name] = offset
+    cruisenames = nstools.cruiseCount(profiles)
+    while len(cruisenames) >0:
+        for name in cruisenames.copy():
+            cruiseprofiles = nstools.cruiseSearch(profiles,name)
+            offset = selectorGraph(cruiseprofiles,name,closestRefSearch(referenceprofiles,cruiseprofiles))
+            if offset:
+                offsetDict[name] = offset
+                referenceprofiles += cruiseprofiles
+                cruisenames.remove(name)
+
     return offsetDict
 
 

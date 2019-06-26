@@ -43,13 +43,16 @@ def cruiseSearch(profiles,cruisename,year=None):
                 results.append(p)
     return results
 
-def plotCruise(profiles,cruisename,show=True):
+def plotCruise(profiles,cruisename,fig=None,ax=None,show=True):
     lats, lons, depths=[],[],[]
     for p in profiles:
         lats.append(p.lat)
         lons.append(p.lon)
         depths.append(np.max(p.pres))
-    fig,ax = plt.subplots(1,1)
+
+    if not fig and not ax:
+        fig,ax = plt.subplots(1,1)
+
     fig.suptitle(cruisename)
     mapy = Basemap(projection='ortho', lat_0=90,lon_0=0)
     mapy.drawmapboundary(fill_color='aqua')
