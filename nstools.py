@@ -8,21 +8,23 @@ from netCDF4 import Dataset
 import json
 from profile import Profile
 
-def extractProfiles(fname):
+def extractProfiles(fnames):
     ##Load JSON data into profile objects
     ##and return index of deepest one
-    json_file = open(fname) 
-    data = json.load(json_file)
     profiles = []
     deepestindex =[] 
     deepestdepth = 0 
-    for p in data.keys():
-        profile = Profile(p,data[p])
-        if len(profile.ipres)>0:
-            profiles.append(profile)
-            if data[p]["pres"][-1] > deepestdepth:
-                deepestindex = len(profiles)-1
-                deepestdepth=data[p]["pres"][-1]
+    print(fnames)
+    for fname in fnames:
+        json_file = open(fname,'r') 
+        data = json.load(json_file)
+        for p in data.keys():
+            profile = Profile(p,data[p])
+            if len(profile.ipres)>0:
+                profiles.append(profile)
+                if data[p]["pres"][-1] > deepestdepth:
+                    deepestindex = len(profiles)-1
+                    deepestdepth=data[p]["pres"][-1]
     return profiles, deepestindex
 
 def cruiseCount(profiles):
@@ -112,29 +114,52 @@ def transArcticSearch(profiles):
         
 
 
-def extractProfilesMonths(fname,months):
+def extractProfilesMonths(fnames,months):
     ##Load JSON data into profile objects
     ##and return index of deepest one
-    json_file = open(fname) 
-    data = json.load(json_file)
     profiles = []
     deepestindex =[] 
     deepestdepth = 0 
-    for p in data.keys():
-        profile = Profile(p,data[p])
-        if profile.time.month in months :
-            if len(profile.ipres)>0:
-                profiles.append(profile)
-                if data[p]["pres"][-1] > deepestdepth:
-                    deepestindex = len(profiles)-1
-                    deepestdepth=data[p]["pres"][-1]
+    for fname in fnames:
+        json_file = open(fname) 
+        data = json.load(json_file)
+        for p in data.keys():
+            profile = Profile(p,data[p])
+            if profile.time.month in months :
+                if len(profile.ipres)>0:
+                    profiles.append(profile)
+                    if data[p]["pres"][-1] > deepestdepth:
+                        deepestindex = len(profiles)-1
+                        deepestdepth=data[p]["pres"][-1]
     return profiles, deepestindex
+
+def extractProfilesBox(fnames,lonleft,lonright,latbot,lattop):
+    ##Load JSON data into profile objects
+    ##and return index of deepest one
+    profiles = []
+    deepestindex =[] 
+    deepestdepth = 0 
+    for fname in fnames:
+        json_file = open(fname) 
+        data = json.load(json_file)
+        for p in data.keys():
+            profile = Profile(p,data[p])
+            print(profile.lat,profile.lon)
+            if latbot < profile.lat < lattop and lonleft < profile.lon < lonright:
+                if len(profile.ipres)>0:
+                    profiles.append(profile)
+                    if data[p]["pres"][-1] > deepestdepth:
+                        deepestindex = len(profiles)-1
+                        deepestdepth=data[p]["pres"][-1]
+    return profiles, deepestindex
+
+
 
 
 
 def search(profiles,deepestindex):
     #Lets look for neutral surfaces every 200 dbar below 1000 dbar
-    deeprange = range(200,max(profiles[deepestindex].ipres),200)
+    deeprange = range(1000,max(profiles[deepestindex].ipres),200)
     #A dictionary mapping neutral surface pressures to pressures at lat,lon
     surfaces = {}
     for r in deeprange:

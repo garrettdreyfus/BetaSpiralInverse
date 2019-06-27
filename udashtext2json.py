@@ -9,11 +9,12 @@ import json
 import glob
 
 
-def extractProfiles(fnames,depth):
+def extractProfiles(fnames,depthlimit):
     lons = []
     lats=[]
     profileDict = {}
     for fname in fnames:
+        print(fname)
         f = open(fname, 'r')
         for line in f:
             line = line.split()
@@ -38,7 +39,8 @@ def extractProfiles(fnames,depth):
                 print("something went wrong: ",line)
     finalDict = {}
     for i in profileDict.keys():
-        if np.max(profileDict[i]["pres"])>=depth:
+        if abs(np.amax(profileDict[i]["pres"]))>=depthlimit:
+            #print("max pres: ",abs(np.amax(profileDict[i]["pres"])))
             finalDict[i] = profileDict[i]
 
     return finalDict
@@ -47,8 +49,8 @@ def extractProfiles(fnames,depth):
 #with open('data/profiles.json', 'w') as outfile:
     #json.dump(extractProfiles(glob.glob("data/udashtxtdata/*.txt")), outfile)
 
-with open('data/3000mprofiles.json', 'w') as outfile:
-    json.dump(extractProfiles(glob.glob("data/udashtxt/*.txt"),3000), outfile)
+with open('data/3000m2006profiles.json', 'w') as outfile:
+    json.dump(extractProfiles(glob.glob("data/udashtxt/*2006*.txt"),3000), outfile)
 
 
 

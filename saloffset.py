@@ -4,21 +4,31 @@ import numpy as np
 from functools import partial
 import nstools
 from geopy.distance import geodesic
+import json
+import glob
 from matplotlib.widgets import Button
 
 
 def submit(profiles,cruisename,refprofile,fig,ax,s,text):
     val = eval(text)
     ax.clear()
+    ts = np.asarray([])
+    sals= np.asarray([])
+    lats =np.asarray([])
     for p in profiles:
         a = np.asarray(p.ipres)
-        indexs = np.where(abs(a) >= 1000)[0]
+        indexs = np.where(abs(a) >= 2000)[0]
         if len(indexs)>0:
+            #sals=np.concatenate([(p.isals[indexs[0]:indexs[-1]]+val),sals])
+            #ts=np.concatenate([ts,(p.itemps[indexs[0]:indexs[-1]])])
+            #lats=np.concatenate([lats,([p.lat]*(indexs[-1]-indexs[0]))])
             ax.plot(p.isals[indexs[0]:indexs[-1]]+val,p.itemps[indexs[0]:indexs[-1]],linewidth=0.5)
+    cm = ax.scatter(sals,ts,c=lats,s=0.1)
 
     a = np.asarray(refprofile.ipres)
-    indexs = np.where(abs(a) >= 1000)[0]
-    ax.plot(refprofile.isals[indexs[0]:indexs[-1]],refprofile.itemps[indexs[0]:indexs[-1]],color="red",linewidth=1.0)
+    indexs = np.where(abs(a) >= 2000)[0]
+    ax.scatter(refprofile.isals[indexs[0]:indexs[-1]],refprofile.itemps[indexs[0]:indexs[-1]],c=[refprofile.lat]*(indexs[-1]-indexs[0]),s=10,marker="o")
+    ax.plot(refprofile.isals[indexs[0]:indexs[-1]],refprofile.itemps[indexs[0]:indexs[-1]])
     ax.set_xlabel("salinity") 
     ax.set_ylabel("temperature") 
     plt.draw()
@@ -28,21 +38,32 @@ def passCruise(s,event):
     s.answer = None
     plt.close('all')
 
+def noMixingLine(s,event):
+    s.answer = -999
+    plt.close('all')
+
+
+
 
 def selectorGraph(cruiseprofiles,cruisename,refprofile):
     fig, (ax1,ax2) = plt.subplots(1,2)
+    selectorGraph.answer=0
     nstools.plotCruise(cruiseprofiles,cruisename,fig=fig,ax=ax2,show=False)
-    print(refprofile.time,cruiseprofiles[0].time)
     plt.subplots_adjust(bottom=0.2)
     submit(cruiseprofiles,cruisename,refprofile,fig,ax1,selectorGraph,"0.0")
     axbox = plt.axes([0.1, 0.05, 0.2, 0.04])
-    axpass = plt.axes([0.81, 0.05, 0.1, 0.075])
-    bpass = Button(axpass, 'Pass')
+    axpass = plt.axes([0.81, 0.05, 0.3, 0.075])
+    axno = plt.axes([0.5, 0.05, 0.3, 0.075])
+    bpass = Button(axpass, 'Mixing Line but Bad Ref')
+    bno = Button(axno, 'No Clear Mixing Line')
     bpass.on_clicked(partial(passCruise,selectorGraph))
+    bno.on_clicked(partial(noMixingLine,selectorGraph))
     text_box = TextBox(axbox, 'Evaluate', initial="0.0")
     text_box.on_submit(partial(submit,cruiseprofiles,cruisename,refprofile,fig,ax1,selectorGraph))
     #mng = plt.get_current_fig_manager()
     #mng.frame.Maximize(True)
+    mng = plt.get_current_fig_manager()
+    mng.resize(*mng.window.maxsize())
     plt.show()
     return selectorGraph.answer
     
@@ -76,46 +97,62 @@ def singleSalinityOffsetRun(filename,cruisename,refcruisename):
     cruiseprofiles = nstools.cruiseSearch(profiles,cruisename,1994)
     refprofiles = nstools.cruiseSearch(profiles,refcruisename)
     nstools.plotCruiseAndRef(cruiseprofiles,refprofiles,False)
-    offset = selectorGraph(cruiseprofiles,refcruisename,closestRefSearch(refprofiles,cruiseprofiles))
+    offset = selectorGraph(cruiseprofiles,refcruisename,closestRefSearchAverage(refprofiles,cruiseprofiles))
     return offset
 
-def runSalinityOffsetTool(filename,refcruisenames):
-    profiles,deepestindex = nstools.extractProfilesMonths(filename,range(13))
+def runSalinityOffsetTool(filenames,refcruisenames):
+    profiles,deepestindex = nstools.extractProfilesMonths(filenames,range(13))
+    nstools.plotCruise(profiles,"zip")
+    cruisenames = nstools.cruiseCount(profiles)
+    print(cruisenames)
     referenceprofiles = []
     for name in refcruisenames:
         referenceprofiles+= nstools.cruiseSearch(profiles,name)
     offsetDict = {}
-    cruisenames = nstools.cruiseCount(profiles)
     while len(cruisenames) >0:
         for name in cruisenames.copy():
             cruiseprofiles = nstools.cruiseSearch(profiles,name)
-            offset = selectorGraph(cruiseprofiles,name,closestRefSearch(referenceprofiles,cruiseprofiles))
-            if offset:
-                offsetDict[name] = offset
-                referenceprofiles += cruiseprofiles
+            if len(cruiseprofiles)>10:
+                refprofile = closestRefSearch(referenceprofiles,cruiseprofiles)
+                titlestring = name + " " +str(cruiseprofiles[0].time)+"\n REF:" + refprofile.cruise + " " + str(refprofile.time)
+                offset = selectorGraph(cruiseprofiles,titlestring,refprofile)
+                if offset != None:
+                    if abs(offset)<10:
+                        offsetDict[name] = offset
+                        referenceprofiles += cruiseprofiles
+                        print("OFFSET ENTERED")
+                    else:
+                        print("BAD PROFILE FLAGGED")
+
+                    cruisenames.remove(name)
+                else:
+                    print("PASS FOR NOW")
+            else:
                 cruisenames.remove(name)
+        print("ONE PASS DONE")
+        print(len(cruisenames))
+
 
     return offsetDict
 
 
-runSalinityOffsetTool("data/3000mprofiles.json",["HUDSON_HUDSON2","LOUIS_S._ST._LAURENT_18SN940"])
+#print(runSalinityOffsetTool(glob.glob("data/3000m2007profiles.json"),["Polarstern_ARK-XXIII_2"]))
 #singleSalinityOffsetRun("data/2000mprofiles.json","LOUIS_S._ST._LAURENT_18SN940","HUDSON_HUDSON2")
-#profiles,deepestindex = nstools.extractProfilesMonths("data/2000mprofiles.json",range(13))
+#profiles,deepestindex = nstools.extractProfilesMonths("data/3000m2008profiles.json",range(13))
 #nstools.plotCruise(nstools.cruiseSearch(profiles,"LOUIS_S._ST._LAURENT_18SN940",1994),"name")
 
          
 #for name in nstools.transArcticSearch(profiles):
     #print(name)
-    #nstools.plotCruise(nstools.cruiseSearch(profiles,name),name)
         
     
 
 #print("DONE WITH EXTRACTING PROFILES")
-#surfaces = search(profiles,deepestindex)
+#surfaces = nstools.search(profiles,deepestindex)
 #print("DONE FINDING SURFACES")
 #with open('data/surfaces.json', 'w') as outfile:
     #json.dump(surfaces, outfile)
-##json_file = open("data/surfaces.json") 
-##surfaces = json.load(json_file)
+#json_file = open("data/surfaces.json") 
+#surfaces = json.load(json_file)
 #print("NOW GRAPHING")
-#graphSurfaces(surfaces)
+#nstools.graphSurfaces(surfaces)
