@@ -2,6 +2,7 @@ import numpy as np
 import gsw 
 from mpl_toolkits.mplot3d import Axes3D
 import datetime
+import matplotlib.pyplot as plt
 
 class Profile:
     def __init__(self,eyed, data):
@@ -9,6 +10,7 @@ class Profile:
         self.eyed = eyed
         self.cruise = data["cruise"]
         self.lat = data["lat"]
+        self.f = gsw.f(self.lat)
         self.lon = data["lon"]
         self.time = self.processDate(data["time"])
         #Temerature Salinity and Pressure
@@ -37,6 +39,13 @@ class Profile:
             result = datetime.datetime(y,m,d)
             print(datestring,result)
         return result
+    
+    def applyOffset(self,offset):
+        self.sals =self.sals +offset
+        self.ipres=[]
+        self.isals=[]
+        self.itemps=[]
+        self.interpolate()
         
 
     #interpolate all quantities on a 1 dbar line
@@ -81,36 +90,65 @@ class Profile:
     def calculateDensity(self,s,t,p,p_ref=0):
         return gsw.rho(s,t,p)
 
-    def neutralDepth(self,p2,depth,debug=False,searchrange=50):
+    def potentialVorticity(self,p):
+        index = np.where(np.asarray(self.ipres) == p)[0]
+        if index!= None:
+            index = index[0]
+            n2 = np.mean(gsw.Nsquared(self.isals[index-5:index+5],self.itemps[index-5:index+5],
+                    self.ipres[index-5:index+5], self.lat)[0])
+            #if n2 < 0:
+                #plt.scatter(gsw.Nsquared(self.isals,self.itemps,self.ipres)[0],self.ipres[:-1],s=0.5)
+                #plt.gca().invert_yaxis()
+                #plt.show()
+            return (self.f/9.8)*(n2)
+        else:
+            return None
+    def atPres(self,pres):
+        i = np.where(np.asarray(self.ipres) == int(pres))[0][0]
+        return self.itemps[i], self.isals[i]
+
+    def neutralDepth(self,p2,depth,debug=False,searchrange=50,depthname=None):
         try:
+            depth=int(depth)
+            if depthname ==None:
+                depthname=depth
             startindexself = depth-self.ipres[0]-searchrange
-            if abs(self.ipres[startindexself] - depth) != 50:
+            if abs(self.ipres[startindexself] - depth) != searchrange:
                 print("What the")
             startindexp2 = depth-p2.ipres[0]-searchrange
-            if abs(p2.ipres[startindexp2] - depth) != 50:
+            if abs(p2.ipres[startindexp2] - depth) != searchrange:
                 print(p2.ipres[startindexp2],depth)
                 print("What the")
-        except:
+        except Exception as e:
+            print(str(e))
+            print("strange exception")
             return None
         if startindexp2 < 0 or startindexp2 + searchrange*2 > len(p2.ipres):
             return None
         Es = []
+        #print(depth,p2.ipres[startindexp2+searchrange],self.ipres[startindexself+searchrange])
         for index in range(2*searchrange):
             p2density=self.calculateDensity(p2.isals[index+startindexp2],p2.itemps[index+startindexp2],(p2.ipres[index+startindexp2]+depth)/2.0)
             selfdensity=self.calculateDensity(self.isals[startindexself+searchrange],self.itemps[startindexself+searchrange],(p2.ipres[index+startindexp2]+depth)/2.0)
             Es.append(p2density-selfdensity)
         zero_crossings = np.where(np.diff(np.sign(Es)))[0]
-        zeroes = np.where(Es ==0)[0]
+        zeroes = np.where(np.abs(Es) <0.1)[0]
+        #plt.plot(Es,self.ipres[startindexself:startindexself+2*searchrange])
+        #plt.show()
         if len(zero_crossings)==1 :
-            p2.neutraldepth[depth] = p2.ipres[startindexp2+zero_crossings[0]]
+            p2.neutraldepth[depthname] = p2.ipres[startindexp2+zero_crossings[0]]
+            #print("One zero crossing")
             return p2.ipres[startindexp2+zero_crossings[0]]
         elif len(zero_crossings) > 1 :
-            p2.neutraldepth[depth] = (p2.ipres[startindexp2+zero_crossings[0]] + p2.ipres[startindexp2+zero_crossings[-1]])/2.0
-            return p2.neutraldepth[depth]
+            p2.neutraldepth[depthname] = (p2.ipres[startindexp2+zero_crossings[0]] + p2.ipres[startindexp2+zero_crossings[-1]])/2.0
+            #print("More than one crossing")
+            return p2.neutraldepth[depthname]
         elif len(zeroes)==1:
-            p2.neutraldepth[depth] = p2.ipres[startindexp2+zeroes[0]]
+            #print("One zero")
+            p2.neutraldepth[depthname] = p2.ipres[startindexp2+zeroes[0]]
             return p2.ipres[startindexp2+zeroes[0]]
 
         else:
-            #print("not 1 zero crossing",len(zero_crossings))
+            #print("not a single zero crossing")
+            #print(self.cruise,p2.cruise)
             return None

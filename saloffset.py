@@ -100,15 +100,21 @@ def singleSalinityOffsetRun(filename,cruisename,refcruisename):
     offset = selectorGraph(cruiseprofiles,refcruisename,closestRefSearchAverage(refprofiles,cruiseprofiles))
     return offset
 
-def runSalinityOffsetTool(filenames,refcruisenames):
-    profiles,deepestindex = nstools.extractProfilesMonths(filenames,range(13))
-    nstools.plotCruise(profiles,"zip")
+def runSalinityOffsetTool(filenames,refcruisenames,box=False,
+        lonleft=False,lonright=False,latbot=False,lattop=False):
+
+    if box and lonleft and lonright and lattop and latbot:
+        profiles,deepestindex = nstools.extractProfilesBox(filenames,lonleft,lonright,latbot,lattop)
+    else:
+        profiles,deepestindex = nstools.extractProfilesMonths(filenames,range(13))
+
     cruisenames = nstools.cruiseCount(profiles)
     print(cruisenames)
     referenceprofiles = []
+    offsetDict = {}
     for name in refcruisenames:
         referenceprofiles+= nstools.cruiseSearch(profiles,name)
-    offsetDict = {}
+        offsetDict[name]=0.0
     while len(cruisenames) >0:
         for name in cruisenames.copy():
             cruiseprofiles = nstools.cruiseSearch(profiles,name)
@@ -118,7 +124,7 @@ def runSalinityOffsetTool(filenames,refcruisenames):
                 offset = selectorGraph(cruiseprofiles,titlestring,refprofile)
                 if offset != None:
                     if abs(offset)<10:
-                        offsetDict[name] = offset
+                        offsetDict[name] = offset + offsetDict[refprofile.cruise]
                         referenceprofiles += cruiseprofiles
                         print("OFFSET ENTERED")
                     else:
@@ -133,26 +139,11 @@ def runSalinityOffsetTool(filenames,refcruisenames):
         print(len(cruisenames))
 
 
-    return offsetDict
+    return offsetDict, profiles,deepestindex
 
+def applyOffsets(profiles,offsetDict):
+    for p in profiles:
+        if p.cruise in offsetDict.keys():
+            p.applyOffset(offsetDict[p.cruise])
+    return profiles
 
-#print(runSalinityOffsetTool(glob.glob("data/3000m2007profiles.json"),["Polarstern_ARK-XXIII_2"]))
-#singleSalinityOffsetRun("data/2000mprofiles.json","LOUIS_S._ST._LAURENT_18SN940","HUDSON_HUDSON2")
-#profiles,deepestindex = nstools.extractProfilesMonths("data/3000m2008profiles.json",range(13))
-#nstools.plotCruise(nstools.cruiseSearch(profiles,"LOUIS_S._ST._LAURENT_18SN940",1994),"name")
-
-         
-#for name in nstools.transArcticSearch(profiles):
-    #print(name)
-        
-    
-
-#print("DONE WITH EXTRACTING PROFILES")
-#surfaces = nstools.search(profiles,deepestindex)
-#print("DONE FINDING SURFACES")
-#with open('data/surfaces.json', 'w') as outfile:
-    #json.dump(surfaces, outfile)
-#json_file = open("data/surfaces.json") 
-#surfaces = json.load(json_file)
-#print("NOW GRAPHING")
-#nstools.graphSurfaces(surfaces)
