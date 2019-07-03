@@ -49,8 +49,8 @@ def extractProfiles(fnames,depthlimit):
 #with open('data/profiles.json', 'w') as outfile:
     #json.dump(extractProfiles(glob.glob("data/udashtxtdata/*.txt")), outfile)
 
-with open('data/3000m2006profiles.json', 'w') as outfile:
-    json.dump(extractProfiles(glob.glob("data/udashtxt/*2006*.txt"),3000), outfile)
+with open('data/1500mprofiles.json', 'w') as outfile:
+    json.dump(extractProfiles(glob.glob("data/udashtxt/*.txt"),1500), outfile)
 
 
 

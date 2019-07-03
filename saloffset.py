@@ -17,7 +17,7 @@ def submit(profiles,cruisename,refprofile,fig,ax,s,text):
     lats =np.asarray([])
     for p in profiles:
         a = np.asarray(p.ipres)
-        indexs = np.where(abs(a) >= 2000)[0]
+        indexs = np.where(abs(a) >= 1250)[0]
         if len(indexs)>0:
             #sals=np.concatenate([(p.isals[indexs[0]:indexs[-1]]+val),sals])
             #ts=np.concatenate([ts,(p.itemps[indexs[0]:indexs[-1]])])
@@ -26,7 +26,7 @@ def submit(profiles,cruisename,refprofile,fig,ax,s,text):
     cm = ax.scatter(sals,ts,c=lats,s=0.1)
 
     a = np.asarray(refprofile.ipres)
-    indexs = np.where(abs(a) >= 2000)[0]
+    indexs = np.where(abs(a) >= 1250)[0]
     ax.scatter(refprofile.isals[indexs[0]:indexs[-1]],refprofile.itemps[indexs[0]:indexs[-1]],c=[refprofile.lat]*(indexs[-1]-indexs[0]),s=10,marker="o")
     ax.plot(refprofile.isals[indexs[0]:indexs[-1]],refprofile.itemps[indexs[0]:indexs[-1]])
     ax.set_xlabel("salinity") 
@@ -43,12 +43,10 @@ def noMixingLine(s,event):
     plt.close('all')
 
 
-
-
 def selectorGraph(cruiseprofiles,cruisename,refprofile):
     fig, (ax1,ax2) = plt.subplots(1,2)
     selectorGraph.answer=0
-    nstools.plotCruise(cruiseprofiles,cruisename,fig=fig,ax=ax2,show=False)
+    nstools.plotProfiles(cruiseprofiles,cruisename,refprofile,fig=fig,ax=ax2,show=False)
     plt.subplots_adjust(bottom=0.2)
     submit(cruiseprofiles,cruisename,refprofile,fig,ax1,selectorGraph,"0.0")
     axbox = plt.axes([0.1, 0.05, 0.2, 0.04])
@@ -107,7 +105,7 @@ def runSalinityOffsetTool(filenames,refcruisenames,box=False,
         profiles,deepestindex = nstools.extractProfilesBox(filenames,lonleft,lonright,latbot,lattop)
     else:
         profiles,deepestindex = nstools.extractProfilesMonths(filenames,range(13))
-
+    profiles,deepestindex = nstools.removeNorwegianSea(profiles)
     cruisenames = nstools.cruiseCount(profiles)
     print(cruisenames)
     referenceprofiles = []

@@ -9,6 +9,8 @@ import json
 from geopy.distance import geodesic
 from profile import Profile
 import random
+from scipy.interpolate import Rbf
+import pyproj
 
 def extractProfiles(fnames):
     ##Load JSON data into profile objects
@@ -28,6 +30,18 @@ def extractProfiles(fnames):
                     deepestindex = len(profiles)-1
                     deepestdepth=data[p]["pres"][-1]
     return profiles, deepestindex
+
+
+
+def deepestProfile(profiles):
+    deepestindex=-1
+    deepestdepth=-1
+    for p in range(len(profiles)):
+        if profiles[p].ipres[-1] >deepestdepth:
+            deepestdepth=profiles[p].ipres[-1]
+            deepestindex=p
+    return deepestindex
+
 
 def cruiseCount(profiles):
     cruises ={"null"}
@@ -171,14 +185,26 @@ def extractProfilesBox(fnames,lonleft,lonright,latbot,lattop):
         data = json.load(json_file)
         for p in data.keys():
             profile = Profile(p,data[p])
-            print(profile.lat,profile.lon)
-            if latbot < profile.lat < lattop and lonleft < profile.lon < lonright:
+            if latbot <= profile.lat <= lattop and lonleft <= profile.lon <= lonright:
                 if len(profile.ipres)>0:
                     profiles.append(profile)
                     if data[p]["pres"][-1] > deepestdepth:
                         deepestindex = len(profiles)-1
                         deepestdepth=data[p]["pres"][-1]
     return profiles, deepestindex
+
+def removeNorwegianSea(profiles):
+    finalprofiles = []
+    deepestindex = -1
+    deepestdepth = 0
+    for pindex in range(len(profiles)):
+        p = profiles[pindex]
+        if not (p.lat<81 and -23 < p.lon < 20):
+            finalprofiles.append(p)
+            if p.ipres[-1] > deepestdepth:
+                deepestindex = pindex
+                deepestdepth = p.ipres[-1]
+    return finalprofiles,deepestindex 
 
 def closestIdentifiedNS(profiles,queryprofile,depth,radius):
     minimumdistance = radius
@@ -248,24 +274,52 @@ def search(profiles,deepestindex):
                 surfaces[r][2].append(ns)
     return surfaces
 
-def graphSurfaces(surfaces,contour=False,profiles=None,deepestindex=None):
+def addDataToSurfaces(profiles,surfaces,stdevs):
+    tempSurfs = {}
+    for k in surfaces.keys():
+        tempSurf = np.array([[],[],[[],[],[],[]],[]])
+        for l in range(len(surfaces[k][0])):
+            p = getProfileById(profiles,surfaces[k][3][l])
+            t,s = p.atPres(surfaces[k][2][l])
+            pv = p.potentialVorticity(surfaces[k][2][l])
+            if t and s and pv and p:
+                tempSurf[0].append(surfaces[k][0][l])
+                tempSurf[1].append(surfaces[k][1][l])
+                tempSurf[2][0].append(-surfaces[k][2][l])
+                tempSurf[2][1].append(t)
+                tempSurf[2][2].append(s)
+                tempSurf[2][3].append(pv)
+                tempSurf[3].append(surfaces[k][3][l])
+        for j in range(len(tempSurf[2])):
+            m = np.median(tempSurf[2][j])
+            s = np.std(tempSurf[2][j])
+            a = np.asarray(np.where(abs(tempSurf[2][j] -m)>stdevs*s))
+            np.asarray(tempSurf[2][j])[a[0]] == np.nan
+
+        if len(tempSurf[0])>5:
+            tempSurfs[k] = tempSurf
+
+    return tempSurfs
+
+
+
+def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=None):
     for i in surfaces.keys():
-        print(i,len(surfaces[i][1]))
         if len(surfaces[i][0])>3:
             fig,ax = plt.subplots(1,1)
-            mapy = Basemap(projection='ortho', lat_0=90,lon_0=0)
+            mapy = Basemap(projection='ortho', lat_0=90,lon_0=-60)
             mapy.drawmapboundary(fill_color='aqua')
             mapy.fillcontinents(color='coral',lake_color='aqua')
             mapy.drawcoastlines()
             x,y = mapy(surfaces[i][0],surfaces[i][1])
             #Plot the surface 
             if contour:
-                plt.tricontourf(x,y,np.asarray(surfaces[i][2]),cmap="plasma")
+                plt.tricontourf(x,y,np.asarray(surfaces[i][2][quantindex]),cmap="plasma")
             else:
-                print(x)
-                print(y)
-                print(np.asarray(surfaces[i][2]))
-                plt.scatter(x,y,c=np.asarray(surfaces[i][2]),cmap="plasma")
+                plt.scatter(x,y,c=np.asarray(surfaces[i][2][quantindex]),cmap="plasma")
+                m = np.median(np.asarray(surfaces[i][2][quantindex]))
+                s = np.std(np.asarray(surfaces[i][2][quantindex]))
+                plt.clim(m-2*s,m+2*s)
             mapy.colorbar()
             #map the reference profile
             if profiles and deepestindex:
@@ -273,10 +327,10 @@ def graphSurfaces(surfaces,contour=False,profiles=None,deepestindex=None):
                 mapy.scatter(x,y,c="red")
 
             fig.suptitle("NS: "+str(i))
-            #plt.show()
             mng = plt.get_current_fig_manager()
             mng.resize(*mng.window.maxsize())
-            plt.savefig("refpics/RUN1/PRES/ns"+str(i)+".png")
+            plt.show()
+            #plt.savefig("refpics/RUN2/PV/ns"+str(i)+".png")
 
 
 def getProfileById(profiles,eyed):
@@ -291,57 +345,6 @@ def filterCruises(profiles,cruisenames):
             finalprofiles.append(p)
     return finalprofiles
         
-
-#def mapPV(profiles,depth,contour=False):
-    #ms = []
-    #stds = []
-    #for year in range(2008,2016):
-        #lat = []
-        #lon = []
-        #pv = []
-        #for p in profiles:
-            #if p.time.year ==year: 
-                #x = p.potentialVorticity(depth)
-                #if x:
-                    #lat.append(p.lat)
-                    #lon.append(p.lon)
-                    #pv.append(x)
-        ##latfinal = [] 
-        ##lonfinal = []
-        ##pvfinal = []
-        #m = np.mean(pv)
-        #ms.append(m)
-        #stdev = np.std(pv)
-        #stds.append(stdev)
-            ##for i in range(len(pv)):
-            ##if abs(pv[i]-m) < stdev:
-                ##latfinal.append(lat[i])
-                ##lonfinal.append(lon[i])
-                ##pvfinal.append(pv[i])
-        ##lat = latfinal
-        ##lon =lonfinal
-        ##pv = pvfinal
-                
-        #mapy = Basemap(projection='ortho', lat_0=90,lon_0=0)
-        #mapy.drawmapboundary(fill_color='aqua')
-        #mapy.fillcontinents(color='coral',lake_color='aqua')
-        #mapy.drawcoastlines()
-        #x,y = mapy(lon,lat)
-        #if contour:
-            #plt.tricontourf(x,y,pv,cmap="RdYlGn")
-        #else:
-            #plt.scatter(x,y,c=pv,cmap="RdYlGn")
-        #mapy.colorbar()
-        #plt.title(year)
-        #mng = plt.get_current_fig_manager()
-        #mng.resize(*mng.window.maxsize())
-        #plt.show()
-    ##plt.scatter(range(1980,2015),ms,label="means")
-    ##plt.scatter(range(1980,2015),stds,label="stdevs")
-    ##plt.legend()
-    ##plt.show()
-
-
 def mapPV(profiles,depth,contour=False):
     lat = []
     lon = []
@@ -383,3 +386,112 @@ def mapPV(profiles,depth,contour=False):
     mng.resize(*mng.window.maxsize())
     plt.show()
 
+def plotProfile(p):
+    fig, (ax1,ax2) = plt.subplots(1,2)
+    ax1.plot(p.itemps,p.ipres)
+    ax2.plot(p.isals,p.ipres)
+    ax1.invert_yaxis()
+    ax2.invert_yaxis()
+    fig.suptitle(str(p.eyed)+" lat: "+str(p.lat)+" lon: "+ str(p.lon))
+    mng = plt.get_current_fig_manager()
+    mng.resize(*mng.window.maxsize())
+    plt.show()
+
+def surfacesToXYZ(surfaces):
+    ecef = pyproj.Proj(proj='geocent', ellps='WGS84', datum = 'WGS84',preserve_units=True)
+    lla = pyproj.Proj(proj='latlong', ellps='WGS84', datum = 'WGS84',preserve_units=True)
+    newsurfaces = {}
+    for k in surfaces.keys():
+        tempSurf = np.array([[],[],[[],[],[],[]],[]])
+        for l in range(len(surfaces[k][0])):
+            x,y,z = pyproj.transform(lla,ecef,surfaces[k][0][l],surfaces[k][1][l],surfaces[k][2][0][l],radians=False)
+            tempSurf[0].append(x)
+            tempSurf[1].append(y)
+            tempSurf[2][0].append(z)
+            tempSurf[2][1].append(surfaces[k][2][1][l])
+            tempSurf[2][2].append(surfaces[k][2][2][l])
+            tempSurf[2][3].append(surfaces[k][2][3][l])
+            tempSurf[3].append(surfaces[k][3][l])
+        newsurfaces[k]=tempSurf
+    return newsurfaces
+
+def deduplicateXYZ(x,y,z):
+    return zip(*set(list(zip(x,y,z))))
+
+def removeDiscontinuities(x,y,z,radius=40):
+    x=np.asarray(x)
+    y=np.asarray(y)
+    z=np.asarray(z)
+    final = np.zeros(x.shape)
+    for i in range(len(x)):
+        if final[i] == False:
+            r = np.sqrt((x- x[i])**2 + (y - y[i])**2)
+            inside = r<radius*1000
+            inside[i]=False
+            s = 0
+            counter = 0
+            for t in range(len(inside)):
+                if t:
+                    s+=z[i]
+                    counter+=1
+            if counter >0:
+                z[i] = s/counter
+                    
+            #print(r)
+            if np.count_nonzero(final) == 0  :
+                final =inside
+            else:
+                final = np.logical_or(final,inside)
+    return x[np.invert(final)],y[np.invert(final)],z[np.invert(final)] 
+
+
+def createMesh(n,xvals,yvals):
+    return np.meshgrid(np.linspace(np.min(xvals),np.max(xvals),n), np.linspace(np.min(yvals),np.max(yvals),n),indexing="xy")
+
+def generateMaskedMesh(x,y):
+    xi,yi = createMesh(50,x,y)
+    final = np.zeros(xi.shape)
+    for i in range(len(x)):
+        r = np.sqrt((xi- x[i])**2 + (yi - y[i])**2)
+        inside = r<50*1000
+        if np.count_nonzero(final) == 0  :
+            final =inside
+        else:
+            final = np.logical_or(final,inside)
+    return xi[final],yi[final]
+
+
+def interpolateSurface(x,y,z,d=None):
+    if d:
+        print(len(d))
+        print(len(x))
+        print(len(y))
+        print(len(z))
+        qrbfi = Rbf(x,y,z,d,function="thin_plate",smooth=10.0)
+        rbfi = Rbf(x,y,z,function="thin_plate",smooth=10.0)
+        xi,yi = generateMaskedMesh(x,y)
+        zi = rbfi(xi,yi)
+        ti = qrbfi(xi,yi,zi)
+        return xi,yi,zi,ti
+    else:
+        rbfi = Rbf(x,y,z,function="thin_plate",smooth=10.0)
+        xi,yi = generateMaskedMesh(x,y)
+        zi = rbfi(xi,yi)
+        return xi,yi,zi
+
+def xyzToSurface(x,y,z,d):
+    ecef = pyproj.Proj(proj='geocent', ellps='WGS84', datum = 'WGS84',preserve_units=True)
+    lla = pyproj.Proj(proj='latlong', ellps='WGS84', datum = 'WGS84',preserve_units=True)
+    surface={}
+    surface[d] = np.array([[],[],[[],[],[],[]],[]])
+    lon, lat, a = pyproj.transform(ecef,lla,x,y,z,radians=False)
+    surface[d][0]=lon
+    surface[d][1]=lat
+    surface[d][2]=[a]
+    return surface
+        
+
+
+
+#def interpolateSurface(surface):
+    #for i in surfa

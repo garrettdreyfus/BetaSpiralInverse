@@ -113,9 +113,13 @@ class Profile:
             if depthname ==None:
                 depthname=depth
             startindexself = depth-self.ipres[0]-searchrange
+            if startindexself not in range(len(self.ipres)) or startindexself + 2*searchrange not in range(len(self.ipres)):
+                return None
             if abs(self.ipres[startindexself] - depth) != searchrange:
                 print("What the")
             startindexp2 = depth-p2.ipres[0]-searchrange
+            if startindexp2 not in range(len(p2.ipres)) or startindexp2 + 2*searchrange not in range(len(self.ipres)):
+                return None
             if abs(p2.ipres[startindexp2] - depth) != searchrange:
                 print(p2.ipres[startindexp2],depth)
                 print("What the")
