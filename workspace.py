@@ -116,23 +116,26 @@ print("Everythings loaded up")
 surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
 
 surfaces =nstools.surfacesToXYZ(surfaces)
-x = surfaces[1000][0]
-y = surfaces[1000][1]
-z = surfaces[1000][2][0]
-t = surfaces[1000][2][1]
-#print(list(zip(x,y,z)))
-x,y,z = nstools.deduplicateXYZ(x,y,z)
-x,y,z = nstools.removeDiscontinuities(x,y,z)
+interpolatedsurfaces = {}
+for k in surfaces.keys():
+    x = surfaces[k][0]
+    y = surfaces[k][1]
+    z = surfaces[k][2][0]
+    d = surfaces[k][2][1:]
+    #print(list(zip(x,y,z)))
+    #x,y,z = nstools.deduplicateXYZ(x,y,z)
+    x,y,z,d = nstools.removeDiscontinuities(x,y,z,auxdata=d)
+    xi,yi,zi,di = nstools.interpolateSurface(x,y,z,d)
 
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.scatter(x,y,z)
+    #fig = plt.figure()
+    #ax = fig.add_subplot(111, projection='3d')
+    #ax.scatter(x,y,z)
 
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
+    #fig = plt.figure()
+    #ax = fig.add_subplot(111, projection='3d')
+    #ax.scatter(xi,yi,zi,c=di[1])
 
-
-xi,yi,zi = nstools.interpolateSurface(x,y,z,t)
-ax.scatter(xi,yi,zi,c=ti)
-nstools.graphSurfaces(nstools.xyzToSurface(xi,yi,zi,1200),0)
+    interpolatedsurfaces.update(nstools.xyzToSurface(xi,yi,zi,di,k))
+for i in range(0,4):
+    nstools.graphSurfaces(interpolatedsurfaces,i,show=False,savepath="refpics/RUN2INTERP/")
 

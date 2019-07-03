@@ -274,7 +274,9 @@ def search(profiles,deepestindex):
                 surfaces[r][2].append(ns)
     return surfaces
 
-def addDataToSurfaces(profiles,surfaces,stdevs):
+def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
+    if debug:
+        print("adding data to surfaces")
     tempSurfs = {}
     for k in surfaces.keys():
         tempSurf = np.array([[],[],[[],[],[],[]],[]])
@@ -302,8 +304,23 @@ def addDataToSurfaces(profiles,surfaces,stdevs):
     return tempSurfs
 
 
+def zoomGraph(m,ax):
+    lllon = -136
+    urlon = 78
+    lllat = 55
+    urlat = 63
 
-def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=None):
+    xmin, ymin = m(lllon, lllat)
+    xmax, ymax = m(urlon, urlat)
+
+    ax = plt.gca()
+
+    ax.set_xlim([xmin, xmax])
+    ax.set_ylim([ymin, ymax])
+
+def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None):
+    quanttitlehash = {0:"Pressure Dbar",1:"Temperature C",2:"Salinity PSU",3:"PV"}
+    quantfilehash = {0:"PRES",1:"TEMP",2:"SAL",3:"PV"}
     for i in surfaces.keys():
         if len(surfaces[i][0])>3:
             fig,ax = plt.subplots(1,1)
@@ -325,12 +342,15 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
             if profiles and deepestindex:
                 x,y = mapy(profiles[deepestindex].lon,profiles[deepestindex].lat)
                 mapy.scatter(x,y,c="red")
-
-            fig.suptitle("NS: "+str(i))
-            mng = plt.get_current_fig_manager()
-            mng.resize(*mng.window.maxsize())
-            plt.show()
-            #plt.savefig("refpics/RUN2/PV/ns"+str(i)+".png")
+            zoomGraph(mapy,ax)
+            fig.suptitle(str(quanttitlehash[quantindex]) + " at NS: "+str(i))
+            if maximize:
+                fig.set_size_inches(16.5,12)
+            if show:
+                plt.show()
+            if savepath:
+                plt.savefig(savepath+quantfilehash[quantindex]+"/ns"+str(i)+".png")
+            plt.close()
 
 
 def getProfileById(profiles,eyed):
@@ -397,7 +417,9 @@ def plotProfile(p):
     mng.resize(*mng.window.maxsize())
     plt.show()
 
-def surfacesToXYZ(surfaces):
+def surfacesToXYZ(surfaces,debug=True):
+    if debug:
+        print("converting surfaces to xyz")
     ecef = pyproj.Proj(proj='geocent', ellps='WGS84', datum = 'WGS84',preserve_units=True)
     lla = pyproj.Proj(proj='latlong', ellps='WGS84', datum = 'WGS84',preserve_units=True)
     newsurfaces = {}
@@ -418,7 +440,9 @@ def surfacesToXYZ(surfaces):
 def deduplicateXYZ(x,y,z):
     return zip(*set(list(zip(x,y,z))))
 
-def removeDiscontinuities(x,y,z,radius=40):
+def removeDiscontinuities(x,y,z,auxdata=[],radius=10,debug=True):
+    if debug:
+        print("removing discontinuities")
     x=np.asarray(x)
     y=np.asarray(y)
     z=np.asarray(z)
@@ -442,7 +466,13 @@ def removeDiscontinuities(x,y,z,radius=40):
                 final =inside
             else:
                 final = np.logical_or(final,inside)
-    return x[np.invert(final)],y[np.invert(final)],z[np.invert(final)] 
+    if auxdata:
+        newaux=[]
+        for a in auxdata:
+            newaux.append(np.asarray(a)[np.invert(final)])
+        return x[np.invert(final)],y[np.invert(final)],z[np.invert(final)],newaux
+    else:
+        return x[np.invert(final)],y[np.invert(final)],z[np.invert(final)]
 
 
 def createMesh(n,xvals,yvals):
@@ -461,34 +491,35 @@ def generateMaskedMesh(x,y):
     return xi[final],yi[final]
 
 
-def interpolateSurface(x,y,z,d=None):
+def interpolateSurface(x,y,z,d=None,debug=True):
+    if debug:
+        print("interpolating surfaces")
     if d:
-        print(len(d))
-        print(len(x))
-        print(len(y))
-        print(len(z))
-        qrbfi = Rbf(x,y,z,d,function="thin_plate",smooth=10.0)
-        rbfi = Rbf(x,y,z,function="thin_plate",smooth=10.0)
+        di = []
+        rbfi = Rbf(x,y,z,function="thin_plate",smooth=20.0)
         xi,yi = generateMaskedMesh(x,y)
         zi = rbfi(xi,yi)
-        ti = qrbfi(xi,yi,zi)
-        return xi,yi,zi,ti
+        for q in d:
+            qrbfi = Rbf(x,y,z,q,function="thin_plate",smooth=20.0)
+            di.append(qrbfi(xi,yi,zi))
+        return xi,yi,zi,di
     else:
         rbfi = Rbf(x,y,z,function="thin_plate",smooth=10.0)
         xi,yi = generateMaskedMesh(x,y)
         zi = rbfi(xi,yi)
         return xi,yi,zi
 
-def xyzToSurface(x,y,z,d):
+def xyzToSurface(x,y,z,d,depth,debug = True):
+    if debug:
+        print("converting xyz back to lat lon a")
     ecef = pyproj.Proj(proj='geocent', ellps='WGS84', datum = 'WGS84',preserve_units=True)
     lla = pyproj.Proj(proj='latlong', ellps='WGS84', datum = 'WGS84',preserve_units=True)
-    surface={}
-    surface[d] = np.array([[],[],[[],[],[],[]],[]])
+    surface = np.array([[],[],[[],[],[],[]],[]])
     lon, lat, a = pyproj.transform(ecef,lla,x,y,z,radians=False)
-    surface[d][0]=lon
-    surface[d][1]=lat
-    surface[d][2]=[a]
-    return surface
+    surface[0]=lon
+    surface[1]=lat
+    surface[2]=[a]+d
+    return {depth:surface}
         
 
 
