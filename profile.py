@@ -52,6 +52,7 @@ class Profile:
     def interpolate(self):
         self.ipres = range(int(min(self.pres)),int(max(self.pres)))
         self.isals = np.interp(self.ipres,self.pres,self.sals)
+        self.temps = gsw.CT_from_t(self.sals,self.temps,self.pres)
         self.itemps = gsw.CT_from_t(self.isals,np.interp(self.ipres,self.pres,self.temps),self.ipres)
             
     #
@@ -71,6 +72,7 @@ class Profile:
             return self.ipres[startindexself+E]
         else:
             return None
+
     def neutralDepthWronger(self,p2,depth,debug=False,searchrange=50):
         try:
             startindexself = depth-self.ipres[0]-searchrange
@@ -103,9 +105,15 @@ class Profile:
             return (self.f/9.8)*(n2)
         else:
             return None
+
     def atPres(self,pres):
         i = np.where(np.asarray(self.ipres) == int(pres))[0][0]
         return self.itemps[i], self.isals[i]
+
+    def densityAtPres(self,pres):
+        i = np.where(np.asarray(self.ipres) == int(pres))[0][0]
+        return gsw.rho(self.isals[i],self.itemps[i],0)
+
 
     def neutralDepth(self,p2,depth,debug=False,searchrange=50,depthname=None):
         try:

@@ -4,10 +4,12 @@ import matplotlib.pyplot as plt
 import pickle
 from mpl_toolkits.basemap import Basemap
 import numpy as np
+import json
 import random
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import pyproj
+import copy
     
 
 #offsets, profiles, deepestindex = saloffset.runSalinityOffsetTool(["data/1500mprofiles.json"],["ODEN_AGAVE"])
@@ -106,16 +108,24 @@ import pyproj
 #######################################33333
 
 
-fileObject = open("data/286364.pickle",'rb')  
-surfaces = pickle.load(fileObject)
-fileObject.close()
+#fileObject = open("data/286364.pickle",'rb')  
+#surfaces = pickle.load(fileObject)
+#fileObject.close()
 fileObject = open("data/1500NoNorwegian.pickle",'rb')  
 offsets,profiles,deepestindex = pickle.load(fileObject)
-fileObject.close()
-print("Everythings loaded up")
-surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
-
-surfaces =nstools.surfacesToXYZ(surfaces)
+#nstools.findNeighboringPoints(profiles,profiles[2].lat,profiles[2].lon)
+#nstools.plotASpiral(profiles)
+#fileObject.close()
+#print("Everythings loaded up")
+#surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
+#with open('data/surfacesWithData.pickle', 'wb') as outfile:
+    #pickle.dump(surfaces, outfile)
+fileObject = open("data/surfacesWithData.pickle",'rb')  
+surfaces = pickle.load(fileObject)
+originalsurfaces = copy.deepcopy(surfaces)
+surfaces =nstools.surfacesToXYZPolar(surfaces)
+#nstools.graphTransects(nstools.filterSurfacesByLine(originalsurfaces,40),0)
+    ###############
 interpolatedsurfaces = {}
 for k in surfaces.keys():
     x = surfaces[k][0]
@@ -124,8 +134,9 @@ for k in surfaces.keys():
     d = surfaces[k][2][1:]
     #print(list(zip(x,y,z)))
     #x,y,z = nstools.deduplicateXYZ(x,y,z)
-    x,y,z,d = nstools.removeDiscontinuities(x,y,z,auxdata=d)
-    xi,yi,zi,di = nstools.interpolateSurface(x,y,z,d)
+    x,y,z,d = nstools.removeDiscontinuities(x,y,z,radius=0.1,auxdata=d)
+    xi,yi,zi,di = nstools.interpolateSurfaceGAM(x,y,z,d)
+    #xi,yi,zi,di = nstools.interpolateSurface(x,y,z,d)
 
     #fig = plt.figure()
     #ax = fig.add_subplot(111, projection='3d')
@@ -133,9 +144,19 @@ for k in surfaces.keys():
 
     #fig = plt.figure()
     #ax = fig.add_subplot(111, projection='3d')
-    #ax.scatter(xi,yi,zi,c=di[1])
+    ##ax.scatter(xi,yi,zi,c=di[1])
+    #ax.scatter(xi,yi,zi)
 
-    interpolatedsurfaces.update(nstools.xyzToSurface(xi,yi,zi,di,k))
+    #plt.show()
+    #interpolatedsurfaces.update(nstools.removeOutlierSurfaces(nstools.xyzToSurface(xi,yi,zi,di,k)))
+    interpolatedsurfaces.update(nstools.xyzToSurfacePolar(xi,yi,zi,di,k))
+
+#nstools.graphNeighbors(interpolatedsurfaces,(nstools.generateNeighborsLists(interpolatedsurfaces)))
+#nstools.graphSurfaces(interpolatedsurfaces,0,show=False,savepath="refpics/RUN3GAMPOLAR/")
+#nstools.graphSurfaces(nstools.filterSurfacesByLine(interpolatedsurfaces,40),0,show=True)
+#nstools.graphTransects(nstools.filterSurfacesByLine(interpolatedsurfaces,40),0)
 for i in range(0,4):
-    nstools.graphSurfaces(interpolatedsurfaces,i,show=False,savepath="refpics/RUN2INTERP/")
+    nstools.graphSurfaces(interpolatedsurfaces,i,show=False,savepath="refpics/RUN3GAMPOLAR/")
+    #nstools.graphSurfaces(interpolatedsurfaces,i,show=True)
+
 
