@@ -3,6 +3,8 @@ import gsw
 from mpl_toolkits.mplot3d import Axes3D
 import datetime
 import matplotlib.pyplot as plt
+from scipy import interpolate
+
 
 class Profile:
     def __init__(self,eyed, data):
@@ -11,6 +13,7 @@ class Profile:
         self.cruise = data["cruise"]
         self.lat = data["lat"]
         self.f = gsw.f(self.lat)
+        self.gamma = (9.8)/(f*1025.0)
         self.lon = data["lon"]
         self.time = self.processDate(data["time"])
         #Temerature Salinity and Pressure
@@ -51,7 +54,9 @@ class Profile:
     #interpolate all quantities on a 1 dbar line
     def interpolate(self):
         self.ipres = range(int(min(self.pres)),int(max(self.pres)))
-        self.isals = np.interp(self.ipres,self.pres,self.sals)
+        tck = interpolate.splrep(self.pres,self.sals,s=20)
+        self.isals = interpolate.splev(self.ipres,tck) 
+        #self.isals = np.interp(self.ipres,self.pres,self.sals)
         self.temps = gsw.CT_from_t(self.sals,self.temps,self.pres)
         self.itemps = gsw.CT_from_t(self.isals,np.interp(self.ipres,self.pres,self.temps),self.ipres)
             
@@ -92,16 +97,17 @@ class Profile:
     def calculateDensity(self,s,t,p,p_ref=0):
         return gsw.rho(s,t,p)
 
-    def potentialVorticity(self,p):
+    def potentialVorticity(self,p,debug=False):
         index = np.where(np.asarray(self.ipres) == p)[0]
         if index!= None:
             index = index[0]
             n2 = np.mean(gsw.Nsquared(self.isals[index-5:index+5],self.itemps[index-5:index+5],
                     self.ipres[index-5:index+5], self.lat)[0])
-            #if n2 < 0:
+            if n2 < 0 and debug:
                 #plt.scatter(gsw.Nsquared(self.isals,self.itemps,self.ipres)[0],self.ipres[:-1],s=0.5)
-                #plt.gca().invert_yaxis()
-                #plt.show()
+                plt.plot(self.isals,self.ipres)
+                plt.gca().invert_yaxis()
+                plt.show()
             return (self.f/9.8)*(n2)
         else:
             return None
@@ -113,7 +119,9 @@ class Profile:
     def densityAtPres(self,pres):
         i = np.where(np.asarray(self.ipres) == int(pres))[0][0]
         return gsw.rho(self.isals[i],self.itemps[i],0)
-
+    
+    def rhoZ(self,pres):
+        return (densityAtPres(pres+1)-densityAtPres(pres-1))/3
 
     def neutralDepth(self,p2,depth,debug=False,searchrange=50,depthname=None):
         try:

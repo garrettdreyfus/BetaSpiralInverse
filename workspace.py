@@ -9,6 +9,7 @@ import random
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import pyproj
+import graph
 import copy
     
 
@@ -49,47 +50,6 @@ import copy
 #b = pickle.dump(surfaces,fileObject)  
 #fileObject.close()
 
-##############################################
-## 
-
-#fileObject = open("data/286364.pickle",'rb')  
-#surfaces = pickle.load(fileObject)
-#fileObject.close()
-#fileObject = open("data/1500NoNorwegian.pickle",'rb')  
-#offsets,profiles,deepestindex = pickle.load(fileObject)
-#fileObject.close()
-#tempSurfs = {}
-#for d in surfaces.keys():
-    #tempSurf = [[],[],[],[]]
-    #for l in range(len(surfaces[d][0])):
-        #p = nstools.getProfileById(profiles,surfaces[d][3][l])
-        #t,s = p.atPres(surfaces[d][2][l])
-        #pv = p.potentialVorticity(surfaces[d][2][l])
-        ##if pv and pv <0:
-            ##print(pv)
-            ##print(p.lat,p.lon,p.eyed)
-            ##print(surfaces[d][2][l])
-            ###nstools.plotProfile(p)
-        ##elif pv:
-        #tempSurf[0].append(surfaces[d][0][l])
-        #tempSurf[1].append(surfaces[d][1][l])
-        #tempSurf[2].append(-surfaces[d][2][l])
-        #tempSurf[3].append(surfaces[d][3][l])
-    ##tempSurffinal = [[],[],[],[]]
-    ##m = np.mean(tempSurf[2])
-    ##s = np.std(tempSurf[2])
-    ##for j in range(len(tempSurf[2])):
-        ##if m-2*s < tempSurf[2][j] < m + 2*s:
-            ##tempSurffinal[0].append(tempSurf[0][j])
-            ##tempSurffinal[1].append(tempSurf[1][j])
-            ##tempSurffinal[2].append(-tempSurf[2][j])
-            ##tempSurffinal[3].append(tempSurf[3][j])
-
-    #if len(tempSurf[0])>5:
-        #tempSurfs[d] = tempSurf
-
-#nstools.graphSurfaces(tempSurfs)
-
 #####################################################################
 #print(runSalinityOffsetTool(glob.glob("data/3000m2007profiles.json"),["Polarstern_ARK-XXIII_2"]))
 #singleSalinityOffsetRun("data/2000mprofiles.json","LOUIS_S._ST._LAURENT_18SN940","HUDSON_HUDSON2")
@@ -115,7 +75,8 @@ fileObject = open("data/1500NoNorwegian.pickle",'rb')
 offsets,profiles,deepestindex = pickle.load(fileObject)
 #nstools.findNeighboringPoints(profiles,profiles[2].lat,profiles[2].lon)
 #nstools.plotASpiral(profiles)
-#fileObject.close()
+fileObject.close()
+
 #print("Everythings loaded up")
 #surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
 #with open('data/surfacesWithData.pickle', 'wb') as outfile:
@@ -123,40 +84,40 @@ offsets,profiles,deepestindex = pickle.load(fileObject)
 fileObject = open("data/surfacesWithData.pickle",'rb')  
 surfaces = pickle.load(fileObject)
 originalsurfaces = copy.deepcopy(surfaces)
-surfaces =nstools.surfacesToXYZPolar(surfaces)
-#nstools.graphTransects(nstools.filterSurfacesByLine(originalsurfaces,40),0)
-    ###############
-interpolatedsurfaces = {}
-for k in surfaces.keys():
-    x = surfaces[k][0]
-    y = surfaces[k][1]
-    z = surfaces[k][2][0]
-    d = surfaces[k][2][1:]
-    #print(list(zip(x,y,z)))
-    #x,y,z = nstools.deduplicateXYZ(x,y,z)
-    x,y,z,d = nstools.removeDiscontinuities(x,y,z,radius=0.1,auxdata=d)
-    xi,yi,zi,di = nstools.interpolateSurfaceGAM(x,y,z,d)
-    #xi,yi,zi,di = nstools.interpolateSurface(x,y,z,d)
+nstools.addStreamFunc(surfaces,profiles)
 
-    #fig = plt.figure()
-    #ax = fig.add_subplot(111, projection='3d')
-    #ax.scatter(x,y,z)
+######################################################################################################
+#surfaces =nstools.surfacesToXYZPolar(surfaces)
+##nstools.graphTransects(nstools.filterSurfacesByLine(originalsurfaces,40),0)
+    ################
+#interpolatedsurfaces = {}
+#neighbors={}
+#for k in surfaces.keys():
+    #x = surfaces[k][0]
+    #y = surfaces[k][1]
+    #z = surfaces[k][2][0]
+    #d = surfaces[k][2][1:]
+    ##x,y,z = nstools.deduplicateXYZ(x,y,z)
+    #x,y,z,d = nstools.removeDiscontinuities(x,y,z,radius=0.1,auxdata=d)
+    #xi,yi,zi,di = nstools.interpolateSurfaceGAM(x,y,z,d)
+    ##neighbors[k]=nstools.generateNeighborsList(xi,yi)
+    ##plt.show()
+    ##interpolatedsurfaces.update(nstools.removeOutlierSurfaces(nstools.xyzToSurface(xi,yi,zi,di,k)))
+    #interpolatedsurfaces.update(nstools.xyzToSurfacePolar(xi,yi,zi,di,k))
 
-    #fig = plt.figure()
-    #ax = fig.add_subplot(111, projection='3d')
-    ##ax.scatter(xi,yi,zi,c=di[1])
-    #ax.scatter(xi,yi,zi)
+##nstools.graphNeighbors(interpolatedsurfaces,neighbors)
+##with open('data/neighborsAndInterpolated2600.pickle', 'wb') as outfile:
+    ##pickle.dump([neighbors,interpolatedsurfaces], outfile)
 
-    #plt.show()
-    #interpolatedsurfaces.update(nstools.removeOutlierSurfaces(nstools.xyzToSurface(xi,yi,zi,di,k)))
-    interpolatedsurfaces.update(nstools.xyzToSurfacePolar(xi,yi,zi,di,k))
+##interpolatedsurfaces = nstools.addPrimeToSurfaces(interpolatedsurfaces,neighbors)
 
-#nstools.graphNeighbors(interpolatedsurfaces,(nstools.generateNeighborsLists(interpolatedsurfaces)))
-#nstools.graphSurfaces(interpolatedsurfaces,0,show=False,savepath="refpics/RUN3GAMPOLAR/")
-#nstools.graphSurfaces(nstools.filterSurfacesByLine(interpolatedsurfaces,40),0,show=True)
-#nstools.graphTransects(nstools.filterSurfacesByLine(interpolatedsurfaces,40),0)
-for i in range(0,4):
-    nstools.graphSurfaces(interpolatedsurfaces,i,show=False,savepath="refpics/RUN3GAMPOLAR/")
-    #nstools.graphSurfaces(interpolatedsurfaces,i,show=True)
+##graph.graphComparisonTransects(nstools.filterSurfacesByLine(originalsurfaces,40,radius=50),nstools.filterSurfacesByLine(interpolatedsurfaces,40),profiles,0,savepath="refpics/TransectionsInterpVsRaw/",show=False)
+##graph.graphSurfacesComparison(interpolatedsurfaces,originalsurfaces,0,show=False,savepath="refpics/RUN3OVERLAY/")
+##nstools.graphSurfaes(interpolatedsurfaces,5)
+##nstools.graphSurfaces(nstools.filterSurfacesByLine(interpolatedsurfaces,40),0,show=True)
+##nstools.graphTransects(nstools.filterSurfacesByLine(interpolatedsurfaces,40),0)
+##for i in range(0,4):
+    ##nstools.graphSurfaces(interpolatedsurfaces,i,show=False,savepath="refpics/RUN3GAMPOLAR/")
+    ##nstools.graphSurfaces(interpolatedsurfaces,i,show=True)
 
 
