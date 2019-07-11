@@ -18,6 +18,7 @@ import gsw
 import pygam
 import pickle
 from gswmatlab.pyinterface import geo_strf_isopycnal
+import scipy.io as sio
 
 def extractProfiles(fnames):
     ##Load JSON data into profile objects
@@ -599,7 +600,7 @@ def addStreamFunc(surfaces,profiles):
     count =0
     for k in neutraldepths.keys():
         count+=1
-        if count > 100:
+        if count > 2000:
             break
         p = getProfileById(profiles,k)
         s.append(p.sals)
@@ -621,4 +622,24 @@ def addStreamFunc(surfaces,profiles):
 
         
     
+
+def addStreamFuncFromFile(surfaces,profiles,isopycnalfile,referencefile):
+    psi = np.asarray(sio.loadmat(isopycnalfile)["geoisopycnal"]).transpose()
+    ids = np.asarray(sio.loadmat(referencefile)["ks"])
+    tags = np.asarray(sio.loadmat(referencefile)["ns"]).transpose()
+    for k in surfaces.keys():
+        surfaces[k][2] = [surfaces[k][2][0],surfaces[k][2][1],surfaces[k][2][2],surfaces[k][2][3],[]]
+        for i in range(len(surfaces[k][0])):
+            if surfaces[k][3][i] in ids:
+                col = np.where(ids == surfaces[k][3][i])[0][0]
+                row = np.where(k == tags[col])[0]
+                if len(row) >0:
+                    print(psi[col][row])
+                    surfaces[k][2][4].append(psi[col][row[0]])
+                else:
+                    surfaces[k][2][4].append(np.nan)
+                
+            else:
+                surfaces[k][2][4].append(np.nan)
+
 

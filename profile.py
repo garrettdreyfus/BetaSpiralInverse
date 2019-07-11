@@ -10,12 +10,12 @@ class Profile:
     def __init__(self,eyed, data):
         ##id of profiles plus info
         self.eyed = eyed
-        self.cruise = data["cruise"]
         self.lat = data["lat"]
         self.f = gsw.f(self.lat)
         self.gamma = (9.8)/(f*1025.0)
         self.lon = data["lon"]
         self.time = self.processDate(data["time"])
+        self.cruise = data["cruise"]+str(self.time.year)
         #Temerature Salinity and Pressure
         self.temps = np.asarray(data["temp"])
         self.sals = np.asarray(data["sal"])

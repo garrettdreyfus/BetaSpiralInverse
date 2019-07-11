@@ -85,6 +85,8 @@ fileObject = open("data/surfacesWithData.pickle",'rb')
 surfaces = pickle.load(fileObject)
 originalsurfaces = copy.deepcopy(surfaces)
 nstools.addStreamFunc(surfaces,profiles)
+#nstools.addStreamFuncFromFile(surfaces,profiles,"geoisopycnal.mat","np_vector.mat")
+#graph.graphSurfaces(surfaces,4)
 
 ######################################################################################################
 #surfaces =nstools.surfacesToXYZPolar(surfaces)

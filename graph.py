@@ -109,7 +109,7 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
                 plt.scatter(x,y,c=np.asarray(surfaces[i][2][quantindex]),cmap="plasma")
                 m = np.median(np.asarray(surfaces[i][2][quantindex]))
                 s = np.std(np.asarray(surfaces[i][2][quantindex]))
-                plt.clim(m-2*s,m+2*s)
+                #plt.clim(m-2*s,m+2*s)
                 #plt.clim(i-400,i+400)
                 mapy.colorbar()
             #map the reference profile
