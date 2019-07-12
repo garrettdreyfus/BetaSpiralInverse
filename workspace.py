@@ -11,6 +11,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import pyproj
 import graph
 import copy
+from pprint import pprint
     
 
 #offsets, profiles, deepestindex = saloffset.runSalinityOffsetTool(["data/1500mprofiles.json"],["ODEN_AGAVE"])
@@ -84,38 +85,34 @@ fileObject.close()
 fileObject = open("data/surfacesWithData.pickle",'rb')  
 surfaces = pickle.load(fileObject)
 originalsurfaces = copy.deepcopy(surfaces)
-nstools.addStreamFunc(surfaces,profiles)
+surfaces = nstools.convertOldSurfaces(surfaces)
+#nstools.addStreamFunc(surfaces,profiles)
 #nstools.addStreamFuncFromFile(surfaces,profiles,"geoisopycnal.mat","np_vector.mat")
 #graph.graphSurfaces(surfaces,4)
 
 ######################################################################################################
-#surfaces =nstools.surfacesToXYZPolar(surfaces)
+surfaces =nstools.addXYToSurfaces(surfaces)
+pprint(surfaces.keys())
+pprint(surfaces[3600])
 ##nstools.graphTransects(nstools.filterSurfacesByLine(originalsurfaces,40),0)
     ################
-#interpolatedsurfaces = {}
-#neighbors={}
-#for k in surfaces.keys():
-    #x = surfaces[k][0]
-    #y = surfaces[k][1]
-    #z = surfaces[k][2][0]
-    #d = surfaces[k][2][1:]
-    ##x,y,z = nstools.deduplicateXYZ(x,y,z)
-    #x,y,z,d = nstools.removeDiscontinuities(x,y,z,radius=0.1,auxdata=d)
-    #xi,yi,zi,di = nstools.interpolateSurfaceGAM(x,y,z,d)
-    ##neighbors[k]=nstools.generateNeighborsList(xi,yi)
-    ##plt.show()
-    ##interpolatedsurfaces.update(nstools.removeOutlierSurfaces(nstools.xyzToSurface(xi,yi,zi,di,k)))
-    #interpolatedsurfaces.update(nstools.xyzToSurfacePolar(xi,yi,zi,di,k))
+interpolatedsurfaces = {}
+neighbors={}
+for k in surfaces.keys():
+    surfaces[k] = nstools.removeDiscontinuities(surfaces[k],radius=0.1)
+    interpolatedsurfaces[k] = nstools.interpolateSurface(surfaces[k])
+    neighbors[k]=nstools.generateNeighborsList(interpolatedsurfaces[k]["x"],interpolatedsurfaces[k]["y"])
+
+interpolatedsurfaces = nstools.addPrimeToSurfaces(interpolatedsurfaces,neighbors)
+graph.graphSurfaces(interpolatedsurfaces,"uz")
 
 ##nstools.graphNeighbors(interpolatedsurfaces,neighbors)
 ##with open('data/neighborsAndInterpolated2600.pickle', 'wb') as outfile:
     ##pickle.dump([neighbors,interpolatedsurfaces], outfile)
 
-##interpolatedsurfaces = nstools.addPrimeToSurfaces(interpolatedsurfaces,neighbors)
 
 ##graph.graphComparisonTransects(nstools.filterSurfacesByLine(originalsurfaces,40,radius=50),nstools.filterSurfacesByLine(interpolatedsurfaces,40),profiles,0,savepath="refpics/TransectionsInterpVsRaw/",show=False)
 ##graph.graphSurfacesComparison(interpolatedsurfaces,originalsurfaces,0,show=False,savepath="refpics/RUN3OVERLAY/")
-##nstools.graphSurfaes(interpolatedsurfaces,5)
 ##nstools.graphSurfaces(nstools.filterSurfacesByLine(interpolatedsurfaces,40),0,show=True)
 ##nstools.graphTransects(nstools.filterSurfacesByLine(interpolatedsurfaces,40),0)
 ##for i in range(0,4):

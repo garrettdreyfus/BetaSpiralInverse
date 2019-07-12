@@ -92,23 +92,22 @@ def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=N
     graphSurfaces(newsurfaces,quantindex,contour,profiles,deepestindex,show,maximize,savepath)
 
 def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None):
-    quanttitlehash = {0:"Pressure Dbar",1:"Temperature C",2:"Salinity PSU",3:"PV",4:"U\'",5:"V\'"}
-    quantfilehash = {0:"PRES",1:"TEMP",2:"SAL",3:"PV",4:"UPRIME",5:"VPRIME"}
+    quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV","uz":"Uz'","vz":"Vz'"}
     for i in surfaces.keys():
-        if len(surfaces[i][0])>3 and len(surfaces[i][2][quantindex])>3:
+        if len(surfaces[i]["lons"])>3 and len(surfaces[i]["data"][quantindex])>3:
             fig,ax = plt.subplots(1,1)
             mapy = Basemap(projection='ortho', lat_0=90,lon_0=-60)
             mapy.drawmapboundary(fill_color='aqua')
             mapy.fillcontinents(color='coral',lake_color='aqua')
             mapy.drawcoastlines()
-            x,y = mapy(surfaces[i][0],surfaces[i][1])
+            x,y = mapy(surfaces[i]["lons"],surfaces[i]["lats"])
             #Plot the surface 
             if contour:
-                plt.tricontourf(x,y,np.asarray(surfaces[i][2][quantindex]),cmap="plasma")
+                plt.tricontourf(x,y,np.asarray(surfaces[i]["data"][quantindex]),cmap="plasma")
             else:
-                plt.scatter(x,y,c=np.asarray(surfaces[i][2][quantindex]),cmap="plasma")
-                m = np.median(np.asarray(surfaces[i][2][quantindex]))
-                s = np.std(np.asarray(surfaces[i][2][quantindex]))
+                plt.scatter(x,y,c=np.asarray(surfaces[i]["data"][quantindex]),cmap="plasma")
+                m = np.median(np.asarray(surfaces[i]["data"][quantindex]))
+                s = np.std(np.asarray(surfaces[i]["data"][quantindex]))
                 #plt.clim(m-2*s,m+2*s)
                 #plt.clim(i-400,i+400)
                 mapy.colorbar()
@@ -123,7 +122,7 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
             if show:
                 plt.show()
             if savepath:
-                plt.savefig(savepath+quantfilehash[quantindex]+"/ns"+str(i)+".png")
+                plt.savefig(savepath+quantindex+"/ns"+str(i)+".png")
             plt.close()
 
 def plotCruiseAndRef(cruises,refcruises,show=True):

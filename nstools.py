@@ -157,9 +157,12 @@ def profileInBox(profiles,lonleft,lonright,latbot,lattop):
             results.append(p)
     return results
 
+def emptySurface():
+    return {"lats":[],"lons":[],"ids":[],"data":{"pres":[],"t":[],"s":[]}}
+
 def peerSearch(profiles,deepestindex,depth,profilechoice,radius=500):
     surfaces = {}
-    surfaces[depth]=[[],[],[],[]]
+    surfaces[depth]= emptySurface()
     profilechoice.neutraldepth[depth] = depth
     print(profilechoice.eyed)
     references=[]
@@ -173,10 +176,10 @@ def peerSearch(profiles,deepestindex,depth,profilechoice,radius=500):
                 #print(closest.neutraldepth)
                 ns = closest.neutralDepth(p,closest.neutraldepth[depth],depthname=depth,searchrange=100) 
                 if ns != None:
-                    surfaces[depth][0].append(p.lon)
-                    surfaces[depth][1].append(p.lat)
-                    surfaces[depth][2].append(ns)
-                    surfaces[depth][3].append(p.eyed)
+                    surfaces[depth]["lons"].append(p.lon)
+                    surfaces[depth]["lats"].append(p.lat)
+                    surfaces[depth]["data"]["pres"].append(ns)
+                    surfaces[depth]["ids"].append(p.eyed)
                     profiles.remove(p)
                     foundcounter +=1
                     references.append(p)
@@ -194,16 +197,16 @@ def search(profiles,deepestindex):
     surfaces = {}
     for r in deeprange:
         #note: an annoying format to store this information but easily graphable
-        surfaces[r]=[[],[],[]]
+        surfaces[r]=emptySurface()
     #Ever profile
     for j in range(len(profiles)):
         #every neutral surface
         for r in deeprange:
             ns = profiles[deepestindex].neutralDepth(profiles[j],r) 
             if ns != None:
-                surfaces[r][0].append(profiles[j].lon)
-                surfaces[r][1].append(profiles[j].lat)
-                surfaces[r][2].append(ns)
+                surfaces[r]["lons"].append(profiles[j].lon)
+                surfaces[r]["lats"].append(profiles[j].lat)
+                surfaces[r]["data"]["pres"].append(ns)
     return surfaces
 
 def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
@@ -212,27 +215,27 @@ def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
     tempSurfs = {}
     negativecount = 0
     for k in surfaces.keys():
-        tempSurf = np.array([[],[],[[],[],[],[]],[]])
-        for l in range(len(surfaces[k][0])):
-            p = getProfileById(profiles,surfaces[k][3][l])
+        tempSurf = emptySurface()
+        for l in range(len(surfaces[k]["lons"])):
+            p = getProfileById(profiles,surfaces[k]["ids"][l])
             p.interpolate()
-            t,s = p.atPres(surfaces[k][2][l])
-            pv = p.potentialVorticity(surfaces[k][2][l],debug=False)
+            t,s = p.atPres(surfaces[k]["data"]["pres"])
+            pv = p.potentialVorticity(surfaces[k]["data"]["pres"][l],debug=False)
             if pv and pv<0:
                 negativecount +=1 
             if t and s and pv and p and pv != np.Inf and pv != np.nan and not np.isnan(t):
-                tempSurf[0].append(surfaces[k][0][l])
-                tempSurf[1].append(surfaces[k][1][l])
-                tempSurf[2][0].append(-surfaces[k][2][l])
-                tempSurf[2][1].append(t)
-                tempSurf[2][2].append(s)
-                tempSurf[2][3].append(pv)
-                tempSurf[3].append(surfaces[k][3][l])
-        for j in range(len(tempSurf[2])):
-            m = np.median(tempSurf[2][j])
-            s = np.std(tempSurf[2][j])
-            a = np.asarray(np.where(abs(tempSurf[2][j] -m)>stdevs*s))
-            #np.asarray(tempSurf[2][j])[a[0]] == np.nan
+                tempSurf["lons"].append(surfaces[k]["lons"][l])
+                tempSurf["lats"].append(surfaces[k]["lats"][l])
+                tempSurf["data"]["pres"].append(-surfaces[k]["data"]["pres"][l])
+                tempSurf["data"]["t"].append(t)
+                tempSurf["data"]["s"].append(s)
+                tempSurf["data"]["pv"].append(pv)
+                tempSurf["ids"].append(surfaces[k][3][l])
+        #for j in tempSurf["data"].keys():
+            #m = np.median(tempSurf["data"][j])
+            #s = np.std(tempSurf["data"][j])
+            #a = np.asarray(np.where(abs(tempSurf["data"][j] -m)>stdevs*s))
+            ##np.asarray(tempSurf[2][j])[a[0]] == np.nan
             
 
         if len(tempSurf[0])>5:
@@ -257,20 +260,18 @@ def filterCruises(profiles,cruisenames):
 def filterSurfacesByLine(surfaces,lon,radius=20):
     print("filtering by crosssection")
     for k in surfaces.keys():
-        distFilter = np.zeros(len(surfaces[k][0]), dtype=bool)
-        for index in range(len(surfaces[k][0])):
-            p = (surfaces[k][1][index],surfaces[k][0][index])
-            #print(lpoint,p)
-            #if geodesic(lpoint,p).km<radius:
-                #distFilter[index] = True
+        distFilter = np.zeros(len(surfaces[k]["lons"]), dtype=bool)
+        for index in range(len(surfaces[k]["lons"])):
+            p = (surfaces[k]["lats"][index],surfaces[k]["lons"][index])
             if ((np.cos(p[0]*(np.pi/180)))*abs(((p[1]+180)%180)-lon)*111)<radius:
                 #print(((np.cos(lpoint[0]*(np.pi/180)))*abs(p[1]-lpoint[1])*111))
                 distFilter[index] = True
-        surfaces[k][0] = np.asarray(surfaces[k][0])[distFilter]
-        surfaces[k][1] = np.asarray(surfaces[k][1])[distFilter]
-        surfaces[k][2] = [np.asarray(surfaces[k][2][0])[distFilter],np.asarray(surfaces[k][2][1])[distFilter],np.asarray(surfaces[k][2][2])[distFilter],np.asarray(surfaces[k][2][3])[distFilter]]
-        if len(surfaces[k][3])>0:
-            surfaces[k][3] = np.asarray(surfaces[k][3])[distFilter]
+        surfaces[k]["lons"] = np.asarray(surfaces[k]["lons"])[distFilter]
+        surfaces[k]["lats"] = np.asarray(surfaces[k]["lats"])[distFilter]
+        for j in surfaces[k]["data"].keys():
+            surfaces[k]["data"][j] = np.asarray(surfaces[k]["data"][j])[distFilter]
+        if len(surfaces[k]["ids"])>0:
+            surfaces[k]["ids"] = np.asarray(surfaces[k]["ids"])[distFilter]
     return surfaces
         
 def plotProfile(p):
@@ -285,54 +286,25 @@ def plotProfile(p):
     plt.show()
 
 
-def surfacesToXYZPolar(surfaces,debug=True):
+def addXYToSurfaces(surfaces,debug=True):
     if debug:
         print("converting surfaces to xyz")
     newsurfaces = {}
     for k in surfaces.keys():
-        tempSurf = np.array([[],[],[[],[],[],[]],[]])
-        x,y = homemadeXY(surfaces[k][0],surfaces[k][1])
-        tempSurf[0] = x
-        tempSurf[1] = y
-        tempSurf[2][0] = surfaces[k][2][0]
-        tempSurf[2][1] = surfaces[k][2][1]
-        tempSurf[2][2] = surfaces[k][2][2]
-        tempSurf[2][3] = surfaces[k][2][3]
-        tempSurf[3] = surfaces[k][3]
-        newsurfaces[k]=tempSurf
-    return newsurfaces
-
-
-
-def surfacesToXYZ(surfaces,debug=True):
-    if debug:
-        print("converting surfaces to xyz")
-    ecef = pyproj.Proj(proj='geocent', ellps='WGS84', datum = 'WGS84',preserve_units=True)
-    lla = pyproj.Proj(proj='latlong', ellps='WGS84', datum = 'WGS84',preserve_units=True)
-    newsurfaces = {}
-    for k in surfaces.keys():
-        tempSurf = np.array([[],[],[[],[],[],[]],[]])
-        for l in range(len(surfaces[k][0])):
-            x,y,z = pyproj.transform(lla,ecef,surfaces[k][0][l],surfaces[k][1][l],surfaces[k][2][0][l],radians=False)
-            tempSurf[0].append(x)
-            tempSurf[1].append(y)
-            tempSurf[2][0].append(z)
-            tempSurf[2][1].append(surfaces[k][2][1][l])
-            tempSurf[2][2].append(surfaces[k][2][2][l])
-            tempSurf[2][3].append(surfaces[k][2][3][l])
-            tempSurf[3].append(surfaces[k][3][l])
-        newsurfaces[k]=tempSurf
-    return newsurfaces
+        x,y = homemadeXY(surfaces[k]["lons"],surfaces[k]["lats"])
+        surfaces[k]["x"]=x
+        surfaces[k]["y"]=y
+    return surfaces
 
 def deduplicateXYZ(x,y,z):
     return zip(*set(list(zip(x,y,z))))
 
-def removeDiscontinuities(x,y,z,auxdata=[],radius=10,debug=True):
+def removeDiscontinuities(surface,radius=10,debug=True):
     if debug:
         print("removing discontinuities")
-    x=np.asarray(x)
-    y=np.asarray(y)
-    z=np.asarray(z)
+    x=np.asarray(surface["x"])
+    y=np.asarray(surface["y"])
+    z=np.asarray(surface["data"]["pres"])
     final = np.zeros(x.shape)
     #print(x)
     for i in range(len(x)):
@@ -354,14 +326,14 @@ def removeDiscontinuities(x,y,z,auxdata=[],radius=10,debug=True):
                 final =inside
             else:
                 final = np.logical_or(final,inside)
-    if auxdata:
-        newaux=[]
-        for a in auxdata:
-            newaux.append(np.asarray(a)[np.invert(final)])
-        return x[np.invert(final)],y[np.invert(final)],z[np.invert(final)],newaux
-    else:
-        return x[np.invert(final)],y[np.invert(final)],z[np.invert(final)]
-
+    final = np.invert(final)
+    for k in surface.keys():
+        if k == "data":
+            for d in surface[k]:
+                surface[k][d] = np.asarray(surface[k][d])[final]
+        else:
+            surface[k] = np.asarray(surface[k])[final]
+    return surface
 
 def createMesh(n,xvals,yvals):
     return np.meshgrid(np.linspace(np.min(xvals),np.max(xvals),n), np.linspace(np.min(yvals),np.max(yvals),n),indexing="xy")
@@ -385,64 +357,38 @@ def generateMaskedMesh(x,y,radius=100):
 
 def removeOutlierSurfaces(surfaces,stdevs=2):
     for k in surfaces.keys():
-        m = np.median(surfaces[k][2][0])
-        s = np.std(surfaces[k][2][0])
-        filt = np.where(np.abs(surfaces[k][2][0]-m)<s*stdevs)
-        surfaces[k][0]=surfaces[k][0][filt]
-        surfaces[k][1]=surfaces[k][1][filt]
-        surfaces[k][2][0] =surfaces[k][2][0][filt]
-        surfaces[k][2][1] =surfaces[k][2][1][filt]
-        surfaces[k][2][2] =surfaces[k][2][2][filt]
-        surfaces[k][2][3] =surfaces[k][2][3][filt]
-        if len(surfaces[k][3]) >0:
-            surfaces[k][3] =surfaces[k][3][filt]
+        m = np.median(surfaces[k]["data"]["pres"])
+        s = np.std(surfaces[k]["data"]["pres"])
+        filt = np.where(np.abs(surfaces[k]["data"]["pres"]-m)<s*stdevs)
+        for field in surfaces[k].keys():
+            if field=="data":
+                for datafield in surfaces[k][field].keys():
+                    surfaces[k][field][datafield]=surfaces[k][field][datafield][filt]
+                surfaces[k][field]=surfaces[k][field][filt]
+            else:
+                surfaces[k][field]=surfaces[k][field][filt]
     return surfaces
 
 
-
-def interpolateSurface(x,y,z,d=None,debug=True):
-    if debug:
-        print("interpolating surfaces")
-    if d:
-        di = []
-        rbfi = Rbf(x,y,z,function="thin_plate",smooth=20.0)
-        xi,yi = generateMaskedMesh(x,y)
-        zi = rbfi(xi,yi)
-        for q in d:
-            qrbfi = Rbf(x,y,z,q,function="thin_plate",smooth=20.0)
-            di.append(qrbfi(xi,yi,zi))
-        return xi,yi,zi,di
-    else:
-        rbfi = Rbf(x,y,z,function="thin_plate",smooth=10.0)
-        xi,yi = generateMaskedMesh(x,y)
-        zi = rbfi(xi,yi)
-        return xi,yi,zi
-
-def interpolateSurfaceGAM(x,y,z,d=None,debug=True):
+def interpolateSurface(surface,debug=True):
     #print("######")
-    X = np.zeros((len(x),2))
-    X[:,0]=x
-    X[:,1]=y
-    xi,yi = generateMaskedMesh(x,y)
-    if d:
-        di=[]
-        for q in [z] + d:
-            gam = pygam.LinearGAM(pygam.te(0,1)).fit(X,q)
-            Xgrid = np.zeros((yi.shape[0],2))
-            Xgrid[:,0] = xi
-            Xgrid[:,1] = yi
-            di.append(gam.predict(Xgrid))
-            #gam.summary()
-        return xi,yi,di[0],di[1:]
-    else:
-        gam = pygam.LinearGAM(pygam.te(0,1)).fit(X,z)
-        #gam.summary()
-        #print(xi.ravel())
+    interpsurf={}
+    X = np.zeros((len(surface["x"]),2))
+    X[:,0]=surface["x"]
+    X[:,1]=surface["y"]
+    xi,yi = generateMaskedMesh(surface["x"],surface["y"])
+    interpdata={}
+    interpsurf["x"] =xi
+    interpsurf["y"] =yi
+    for k in surface["data"].keys():
+        gam = pygam.LinearGAM(pygam.te(0,1)).fit(X,surface["data"][k])
         Xgrid = np.zeros((yi.shape[0],2))
         Xgrid[:,0] = xi
         Xgrid[:,1] = yi
-        zi = gam.predict(Xgrid)
-        return xi,yi,zi
+        interpdata[k] = gam.predict(Xgrid)
+    interpsurf["data"] = interpdata
+    interpsurf = addLatLonToSurface(interpsurf)
+    return interpsurf
 
 def homemadeXY(lon,lat):
     x=[]
@@ -454,30 +400,15 @@ def homemadeXY(lon,lat):
         y.append(r*np.sin(theta))
     return np.asarray(x),np.asarray(y)
 
-
-def xyzToSurface(x,y,z,d,depth,debug = True):
+def addLatLonToSurface(surface,debug = True):
     if debug:
         print("converting xyz back to lat lon a")
-    ecef = pyproj.Proj(proj='geocent', ellps='WGS84', datum = 'WGS84',preserve_units=True)
-    lla = pyproj.Proj(proj='latlong', ellps='WGS84', datum = 'WGS84',preserve_units=True)
-    surface = np.array([[],[],[[],[],[],[]],[]])
-    lon, lat, a = pyproj.transform(ecef,lla,x,y,z,radians=False)
-    surface[0]=lon
-    surface[1]=lat
-    surface[2]=[a]+d
-    return {depth:surface}
-
-def xyzToSurfacePolar(x,y,z,d,depth,debug = True):
-    if debug:
-        print("converting xyz back to lat lon a")
-    surface = np.array([[],[],[[],[],[],[]],[]])
-    lat = 90-(np.sqrt((x**2+y**2))/111000.0)
-    lon = np.degrees(np.arctan2(y,x))
+    lat = 90-(np.sqrt((surface["x"]**2+surface["y"]**2))/111000.0)
+    lon = np.degrees(np.arctan2(surface["y"],surface["x"]))
     #print("lat: ",lat, " lon: ",lon)
-    surface[0]=lon
-    surface[1]=lat
-    surface[2]=[z]+d
-    return {depth:surface}
+    surface["lons"]=lon
+    surface["lats"]=lat
+    return surface
      
         
 def findNeighboringPoints(profiles,lat,lon,radius=30):
@@ -529,25 +460,25 @@ def componentDistance(surfaces,k,i1,i2):
     #x = surfaces[k][0][i1] - surfaces[k][0][i2]
     #if abs(x) > abs(360 - (x+360)%360):
         #x = np.sign(x)*(360-(x+360)%360)
-    if  (surfaces[k][0][i1]+180 ) > (surfaces[k][0][i2]+180):
-        x = surfaces[k][0][i1]+180 - (surfaces[k][0][i2]+180)
+    if  (surfaces[k]["lons"][i1]+180 ) > (surfaces[k]["lons"][i2]+180):
+        x = surfaces[k]["lons"][i1]+180 - (surfaces[k]["lons"][i2]+180)
         if x>180:
             x = -(360-x)
     else:
-        x = surfaces[k][0][i1]+180 - (surfaces[k][0][i2]+180)
+        x = surfaces[k]["lons"][i1]+180 - (surfaces[k]["lons"][i2]+180)
         if x < -180:
             x= -(-360-x)
-    x=x*np.cos(np.deg2rad(surfaces[k][1][i2]))*111000.0
+    x=x*np.cos(np.deg2rad(surfaces[k]["lats"][i2]))*111000.0
     #print(surfaces[k][0][i1],surfaces[k][0][i2],x)
 
-    y = (surfaces[k][1][i1]-surfaces[k][1][i2])*111000.0
+    y = (surfaces[k]["lats"][i1]-surfaces[k]["lats"][i2])*111000.0
     return x,y
 
 
 def addPrimeToSurfaces(surfaces,neighbors,debug=False):
     for k in surfaces.keys():
-        surfaces[k][2].append(np.zeros(len(surfaces[k][1])))
-        surfaces[k][2].append(np.zeros(len(surfaces[k][1])))
+        surfaces[k]["data"]["uz"] = np.zeros(len(surfaces[k]["lons"]))
+        surfaces[k]["data"]["vz"] = np.zeros(len(surfaces[k]["lons"]))
     alldxs = []
     for k in neighbors.keys():
         print("adding primes to: ",k)
@@ -571,25 +502,25 @@ def addPrimeToSurfaces(surfaces,neighbors,debug=False):
             dxfinal,b = componentDistance(surfaces,k,adjacent[dxindexs[1]],adjacent[dxindexs[0]])
             b,dyfinal = componentDistance(surfaces,k,adjacent[dyindexs[1]],adjacent[dyindexs[0]])
             #print(r,adjacent)
-            dhx = surfaces[k][2][0][adjacent[dxindexs[1]]] - surfaces[k][2][0][adjacent[dxindexs[0]]]
+            dhx = surfaces[k]["data"]["pres"][adjacent[dxindexs[1]]] - surfaces[k]["data"]["pres"][adjacent[dxindexs[0]]]
             #dhx = surfaces[k][2][0][adjacent[dxindexs[1]]]
-            dhy = surfaces[k][2][0][adjacent[dyindexs[1]]]-surfaces[k][2][0][adjacent[dyindexs[0]]]
+            dhy = surfaces[k]["data"]["pres"][adjacent[dyindexs[1]]]-surfaces[k]["data"]["pres"][adjacent[dyindexs[0]]]
             #dhy = surfaces[k][2][0][adjacent[dyindexs[1]]] - surfaces[k][2][0][adjacent[dyindexs[0]]]
             dhdtheta = dhx/dxfinal
             dhdr = dhy/dyfinal
             #surfaces[k][2][4][r] = dhdtheta *(1/((90-surfaces[k][2][0][r])*111000))*(1/np.tan(np.deg2rad(surfaces[k][2][0][r])))
-            surfaces[k][2][4][r] = dhdtheta
-            surfaces[k][2][5][r] = dhdr 
+            surfaces[k]["data"]["uz"][r] = dhdtheta
+            surfaces[k]["data"]["vz"][r] = dhdr 
     return surfaces
 
 def addStreamFunc(surfaces,profiles):
     neutraldepths={}
     for k in surfaces.keys():
-        for i in range(len(surfaces[k][3])):
-            if surfaces[k][3][i] not in neutraldepths:
-                neutraldepths[surfaces[k][3][i]] =[[],[]]
-            neutraldepths[surfaces[k][3][i]][0].append(k)
-            neutraldepths[surfaces[k][3][i]][1].append(surfaces[k][2][0][i])
+        for i in range(len(surfaces[k]["ids"])):
+            if surfaces[k]["ids"][i] not in neutraldepths:
+                neutraldepths[surfaces[k]["ids"][i]] =[[],[]]
+            neutraldepths[surfaces[k]["ids"][i]][0].append(k)
+            neutraldepths[surfaces[k]["ids"][i]][1].append(surfaces[k]["data"]["pres"][i])
     s = []
     t = []
     ip = []
@@ -628,18 +559,28 @@ def addStreamFuncFromFile(surfaces,profiles,isopycnalfile,referencefile):
     ids = np.asarray(sio.loadmat(referencefile)["ks"])
     tags = np.asarray(sio.loadmat(referencefile)["ns"]).transpose()
     for k in surfaces.keys():
-        surfaces[k][2] = [surfaces[k][2][0],surfaces[k][2][1],surfaces[k][2][2],surfaces[k][2][3],[]]
-        for i in range(len(surfaces[k][0])):
-            if surfaces[k][3][i] in ids:
-                col = np.where(ids == surfaces[k][3][i])[0][0]
+        surfaces[k][2]["psi"] = np.full_like(surfaces[k]["data"]["pres"]
+        for i in range(len(surfaces[k]["lons"])):
+            if surfaces[k]["ids"][i] in ids:
+                col = np.where(ids == surfaces[k]["ids"][i])[0][0]
                 row = np.where(k == tags[col])[0]
                 if len(row) >0:
                     print(psi[col][row])
-                    surfaces[k][2][4].append(psi[col][row[0]])
+                    surfaces[k]["data"]["psi"].append(psi[col][row[0]])
                 else:
-                    surfaces[k][2][4].append(np.nan)
+                    surfaces[k]["data"]["psi"].append(np.nan)
                 
             else:
-                surfaces[k][2][4].append(np.nan)
+                surfaces[k]["data"]["psi"].append(np.nan)
+    return surfaces
 
-
+def convertOldSurfaces(surfaces):
+    newsurfaces = {}
+    for k in surfaces.keys():
+        surface = {}
+        surface["lons"] = surfaces[k][0]
+        surface["lats"] = surfaces[k][1]
+        surface["data"] = {"pres":surfaces[k][2][0],"t":surfaces[k][2][1],"s":surfaces[k][2][0],"pv":surfaces[k][2][3]}
+        surface["ids"] = surfaces[k][3]
+        newsurfaces[k] = surface
+    return newsurfaces
