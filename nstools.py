@@ -17,7 +17,7 @@ import copy
 import gsw
 import pygam
 import pickle
-from gswmatlab.pyinterface import geo_strf_isopycnal
+#from gswmatlab.pyinterface import geo_strf_isopycnal
 import scipy.io as sio
 
 def extractProfiles(fnames):
@@ -519,17 +519,21 @@ def addStreamFunc(surfaces,profiles):
         for i in range(len(surfaces[k]["ids"])):
             if surfaces[k]["ids"][i] not in neutraldepths:
                 neutraldepths[surfaces[k]["ids"][i]] =[[],[]]
-            neutraldepths[surfaces[k]["ids"][i]][0].append(k)
-            neutraldepths[surfaces[k]["ids"][i]][1].append(surfaces[k]["data"]["pres"][i])
+            if abs(k)<3700:
+                neutraldepths[surfaces[k]["ids"][i]][0].append(k)
+                neutraldepths[surfaces[k]["ids"][i]][1].append(abs(surfaces[k]["data"]["pres"][i]))
     refns = []
-    refns_p
-    for k in surfaces.keys():
-        if len(surfaces[k][0])==18:
+    refns_p = []
+    for k in neutraldepths.keys():
+        if len(neutraldepths[k][0])==18:
             p = getProfileById(profiles,k)
-            refns.append(surfaces[k][0])    
-            refns_p.append(p.densityAtPres(surfaces[k][1],2000))    
+            for j in range(len(neutraldepths[k][0])):
+                refns.append(neutraldepths[k][0][j]) 
+                refns_p.append(p.sigma2(neutraldepths[k][1][j]))    
             break
 
+    refns = np.asarray(refns)
+    refns_d = np.asarray(refns_p)
     s = []
     t = []
     ip = []
@@ -540,7 +544,7 @@ def addStreamFunc(surfaces,profiles):
     count =0
     for k in neutraldepths.keys():
         count+=1
-        if count > 1:
+        if count > 2000:
             break
         p = getProfileById(profiles,k)
         s.append(p.isals)
@@ -549,13 +553,22 @@ def addStreamFunc(surfaces,profiles):
         #p_ref.append([10.1235]*len(p.ipres))
         nslabels = neutraldepths[k][0]
         ns.append(np.abs(nslabels[::-1]))
-        nsa = np.abs(neutraldepths[k][1][::-1])
+        nsa = np.abs(neutraldepths[k][1])
+        print(nslabels,nsa)
         ns_p.append(nsa)
-        psi = p.geoIsopycnal(nsa,nslabels)
+        print("refns_d", refns_d)
+        print("refns", refns)
+        print("nslabels", nslabels)
+        print("isin", np.isin(refns,nslabels))
+        print("where isin", np.where(np.isin(refns,nslabels)))
+        nsdensref = refns_d[np.where(np.isin(refns,nslabels))[0]]
+        print(len(nsdensref),len(nsa))
+        print("nsdensref",nsdensref)
+        psi = p.geoIsopycnal(nsa,nsdensref)
         p_ref.append([0]*len(p.ipres))
         ks.append(k)
      
-    results = geo_strf_isopycnal(s,t,ip,p_ref,ns,ns_p,ks)
+    #results = geo_strf_isopycnal(s,t,ip,p_ref,ns,ns_p,ks)
     
     #with open('data/geoisopycnal.pickle', 'wb') as outfile:
         #pickle.dump([results,ks], outfile)

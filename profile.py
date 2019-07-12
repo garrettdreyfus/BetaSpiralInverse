@@ -118,8 +118,13 @@ class Profile:
         return self.itemps[i], self.isals[i]
 
     def densityAtPres(self,pres,ref=0):
+        print(pres)
         i = np.where(np.asarray(self.ipres) == int(pres))[0][0]
         return gsw.rho(self.isals[i],self.itemps[i],ref)
+
+    def sigma2(self,pres):
+        i = np.where(np.asarray(self.ipres) == int(pres))[0][0]
+        return gsw.sigma2(self.isals[i],self.itemps[i])
     
     def rhoZ(self,pres):
         return (densityAtPres(pres+1)-densityAtPres(pres-1))/3
@@ -173,10 +178,12 @@ class Profile:
             #print("not a single zero crossing")
             #print(self.cruise,p2.cruise)
             return None
-    def geoIsopycnal(self,ns,nslabels):
+    def geoIsopycnal(self,ns,nsdensref):
         self.ipres = np.abs(np.asarray(self.ipres))
         dyn_height = gsw.geo_strf_dyn_height(self.isals,self.itemps,self.ipres,10.1235)
-        ns= np.unique(np.asarray(np.abs(ns)))
+        nsuniques= np.unique(np.asarray(np.abs(ns)))
+        sames = np.setdiff1d(range(len(ns)),nsuniques)
+        ns[sames[1:]] = ns[sames[1:]]+1
         filt = np.where(np.isin(self.ipres,ns))
         #print("################")
         #print(ns)
@@ -185,28 +192,29 @@ class Profile:
         nsdyn_height = dyn_height[filt]
         nstemps = self.itemps[filt]
         nssals = self.isals[filt]
+        print(len(nstemps))
         ##robbing from gibbs
         #Things missing
         #   Iref cast variables
         #   enthalpy_SSO_0
         ###
         db2Pa = 1e4
-        sa_iref_cast,ct_iref_cast,p_iref_cast = mygsw.interp_ref_cast(ns,"s2")
+        sa_iref_cast,ct_iref_cast,p_iref_cast = mygsw.interp_ref_cast(nsdensref,"s2")
         cp0 = 3991.86795711963
+        print("##################")
+        #print("py iref_cast: ",p_iref_cast,ct_iref_cast,sa_iref_cast)
+        #print("py nssal and nstemps: ",nssals,nstemps,ns)
         part1 = 0.5 *db2Pa*(ns-p_iref_cast)*(gsw.specvol(nssals,nstemps,ns)-gsw.specvol(sa_iref_cast,ct_iref_cast,ns))
         part2=0
         part3 = (-0.225e-15)*(db2Pa*db2Pa)*(nstemps-ct_iref_cast)*(ns-p_iref_cast)*(ns-p_iref_cast)
         part4 = nsdyn_height - mygsw.enthalpy_SSO_0(ns)
         part5 = gsw.enthalpy(sa_iref_cast,ct_iref_cast,ns) -cp0*ct_iref_cast
-        print("##################")
-        #print("py iref_cast: ",p_iref_cast,ct_iref_cast,sa_iref_cast)
-        #print("py nssal and nstemps: ",nssals,nstemps,ns)
         #print("specvol delta", (gsw.specvol(nssals,nstemps,ns)-gsw.specvol(sa_iref_cast,ct_iref_cast,ns)))
         #print("py part1: ",part1+part2)
         #print("py part2: ",part3)
-        print("dyn height", nsdyn_height)
-        print("SS0 enthalpy",  mygsw.enthalpy_SSO_0(ns))
-        print("py part3: ",part4+part5)
-        print("result:", part1+part2+part3+part4+part5)
+        #print("dyn height", nsdyn_height)
+        #print("SS0 enthalpy",  mygsw.enthalpy_SSO_0(ns))
+        #print("py part3: ",part4+part5)
+        #print("result:", part1+part2+part3+part4+part5)
         print("##################")
         return part1 + part2 + part3 + part4 + part5
