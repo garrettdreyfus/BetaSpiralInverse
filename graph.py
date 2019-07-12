@@ -79,20 +79,22 @@ def zoomGraph(m,ax):
 def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None):
     newsurfaces = {}
     for k in surfaces.keys():
-        tempSurf = np.array([[],[],[[],[],[],[]],[]])
-        tempSurf[0] = np.concatenate((surfaces[k][0], overlay[k][0]))
-        tempSurf[1] = np.concatenate((surfaces[k][1],overlay[k][1]))
-        tempSurf[2][0] = np.concatenate((surfaces[k][2][0],overlay[k][2][0]))
-        tempSurf[2][1] = np.concatenate((surfaces[k][2][1],overlay[k][2][1]))
-        tempSurf[2][2] = np.concatenate((surfaces[k][2][2],overlay[k][2][2]))
-        tempSurf[2][3] = np.concatenate((surfaces[k][2][3],overlay[k][2][3]))
-        tempSurf[3] = np.concatenate((surfaces[k][3],overlay[k][3]))
+        tempSurf = emptySurface()
+        tempSurf["lons"] = np.concatenate((surfaces[k]["lons"], overlay[k]["lons"]))
+        tempSurf["lats"] = np.concatenate((surfaces[k]["lats"],overlay[k]["lats"]))
+        for field in surfaces[k]["data"].keys():
+            if field in overlay[k]["data"].keys():
+                tempSurf["data"][field] = np.concatenate((surfaces[k]["data"][field],overlay[k]["data"][field]))
+            else:
+                print(field," not in overlay")
+        if "ids" in surfaces.keys() and "ids" in overlay.keys():
+            tempSurf["ids"] = np.concatenate((surfaces[k]["ids"],overlay[k]["ids"]))
         newsurfaces[k]=tempSurf
     print(newsurfaces.keys())
     graphSurfaces(newsurfaces,quantindex,contour,profiles,deepestindex,show,maximize,savepath)
 
 def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None):
-    quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV","uz":"Uz'","vz":"Vz'"}
+    quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV","uz":"Uz'","vz":"Vz'","psi":"ISOPYCNAL STREAMFUNCTION"}
     for i in surfaces.keys():
         if len(surfaces[i]["lons"])>3 and len(surfaces[i]["data"][quantindex])>3:
             fig,ax = plt.subplots(1,1)
@@ -108,7 +110,7 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
                 plt.scatter(x,y,c=np.asarray(surfaces[i]["data"][quantindex]),cmap="plasma")
                 m = np.median(np.asarray(surfaces[i]["data"][quantindex]))
                 s = np.std(np.asarray(surfaces[i]["data"][quantindex]))
-                #plt.clim(m-2*s,m+2*s)
+                plt.clim(m-2*s,m+2*s)
                 #plt.clim(i-400,i+400)
                 mapy.colorbar()
             #map the reference profile

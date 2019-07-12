@@ -192,7 +192,7 @@ class Profile:
         nsdyn_height = dyn_height[filt]
         nstemps = self.itemps[filt]
         nssals = self.isals[filt]
-        print(len(nstemps))
+        #print(len(nstemps))
         ##robbing from gibbs
         #Things missing
         #   Iref cast variables
@@ -201,7 +201,7 @@ class Profile:
         db2Pa = 1e4
         sa_iref_cast,ct_iref_cast,p_iref_cast = mygsw.interp_ref_cast(nsdensref,"s2")
         cp0 = 3991.86795711963
-        print("##################")
+        #print("##################")
         #print("py iref_cast: ",p_iref_cast,ct_iref_cast,sa_iref_cast)
         #print("py nssal and nstemps: ",nssals,nstemps,ns)
         part1 = 0.5 *db2Pa*(ns-p_iref_cast)*(gsw.specvol(nssals,nstemps,ns)-gsw.specvol(sa_iref_cast,ct_iref_cast,ns))
@@ -216,5 +216,5 @@ class Profile:
         #print("SS0 enthalpy",  mygsw.enthalpy_SSO_0(ns))
         #print("py part3: ",part4+part5)
         #print("result:", part1+part2+part3+part4+part5)
-        print("##################")
+        #print("##################")
         return part1 + part2 + part3 + part4 + part5

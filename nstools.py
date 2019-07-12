@@ -381,11 +381,15 @@ def interpolateSurface(surface,debug=True):
     interpsurf["x"] =xi
     interpsurf["y"] =yi
     for k in surface["data"].keys():
-        gam = pygam.LinearGAM(pygam.te(0,1)).fit(X,surface["data"][k])
-        Xgrid = np.zeros((yi.shape[0],2))
-        Xgrid[:,0] = xi
-        Xgrid[:,1] = yi
-        interpdata[k] = gam.predict(Xgrid)
+        notnan = ~np.isnan(surface["data"][k])
+        if len(notnan)>10:
+            gam = pygam.LinearGAM(pygam.te(0,1)).fit(X,surface["data"][k][notnan])
+            Xgrid = np.zeros((yi.shape[0],2))
+            Xgrid[:,0] = xi
+            Xgrid[:,1] = yi
+            interpdata[k] = gam.predict(Xgrid)
+        else:
+            interpdata[k] = np.asarray([np.nan]*len(xi))
     interpsurf["data"] = interpdata
     interpsurf = addLatLonToSurface(interpsurf)
     return interpsurf
@@ -516,6 +520,8 @@ def addPrimeToSurfaces(surfaces,neighbors,debug=False):
 def addStreamFunc(surfaces,profiles):
     neutraldepths={}
     for k in surfaces.keys():
+        surfaces[k]["data"]["psi"]=np.empty(np.size(surfaces[k]["ids"]))
+        surfaces[k]["data"]["psi"][:] =np.nan
         for i in range(len(surfaces[k]["ids"])):
             if surfaces[k]["ids"][i] not in neutraldepths:
                 neutraldepths[surfaces[k]["ids"][i]] =[[],[]]
@@ -554,17 +560,23 @@ def addStreamFunc(surfaces,profiles):
         nslabels = neutraldepths[k][0]
         ns.append(np.abs(nslabels[::-1]))
         nsa = np.abs(neutraldepths[k][1])
-        print(nslabels,nsa)
+        #print(nslabels,nsa)
         ns_p.append(nsa)
-        print("refns_d", refns_d)
-        print("refns", refns)
-        print("nslabels", nslabels)
-        print("isin", np.isin(refns,nslabels))
-        print("where isin", np.where(np.isin(refns,nslabels)))
+        #print("refns_d", refns_d)
+        #print("refns", refns)
+        #print("nslabels", nslabels)
+        #print("isin", np.isin(refns,nslabels))
+        #print("where isin", np.where(np.isin(refns,nslabels)))
         nsdensref = refns_d[np.where(np.isin(refns,nslabels))[0]]
-        print(len(nsdensref),len(nsa))
-        print("nsdensref",nsdensref)
+        #print(len(nsdensref),len(nsa))
+        #print("nsdensref",nsdensref)
         psi = p.geoIsopycnal(nsa,nsdensref)
+        for depth in range(len(nslabels)):
+            #print(psi)
+            #print(surfaces[nslabels[depth]]["ids"])
+            targets = np.where(np.asarray(surfaces[nslabels[depth]]["ids"]) ==str(k) )
+            #print(targets)
+            surfaces[nslabels[depth]]["data"]["psi"][targets] = psi[depth]
         p_ref.append([0]*len(p.ipres))
         ks.append(k)
      
@@ -573,6 +585,7 @@ def addStreamFunc(surfaces,profiles):
     #with open('data/geoisopycnal.pickle', 'wb') as outfile:
         #pickle.dump([results,ks], outfile)
     #print(results)
+    return surfaces
 
         
     
