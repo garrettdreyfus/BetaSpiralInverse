@@ -521,6 +521,15 @@ def addStreamFunc(surfaces,profiles):
                 neutraldepths[surfaces[k]["ids"][i]] =[[],[]]
             neutraldepths[surfaces[k]["ids"][i]][0].append(k)
             neutraldepths[surfaces[k]["ids"][i]][1].append(surfaces[k]["data"]["pres"][i])
+    refns = []
+    refns_p
+    for k in surfaces.keys():
+        if len(surfaces[k][0])==18:
+            p = getProfileById(profiles,k)
+            refns.append(surfaces[k][0])    
+            refns_p.append(p.densityAtPres(surfaces[k][1],2000))    
+            break
+
     s = []
     t = []
     ip = []
@@ -531,24 +540,25 @@ def addStreamFunc(surfaces,profiles):
     count =0
     for k in neutraldepths.keys():
         count+=1
-        if count > 2000:
+        if count > 1:
             break
         p = getProfileById(profiles,k)
-        s.append(p.sals)
-        t.append(p.temps)
-        ip.append(p.pres)
+        s.append(p.isals)
+        t.append(p.itemps)
+        ip.append(np.abs(p.ipres))
         #p_ref.append([10.1235]*len(p.ipres))
-        if len(np.unique(p.ipres))!=len(p.ipres):
-            print("NOOOOOOOO")
+        nslabels = neutraldepths[k][0]
+        ns.append(np.abs(nslabels[::-1]))
+        nsa = np.abs(neutraldepths[k][1][::-1])
+        ns_p.append(nsa)
+        psi = p.geoIsopycnal(nsa,nslabels)
         p_ref.append([0]*len(p.ipres))
-        ns.append(neutraldepths[k][0])
-        ns_p.append(neutraldepths[k][1])
         ks.append(k)
-    
+     
     results = geo_strf_isopycnal(s,t,ip,p_ref,ns,ns_p,ks)
     
     #with open('data/geoisopycnal.pickle', 'wb') as outfile:
-        #pickle.dump(results, outfile)
+        #pickle.dump([results,ks], outfile)
     #print(results)
 
         
@@ -559,7 +569,7 @@ def addStreamFuncFromFile(surfaces,profiles,isopycnalfile,referencefile):
     ids = np.asarray(sio.loadmat(referencefile)["ks"])
     tags = np.asarray(sio.loadmat(referencefile)["ns"]).transpose()
     for k in surfaces.keys():
-        surfaces[k][2]["psi"] = np.full_like(surfaces[k]["data"]["pres"]
+        surfaces[k][2]["psi"] = np.full_like(surfaces[k]["data"]["pres"])
         for i in range(len(surfaces[k]["lons"])):
             if surfaces[k]["ids"][i] in ids:
                 col = np.where(ids == surfaces[k]["ids"][i])[0][0]

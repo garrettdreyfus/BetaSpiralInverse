@@ -86,25 +86,25 @@ fileObject = open("data/surfacesWithData.pickle",'rb')
 surfaces = pickle.load(fileObject)
 originalsurfaces = copy.deepcopy(surfaces)
 surfaces = nstools.convertOldSurfaces(surfaces)
-#nstools.addStreamFunc(surfaces,profiles)
+nstools.addStreamFunc(surfaces,profiles)
 #nstools.addStreamFuncFromFile(surfaces,profiles,"geoisopycnal.mat","np_vector.mat")
 #graph.graphSurfaces(surfaces,4)
 
 ######################################################################################################
-surfaces =nstools.addXYToSurfaces(surfaces)
-pprint(surfaces.keys())
-pprint(surfaces[3600])
-##nstools.graphTransects(nstools.filterSurfacesByLine(originalsurfaces,40),0)
-    ################
-interpolatedsurfaces = {}
-neighbors={}
-for k in surfaces.keys():
-    surfaces[k] = nstools.removeDiscontinuities(surfaces[k],radius=0.1)
-    interpolatedsurfaces[k] = nstools.interpolateSurface(surfaces[k])
-    neighbors[k]=nstools.generateNeighborsList(interpolatedsurfaces[k]["x"],interpolatedsurfaces[k]["y"])
+#surfaces =nstools.addXYToSurfaces(surfaces)
+#pprint(surfaces.keys())
+#pprint(surfaces[3600])
+###nstools.graphTransects(nstools.filterSurfacesByLine(originalsurfaces,40),0)
+    #################
+#interpolatedsurfaces = {}
+#neighbors={}
+#for k in surfaces.keys():
+    #surfaces[k] = nstools.removeDiscontinuities(surfaces[k],radius=0.1)
+    #interpolatedsurfaces[k] = nstools.interpolateSurface(surfaces[k])
+    #neighbors[k]=nstools.generateNeighborsList(interpolatedsurfaces[k]["x"],interpolatedsurfaces[k]["y"])
 
-interpolatedsurfaces = nstools.addPrimeToSurfaces(interpolatedsurfaces,neighbors)
-graph.graphSurfaces(interpolatedsurfaces,"uz")
+#interpolatedsurfaces = nstools.addPrimeToSurfaces(interpolatedsurfaces,neighbors)
+#graph.graphSurfaces(interpolatedsurfaces,"uz")
 
 ##nstools.graphNeighbors(interpolatedsurfaces,neighbors)
 ##with open('data/neighborsAndInterpolated2600.pickle', 'wb') as outfile:
