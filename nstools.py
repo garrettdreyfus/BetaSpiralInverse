@@ -341,6 +341,7 @@ def createMesh(n,xvals,yvals):
 def generateMaskedMesh(x,y,radius=100):
     xi,yi = createMesh(100,x,y)
     final = np.zeros(xi.shape)
+    neighbors = []
     for i in range(len(x)):
         r = np.sqrt((xi- x[i])**2 + (yi - y[i])**2)
         inside = r<radius*1000
@@ -353,7 +354,33 @@ def generateMaskedMesh(x,y,radius=100):
             final[0][i]=True
         else:
             final[0][i] = False
-    return xi[final],yi[final]
+
+    indexcount = np.full(final.shape,np.nan)
+    count = 0
+    for i in range(final.shape[0]):
+        for j in range(final.shape[1]):
+            if final[i][j]:
+                indexcount[i][j] = count
+                count+=1
+
+    finalxi=[]
+    finalyi=[]
+    finalneighbors = []
+    for l in range(final.shape[0]):
+        for k in range(final.shape[1]):
+            if final[l][k]:
+                finalxi.append(xi[l][k])
+                finalyi.append(yi[l][k])
+            if l != final.shape[0]-1 and k != final.shape[1]-1:
+                s = []
+                if final[l][k] and final[l+1][k+1] and final[l+1][k] and final[l][k+1]:
+                    s.append(int(indexcount[l][k]))
+                    s.append(int(indexcount[l][k+1]))
+                    s.append(int(indexcount[l+1][k]))
+                    s.append(int(indexcount[l+1][k+1]))
+                    neighbors.append(s)
+
+    return np.asarray(finalxi),np.asarray(finalyi),neighbors
 
 def removeOutlierSurfaces(surfaces,stdevs=2):
     for k in surfaces.keys():
@@ -368,15 +395,14 @@ def removeOutlierSurfaces(surfaces,stdevs=2):
             else:
                 surfaces[k][field]=surfaces[k][field][filt]
     return surfaces
-
-
+    
 def interpolateSurface(surface,debug=True):
     #print("######")
     interpsurf={}
     X = np.zeros((len(surface["x"]),2))
     X[:,0]=surface["x"]
     X[:,1]=surface["y"]
-    xi,yi = generateMaskedMesh(surface["x"],surface["y"])
+    xi,yi,neighbors = generateMaskedMesh(surface["x"],surface["y"])
     interpdata={}
     interpsurf["x"] =xi
     interpsurf["y"] =yi
@@ -392,7 +418,7 @@ def interpolateSurface(surface,debug=True):
             interpdata[k] = np.asarray([np.nan]*len(xi))
     interpsurf["data"] = interpdata
     interpsurf = addLatLonToSurface(interpsurf)
-    return interpsurf
+    return interpsurf,neighbors
 
 def homemadeXY(lon,lat):
     x=[]
@@ -452,18 +478,11 @@ def plotASpiral(profiles,center=None,x=None,y=None):
     #plt.plot(us,vs,c="r")
     plt.show()
 
-def generateNeighborsList(x,y):
-    print("calculating neighbors")
-    ref = {}
-    for center in range(len(x)):
-        dist = ((x-x[center])**2 + (y-y[center])**2)
-        ref[center]=np.argsort(dist)[1:5]
-    return ref
-                     
 def componentDistance(surfaces,k,i1,i2):
     #x = surfaces[k][0][i1] - surfaces[k][0][i2]
     #if abs(x) > abs(360 - (x+360)%360):
         #x = np.sign(x)*(360-(x+360)%360)
+
     if  (surfaces[k]["lons"][i1]+180 ) > (surfaces[k]["lons"][i2]+180):
         x = surfaces[k]["lons"][i1]+180 - (surfaces[k]["lons"][i2]+180)
         if x>180:
@@ -476,45 +495,32 @@ def componentDistance(surfaces,k,i1,i2):
     #print(surfaces[k][0][i1],surfaces[k][0][i2],x)
 
     y = (surfaces[k]["lats"][i1]-surfaces[k]["lats"][i2])*111000.0
+    if surfaces[k]["lons"][i1] <0:
+        x=-x
+        y=-y
     return x,y
 
 
 def addPrimeToSurfaces(surfaces,neighbors,debug=False):
     for k in surfaces.keys():
-        surfaces[k]["data"]["uz"] = np.zeros(len(surfaces[k]["lons"]))
-        surfaces[k]["data"]["vz"] = np.zeros(len(surfaces[k]["lons"]))
+        surfaces[k]["data"]["uz"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        surfaces[k]["data"]["vz"] = np.full(len(surfaces[k]["lons"]),np.nan)
     alldxs = []
     for k in neighbors.keys():
         print("adding primes to: ",k)
-        for r in neighbors[k].keys():
-            #alright so here k is our NS
-            #r is the index of the point for which we are calculating these prime values
-            #adjacent is the list of adjacent points
-            adjacent = neighbors[k][r]
-            dxsum = 0
-            dysum = 0
-            dxs = []
-            dys = []
-            dhs = []
-            dists = 0
-            for i in adjacent:
-                dx,dy = componentDistance(surfaces,k,i,r)
-                dxs.append(dx)
-                dys.append(dy)
-            dxindexs = [np.argmin(dxs),np.argmax(dxs)]
-            dyindexs = [np.argmin(dys),np.argmax(dys)]
-            dxfinal,b = componentDistance(surfaces,k,adjacent[dxindexs[1]],adjacent[dxindexs[0]])
-            b,dyfinal = componentDistance(surfaces,k,adjacent[dyindexs[1]],adjacent[dyindexs[0]])
-            #print(r,adjacent)
-            dhx = surfaces[k]["data"]["pres"][adjacent[dxindexs[1]]] - surfaces[k]["data"]["pres"][adjacent[dxindexs[0]]]
-            #dhx = surfaces[k][2][0][adjacent[dxindexs[1]]]
-            dhy = surfaces[k]["data"]["pres"][adjacent[dyindexs[1]]]-surfaces[k]["data"]["pres"][adjacent[dyindexs[0]]]
-            #dhy = surfaces[k][2][0][adjacent[dyindexs[1]]] - surfaces[k][2][0][adjacent[dyindexs[0]]]
-            dhdtheta = dhx/dxfinal
-            dhdr = dhy/dyfinal
+        for r in neighbors[k]:
+            dhx = surfaces[k]["data"]["psi"][r[3]]-surfaces[k]["data"]["psi"][r[0]]
+            #dxfinal = (surfaces[k]["lons"][r[0]]-surfaces[k]["lons"][r[1]])*111000.0*np.cos(np.deg2rad(surfaces[k]["lats"][r[0]]))
+            dhy = surfaces[k]["data"]["psi"][r[3]]-surfaces[k]["data"]["psi"][r[0]]
+            #dyfinal = (surfaces[k]["lats"][r[0]]-surfaces[k]["lats"][r[2]])*111000.0
+            dxfinal,b = componentDistance(surfaces,k,r[1],r[0])
+            b,dyfinal = componentDistance(surfaces,k,r[2],r[0])
+            #dhdtheta = np.sqrt(dhx**2 + dhy**2)
+            u = (-1/gsw.f(surfaces[k]["lats"][r[0]]))*dhy/dyfinal#/dyfinal
+            v = (1/gsw.f(surfaces[k]["lats"][r[0]]))*dhx/dxfinal#/dxfinal
             #surfaces[k][2][4][r] = dhdtheta *(1/((90-surfaces[k][2][0][r])*111000))*(1/np.tan(np.deg2rad(surfaces[k][2][0][r])))
-            surfaces[k]["data"]["uz"][r] = dhdtheta
-            surfaces[k]["data"]["vz"][r] = dhdr 
+            surfaces[k]["data"]["uz"][r[0]] = u
+            surfaces[k]["data"]["vz"][r[0]] = v 
     return surfaces
 
 def addStreamFunc(surfaces,profiles):

@@ -108,9 +108,15 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
                 plt.tricontourf(x,y,np.asarray(surfaces[i]["data"][quantindex]),cmap="plasma")
             else:
                 plt.scatter(x,y,c=np.asarray(surfaces[i]["data"][quantindex]),cmap="plasma")
-                m = np.median(np.asarray(surfaces[i]["data"][quantindex]))
-                s = np.std(np.asarray(surfaces[i]["data"][quantindex]))
-                plt.clim(m-2*s,m+2*s)
+                m = np.nanmedian(np.asarray(surfaces[i]["data"][quantindex]))
+                s = np.nanstd(np.asarray(surfaces[i]["data"][quantindex]))
+                print("################")
+                print(i,"mean: ",np.mean(surfaces[i]["data"][quantindex]))
+                print(surfaces[i]["data"][quantindex])
+                print(i,"median: ",np.median(surfaces[i]["data"][quantindex]))
+                print(i,"max: ",np.nanmax(surfaces[i]["data"][quantindex]))
+                print(i,"min: ",np.nanmin(surfaces[i]["data"][quantindex]))
+                plt.clim(m-0.1*s,m+0.1*s)
                 #plt.clim(i-400,i+400)
                 mapy.colorbar()
             #map the reference profile
@@ -244,3 +250,27 @@ def graphComparisonTransects(surfaces,interpsurfaces,profiles,quantindex,contour
                 plt.savefig(savepath+quantfilehash[quantindex]+"/ns"+str(k)+".png")
             if show:
                 plt.show()
+
+def graphStaggeredSurface(surfaces,neighbors,debug=False):
+    for k in surfaces.keys():
+        surfaces[k]["data"]["uz"] = np.zeros(len(surfaces[k]["lons"]))
+        surfaces[k]["data"]["vz"] = np.zeros(len(surfaces[k]["lons"]))
+    alldxs = []
+    
+    for k in surfaces.keys():
+        fig,ax = plt.subplots(1,1)
+        mapy = Basemap(projection='ortho', lat_0=90,lon_0=-60)
+        mapy.drawmapboundary(fill_color='aqua')
+        mapy.fillcontinents(color='coral',lake_color='aqua')
+        mapy.drawcoastlines()
+        for i in neighbors[k]:
+            i = np.asarray(i)
+                
+            x,y = mapy(surfaces[k]["lons"][i][[0,2,3,1,0]],surfaces[k]["lats"][i][[0,2,3,1,0]])
+            plt.plot(x,y)
+        plt.show()
+
+    return surfaces
+
+
+

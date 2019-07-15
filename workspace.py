@@ -100,11 +100,14 @@ interpolatedsurfaces = {}
 neighbors={}
 for k in surfaces.keys():
     surfaces[k] = nstools.removeDiscontinuities(surfaces[k],radius=0.1)
-    interpolatedsurfaces[k] = nstools.interpolateSurface(surfaces[k])
-    neighbors[k]=nstools.generateNeighborsList(interpolatedsurfaces[k]["x"],interpolatedsurfaces[k]["y"])
+    interpolatedsurfaces[k],neighbors[k] = nstools.interpolateSurface(surfaces[k])
 
-#interpolatedsurfaces = nstools.addPrimeToSurfaces(interpolatedsurfaces,neighbors)
-graph.graphSurfacesComparison(interpolatedsurfaces,surfaces,"psi",show=False,savepath="refpics/interpPSI/")
+interpolatedsurfaces = nstools.addPrimeToSurfaces(interpolatedsurfaces,neighbors)
+graph.graphSurfaces(interpolatedsurfaces,"uz")
+graph.graphSurfaces(interpolatedsurfaces,"vz")
+
+#interpolatedsurfaces = nstools.createStaggeredSurface(interpolatedsurfaces,neighbors)
+#graph.graphSurfacesComparison(interpolatedsurfaces,surfaces,"uprime",show=False,savepath="refpics/interpPSI/")
 
 ##nstools.graphNeighbors(interpolatedsurfaces,neighbors)
 ##with open('data/neighborsAndInterpolated2600.pickle', 'wb') as outfile:
