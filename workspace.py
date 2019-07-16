@@ -95,7 +95,7 @@ surfaces =nstools.addXYToSurfaces(surfaces)
 #pprint(surfaces.keys())
 #pprint(surfaces[3600])
 ###nstools.graphTransects(nstools.filterSurfacesByLine(originalsurfaces,40),0)
-    #################
+    ################
 #interpolatedsurfaces = {}
 #neighbors={}
 #lookups={}
@@ -110,14 +110,11 @@ surfaces =nstools.addXYToSurfaces(surfaces)
 with open('data/lookupNeighborsSurfaces.pickle', 'rb') as outfile:
     [interpolatedsurfaces,lookups,neighbors]=pickle.load(outfile)
 
-
-
-print(interpolatedsurfaces[2800]["data"].keys())
-interpolatedsurfaces = nstools.addPrimeToSurfacesCartesianTrueDistance(interpolatedsurfaces,neighbors,lookups)
-graph.graphSurfaces(interpolatedsurfaces,"u")
-graph.graphSurfaces(interpolatedsurfaces,"v")
-graph.graphSurfaces(interpolatedsurfaces,"hx")
-graph.graphSurfaces(interpolatedsurfaces,"hy")
+staggeredsurfaces = nstools.addPrimeToSurfacesCartesianTrueDistance(interpolatedsurfaces,neighbors,lookups)
+graph.graphSurfaces(staggeredsurfaces,"curl")
+#graph.graphSurfaces(staggeredsurfaces,"v",show=False,savepath = "refpics/staggeredDerivatives/")
+#graph.graphSurfaces(staggeredsurfaces,"hx",show=False,savepath = "refpics/staggeredDerivatives/")
+#graph.graphSurfaces(staggeredsurfaces,"hy",show=False,savepath = "refpics/staggeredDerivatives/")
 
 #interpolatedsurfaces = nstools.createStaggeredSurface(interpolatedsurfaces,neighbors)
 #graph.graphSurfacesComparison(interpolatedsurfaces,surfaces,"uprime",show=False,savepath="refpics/interpPSI/")

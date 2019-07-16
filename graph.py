@@ -1,4 +1,5 @@
 from nstools import *
+import os
 
 def graphTransects(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None):
     quanttitlehash = {0:"Pressure Dbar",1:"Temperature C",2:"Salinity PSU",3:"PV"}
@@ -94,7 +95,12 @@ def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=N
     graphSurfaces(newsurfaces,quantindex,contour,profiles,deepestindex,show,maximize,savepath)
 
 def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None):
-    quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV","u":"U","v":"V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X","hy":"Neutral Gradient Y"}
+    quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV","u":"U","v":"V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X","hy":"Neutral Gradient Y","curl":"Curl","drdt":"Northward Velocity","dthetadt":"Eastward Velocity","ids":"IDS"}
+    if savepath:
+        try:
+            os.makedirs(savepath+quantindex)
+        except FileExistsError as e:
+            print(e)
     for i in surfaces.keys():
         if len(surfaces[i]["lons"])>3 and len(surfaces[i]["data"][quantindex])>3:
             fig,ax = plt.subplots(1,1)
@@ -111,11 +117,6 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
                 m = np.nanmedian(np.asarray(surfaces[i]["data"][quantindex]))
                 s = np.nanstd(np.asarray(surfaces[i]["data"][quantindex]))
                 print("################")
-                print(i,"mean: ",np.mean(surfaces[i]["data"][quantindex]))
-                print(surfaces[i]["data"][quantindex])
-                print(i,"median: ",np.nanmedian(surfaces[i]["data"][quantindex]))
-                print(i,"max: ",np.nanmax(surfaces[i]["data"][quantindex]))
-                print(i,"min: ",np.nanmin(surfaces[i]["data"][quantindex]))
                 plt.clim(m-2*s,m+2*s)
                 #plt.clim(i-400,i+400)
                 mapy.colorbar()
