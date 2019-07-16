@@ -94,7 +94,7 @@ def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=N
     graphSurfaces(newsurfaces,quantindex,contour,profiles,deepestindex,show,maximize,savepath)
 
 def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None):
-    quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV","uz":"Uz'","vz":"Vz'","psi":"ISOPYCNAL STREAMFUNCTION"}
+    quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV","u":"U","v":"V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X","hy":"Neutral Gradient Y"}
     for i in surfaces.keys():
         if len(surfaces[i]["lons"])>3 and len(surfaces[i]["data"][quantindex])>3:
             fig,ax = plt.subplots(1,1)
@@ -113,10 +113,10 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
                 print("################")
                 print(i,"mean: ",np.mean(surfaces[i]["data"][quantindex]))
                 print(surfaces[i]["data"][quantindex])
-                print(i,"median: ",np.median(surfaces[i]["data"][quantindex]))
+                print(i,"median: ",np.nanmedian(surfaces[i]["data"][quantindex]))
                 print(i,"max: ",np.nanmax(surfaces[i]["data"][quantindex]))
                 print(i,"min: ",np.nanmin(surfaces[i]["data"][quantindex]))
-                plt.clim(m-0.1*s,m+0.1*s)
+                plt.clim(m-2*s,m+2*s)
                 #plt.clim(i-400,i+400)
                 mapy.colorbar()
             #map the reference profile

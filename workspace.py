@@ -96,15 +96,28 @@ surfaces =nstools.addXYToSurfaces(surfaces)
 #pprint(surfaces[3600])
 ###nstools.graphTransects(nstools.filterSurfacesByLine(originalsurfaces,40),0)
     #################
-interpolatedsurfaces = {}
-neighbors={}
-for k in surfaces.keys():
-    surfaces[k] = nstools.removeDiscontinuities(surfaces[k],radius=0.1)
-    interpolatedsurfaces[k],neighbors[k] = nstools.interpolateSurface(surfaces[k])
+#interpolatedsurfaces = {}
+#neighbors={}
+#lookups={}
+#for k in surfaces.keys():
+    #surfaces[k] = nstools.removeDiscontinuities(surfaces[k],radius=0.1)
+    #interpolatedsurfaces[k],neighbors[k] = nstools.interpolateSurface(surfaces[k])
+    #lookups[k] = nstools.trueDistanceLookup(interpolatedsurfaces[k],neighbors[k])
 
-interpolatedsurfaces = nstools.addPrimeToSurfaces(interpolatedsurfaces,neighbors)
-graph.graphSurfaces(interpolatedsurfaces,"uz")
-graph.graphSurfaces(interpolatedsurfaces,"vz")
+#with open('data/lookupNeighborsSurfaces.pickle', 'wb') as outfile:
+    #pickle.dump([interpolatedsurfaces,lookups,neighbors], outfile)
+
+with open('data/lookupNeighborsSurfaces.pickle', 'rb') as outfile:
+    [interpolatedsurfaces,lookups,neighbors]=pickle.load(outfile)
+
+
+
+print(interpolatedsurfaces[2800]["data"].keys())
+interpolatedsurfaces = nstools.addPrimeToSurfacesCartesianTrueDistance(interpolatedsurfaces,neighbors,lookups)
+graph.graphSurfaces(interpolatedsurfaces,"u")
+graph.graphSurfaces(interpolatedsurfaces,"v")
+graph.graphSurfaces(interpolatedsurfaces,"hx")
+graph.graphSurfaces(interpolatedsurfaces,"hy")
 
 #interpolatedsurfaces = nstools.createStaggeredSurface(interpolatedsurfaces,neighbors)
 #graph.graphSurfacesComparison(interpolatedsurfaces,surfaces,"uprime",show=False,savepath="refpics/interpPSI/")

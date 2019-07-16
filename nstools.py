@@ -19,6 +19,7 @@ import pygam
 import pickle
 #from gswmatlab.pyinterface import geo_strf_isopycnal
 import scipy.io as sio
+import itertools
 
 def extractProfiles(fnames):
     ##Load JSON data into profile objects
@@ -378,7 +379,7 @@ def generateMaskedMesh(x,y,radius=100):
                     s.append(int(indexcount[l][k+1]))
                     s.append(int(indexcount[l+1][k]))
                     s.append(int(indexcount[l+1][k+1]))
-                    neighbors.append(s)
+                    neighbors.append(tuple(s))
 
     return np.asarray(finalxi),np.asarray(finalyi),neighbors
 
@@ -482,46 +483,161 @@ def componentDistance(surfaces,k,i1,i2):
     #x = surfaces[k][0][i1] - surfaces[k][0][i2]
     #if abs(x) > abs(360 - (x+360)%360):
         #x = np.sign(x)*(360-(x+360)%360)
-
-    if  (surfaces[k]["lons"][i1]+180 ) > (surfaces[k]["lons"][i2]+180):
-        x = surfaces[k]["lons"][i1]+180 - (surfaces[k]["lons"][i2]+180)
+    if type(i2) == int:
+        lat = surfaces[k]["lats"][i2]
+        lon = surfaces[k]["lons"][i2]
+    else:
+        lat = i2[1]
+        lon = i2[0]
+        
+    if  (surfaces[k]["lons"][i1]+180 ) > (lon+180):
+        x = surfaces[k]["lons"][i1]+180 - (lon+180)
         if x>180:
             x = -(360-x)
     else:
-        x = surfaces[k]["lons"][i1]+180 - (surfaces[k]["lons"][i2]+180)
+        x = surfaces[k]["lons"][i1]+180 - (lon+180)
         if x < -180:
             x= -(-360-x)
-    x=x*np.cos(np.deg2rad(surfaces[k]["lats"][i2]))*111000.0
+    x=x*np.cos(np.deg2rad(lat))*111000.0
     #print(surfaces[k][0][i1],surfaces[k][0][i2],x)
 
-    y = (surfaces[k]["lats"][i1]-surfaces[k]["lats"][i2])*111000.0
-    if surfaces[k]["lons"][i1] <0:
+    y = (surfaces[k]["lats"][i1]-lat)*111000.0
+    if surfaces[k]["lons"][i1]<0:
         x=-x
         y=-y
+
     return x,y
 
 
-def addPrimeToSurfaces(surfaces,neighbors,debug=False):
+def addPrimeToSurfacesKinda(surfaces,neighbors,debug=False):
     for k in surfaces.keys():
-        surfaces[k]["data"]["uz"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        surfaces[k]["data"]["vz"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        surfaces[k]["data"]["u"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        surfaces[k]["data"]["v"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        surfaces[k]["data"]["hx"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        surfaces[k]["data"]["hy"] = np.full(len(surfaces[k]["lons"]),np.nan)
     alldxs = []
     for k in neighbors.keys():
         print("adding primes to: ",k)
         for r in neighbors[k]:
-            dhx = surfaces[k]["data"]["psi"][r[3]]-surfaces[k]["data"]["psi"][r[0]]
+            dpsix = surfaces[k]["data"]["psi"][r[1]]-surfaces[k]["data"]["psi"][r[0]]
+            dhx = surfaces[k]["data"]["pres"][r[1]]-surfaces[k]["data"]["pres"][r[0]]
             #dxfinal = (surfaces[k]["lons"][r[0]]-surfaces[k]["lons"][r[1]])*111000.0*np.cos(np.deg2rad(surfaces[k]["lats"][r[0]]))
-            dhy = surfaces[k]["data"]["psi"][r[3]]-surfaces[k]["data"]["psi"][r[0]]
+            dpsiy = surfaces[k]["data"]["psi"][r[2]]-surfaces[k]["data"]["psi"][r[0]]
+            dhy = surfaces[k]["data"]["pres"][r[2]]-surfaces[k]["data"]["pres"][r[0]]
             #dyfinal = (surfaces[k]["lats"][r[0]]-surfaces[k]["lats"][r[2]])*111000.0
             dxfinal,b = componentDistance(surfaces,k,r[1],r[0])
             b,dyfinal = componentDistance(surfaces,k,r[2],r[0])
             #dhdtheta = np.sqrt(dhx**2 + dhy**2)
-            u = (-1/gsw.f(surfaces[k]["lats"][r[0]]))*dhy/dyfinal#/dyfinal
-            v = (1/gsw.f(surfaces[k]["lats"][r[0]]))*dhx/dxfinal#/dxfinal
+            u = (-1/gsw.f(surfaces[k]["lats"][r[0]]))*dpsiy/dyfinal#/dyfinal
+            v = (1/gsw.f(surfaces[k]["lats"][r[0]]))*dpsix/dxfinal#/dxfinal
             #surfaces[k][2][4][r] = dhdtheta *(1/((90-surfaces[k][2][0][r])*111000))*(1/np.tan(np.deg2rad(surfaces[k][2][0][r])))
-            surfaces[k]["data"]["uz"][r[0]] = u
-            surfaces[k]["data"]["vz"][r[0]] = v 
+            surfaces[k]["data"]["u"][r[0]] = u
+            surfaces[k]["data"]["v"][r[0]] = v
+            surfaces[k]["data"]["hx"][r[0]] = dhx/dxfinal
+            surfaces[k]["data"]["hy"][r[0]] = dhy/dyfinal
     return surfaces
+
+def addPrimeToSurfaces(surfaces,neighbors,debug=False):
+    for k in surfaces.keys():
+        surfaces[k]["data"]["u"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        surfaces[k]["data"]["v"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        surfaces[k]["data"]["hx"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        surfaces[k]["data"]["hy"] = np.full(len(surfaces[k]["lons"]),np.nan)
+    alldxs = []
+    for k in neighbors.keys():
+        print("adding primes to: ",k)
+        for s in neighbors[k]:
+            h = np.mean(surfaces[k]["data"]["pres"][s])
+            dhdthetas = []
+            dhdrs = []
+            dthetas = []
+            drs = []
+            for i in s:
+                dtheta,dr = componentDistance(surfaces,k,i,(np.mean(surfaces[k]["lons"][s]),np.mean(surfaces[k]["lats"][s])))
+                dhdthetas.append((h-surfaces[k]["data"]["pres"][i])/dtheta)
+                dhdrs.append((h-surfaces[k]["data"]["pres"][i])/dr)
+                dthetas.append(dtheta)
+                drs.append(dr)
+            js = np.argsort(np.abs(dthetas))[2:3]
+            dhdthetas = np.asarray(dhdthetas)[js]
+            js = np.argsort(np.abs(drs))[2:3]
+            dhdr = np.asarray(dhdrs)[js]
+            surfaces[k]["data"]["hx"][s[0]] = np.nanmean(dhdthetas)
+            surfaces[k]["data"]["hy"][s[0]] = np.nanmean(dhdrs)
+            
+            
+        #for r in neighbors[k]:
+            #for l in r:
+                #dtheta,dr = componentDistance(surfaces,k,l,r[0])
+
+            #u = (-1/gsw.f(surfaces[k]["lats"][r[0]]))*dpsiy/dyfinal#/dyfinal
+            #v = (1/gsw.f(surfaces[k]["lats"][r[0]]))*dpsix/dxfinal#/dxfinal
+            ##surfaces[k][2][4][r] = dhdtheta *(1/((90-surfaces[k][2][0][r])*111000))*(1/np.tan(np.deg2rad(surfaces[k][2][0][r])))
+            #surfaces[k]["data"]["u"][r[0]] = u
+            #surfaces[k]["data"]["v"][r[0]] = u
+            #surfaces[k]["data"]["hx"][r[0]] = 
+            #surfaces[k]["data"]["hy"][r[0]] = 
+    return surfaces
+
+
+def addPrimeToSurfacesCartesian(surfaces,neighbors,lookups,debug=False):
+    for k in surfaces.keys():
+        surfaces[k]["data"]["u"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        surfaces[k]["data"]["v"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        surfaces[k]["data"]["hx"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        surfaces[k]["data"]["hy"] = np.full(len(surfaces[k]["lons"]),np.nan)
+    alldxs = []
+    for k in neighbors.keys():
+        print("adding primes to: ",k)
+        for s in neighbors[k]:
+            h = np.mean(surfaces[k]["data"]["pres"][s])
+            dhdx = []
+            dhdy = []
+            avg_point= (np.mean(surfaces[k]["x"][s]),np.mean(surfaces[k]["y"][s]))
+            for i in s:
+                current_point = (surfaces[k]["x"][i],surfaces[k]["y"][i])
+                dhdx.append((h-surfaces[k]["data"]["pres"][i])/(avg_point[0]-current_point[0]))
+                dhdy.append((h-surfaces[k]["data"]["pres"][i])/(avg_point[1]-current_point[1]))
+            surfaces[k]["data"]["hx"][s[0]] = np.mean(dhdx)
+            surfaces[k]["data"]["hy"][s[0]] = np.mean(dhdy)
+    return surfaces
+def addPrimeToSurfacesCartesianTrueDistance(surfaces,neighbors,lookups,debug=False):
+    for k in surfaces.keys():
+        surfaces[k]["data"]["u"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        surfaces[k]["data"]["v"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        surfaces[k]["data"]["hx"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        surfaces[k]["data"]["hy"] = np.full(len(surfaces[k]["lons"]),np.nan)
+    alldxs = []
+    for k in neighbors.keys():
+        print("adding primes to: ",k)
+        #print(lookups[k].keys())
+        for s in neighbors[k]:
+            dhdx = []
+            dpsidx = []
+            dhdy = []
+            dpsidy = []
+            dhdx.append((surfaces[k]["data"]["pres"][s[1]]-surfaces[k]["data"]["pres"][s[0]])/lookups[k][(s[0],s[1])])
+            dpsidx.append((surfaces[k]["data"]["psi"][s[1]]-surfaces[k]["data"]["psi"][s[0]])/lookups[k][(s[0],s[1])])
+            dhdx.append((surfaces[k]["data"]["pres"][s[3]]-surfaces[k]["data"]["pres"][s[2]])/lookups[k][(s[2],s[3])])
+            dpsidx.append((surfaces[k]["data"]["psi"][s[3]]-surfaces[k]["data"]["psi"][s[2]])/lookups[k][(s[2],s[3])])
+            dhdy.append((surfaces[k]["data"]["pres"][s[2]]-surfaces[k]["data"]["pres"][s[0]])/lookups[k][(s[0],s[2])])
+            dpsidy.append((surfaces[k]["data"]["psi"][s[2]]-surfaces[k]["data"]["psi"][s[0]])/lookups[k][(s[0],s[2])])
+            dhdy.append((surfaces[k]["data"]["pres"][s[3]]-surfaces[k]["data"]["pres"][s[1]])/lookups[k][(s[1],s[3])])
+            dpsidy.append((surfaces[k]["data"]["psi"][s[3]]-surfaces[k]["data"]["psi"][s[1]])/lookups[k][(s[1],s[3])])
+            surfaces[k]["data"]["hx"][s[0]] = np.mean(dhdx)
+            surfaces[k]["data"]["u"][s[0]] = (-1/gsw.f(surfaces[k]["lats"][s[0]]))*np.mean(dpsidy)
+            surfaces[k]["data"]["hy"][s[0]] = np.mean(dhdy)
+            surfaces[k]["data"]["v"][s[0]] = (1/gsw.f(surfaces[k]["lats"][s[0]]))*np.mean(dpsidx)
+    return surfaces
+
+def trueDistanceLookup(surface,neighbors):
+    lookup = {}
+    for square in neighbors:
+        for edge in itertools.combinations(square,2):
+            p = tuple(sorted(edge))
+            if p not in lookup.keys():
+                lookup[p] = geodesic((surface["lats"][p[0]],surface["lons"][p[0]]),(surface["lats"][p[1]],surface["lons"][p[1]])).m
+    return lookup
 
 def addStreamFunc(surfaces,profiles):
     neutraldepths={}
