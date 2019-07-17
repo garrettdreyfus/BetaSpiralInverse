@@ -118,13 +118,24 @@ with open('data/ready4inverse.pickle', 'rb') as outfile:
     staggeredsurfaces=pickle.load(outfile)
 for k in staggeredsurfaces.keys():
     ids = staggeredsurfaces[k]["ids"]
+    staggeredsurfaces[k]["data"]["uprime"]=np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
+    staggeredsurfaces[k]["data"]["vprime"]=np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
+    staggeredsurfaces[k]["data"]["uabs"]=np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
+    staggeredsurfaces[k]["data"]["vabs"]=np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
     print(np.min(ids),np.max(ids))
-staggeredsurfaces = nstools.simpleInvert(staggeredsurfaces,debug=False)
+staggeredsurfaces = nstools.simpleInvert(staggeredsurfaces)
 #for k in staggeredsurfaces.keys():
     #staggeredsurfaces[k]["data"]["uabs"] = np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
     #staggeredsurfaces[k]["data"]["vabs"] = np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
 
-graph.graphSurfaces(staggeredsurfaces,"uabs")
+#graph.graphSurfaces(staggeredsurfaces,"uprime")
+#graph.graphSurfaces(staggeredsurfaces,"vprime")
+graph.graphSurfaces(staggeredsurfaces,"u",show=False,savepath = "refpics/simpleInvert/")
+graph.graphSurfaces(staggeredsurfaces,"v",show=False,savepath = "refpics/simpleInvert/")
+graph.graphSurfaces(staggeredsurfaces,"uabs",show=False,savepath = "refpics/simpleInvert/")
+graph.graphSurfaces(staggeredsurfaces,"vabs",show=False,savepath = "refpics/simpleInvert/")
+graph.graphSurfaces(staggeredsurfaces,"uprime",show=False,savepath = "refpics/simpleInvert/")
+graph.graphSurfaces(staggeredsurfaces,"vprime",show=False,savepath = "refpics/simpleInvert/")
 #graph.graphSurfaces(staggeredsurfaces,"v",show=False,savepath = "refpics/staggeredDerivatives/")
 #graph.graphSurfaces(staggeredsurfaces,"hx",show=False,savepath = "refpics/staggeredDerivatives/")
 #graph.graphSurfaces(staggeredsurfaces,"hy",show=False,savepath = "refpics/staggeredDerivatives/")

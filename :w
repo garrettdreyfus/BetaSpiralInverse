@@ -558,8 +558,6 @@ def nanCopySurfaces(surfaces):
         nancopy[k]["data"]["dthetadt"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["uabs"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["vabs"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["uprime"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["vprime"] = np.full(len(surfaces[k]["lons"]),np.nan)
     return nancopy
     
 def addPrimeToSurfacesCartesianTrueDistance(surfaces,neighbors,lookups,debug=False):
@@ -717,11 +715,10 @@ def convertOldSurfaces(surfaces):
     return newsurfaces
 
 def simpleInvert(surfaces,reflevel=200,debug=False):
-    omega =  (7.2921 * 10**-5)
-    a = 6.357 * (10**6)
+    omega = 1.458*(10**-4)/2 
+    a = 6.371 * (10**6)
     for index in range(len(surfaces[reflevel]["x"])):
-        if index%100==0:
-            print("inverting: ",index,"/",len(surfaces[reflevel]["x"]))
+        print("inverting: ",index,"/",len(surfaces[reflevel]["x"]))
         eyed = int(surfaces[reflevel]["ids"][index])
         #print("id: ",eyed)
         ns = []
@@ -749,7 +746,7 @@ def simpleInvert(surfaces,reflevel=200,debug=False):
                     print("x is nan: ",np.isnan(x))
                     print("y is nan: ",np.isnan(y))
                     print("something here is nan")
-                if not(np.isnan(hx) or np.isnan(hy) or np.isnan(x) or np.isnan(y)):
+                else:
                     #surfaces[k]["data"]["uabs"][found]=0
                     b[0].append((hx+(beta*x)/(f*r)))
                     b[1].append((hy+(beta*y)/(f*r)))
@@ -767,32 +764,30 @@ def simpleInvert(surfaces,reflevel=200,debug=False):
                     print("f: ",f)
                     print("r: ",r)
                     print("c: ",u*hx + v*hy - (beta/f)*(-u*x-v*y)/(r))
-        if len(b[0])>0  :
+        if len(b[0])>0:
             b = np.matrix.transpose(np.asarray(b))
             c = np.matrix.transpose(np.asarray(c))
             j = np.linalg.inv(np.matmul(np.matrix.transpose(b),b))
-            prime = np.matrix.transpose(np.matmul(np.matmul(j,np.matrix.transpose(b)),c))
+            print("j , b: ",j.shape,b.shape)
+            prime = np.matmul(np.matmul(j,np.matrix.transpose(b)),c)
             
             if debug:
                 print("######BBBBBBBBBBBB###############")
                 print("b: ",b)
                 print("c: ",c)
                 print("j: ",j)
-                print("j , b: ",j.shape,b.shape)
                 print("prime: ",prime)
                 print("########################")
 
-            for i in range(len(ns)):
-                #try:
-                surfaces[ns[i][0]]["data"]["uprime"][ns[i][1]] = prime[0]
-                surfaces[ns[i][0]]["data"]["uabs"][ns[i][1]] = prime[0] + surfaces[ns[i][0]]["data"]["u"][ns[i][1]]
-                surfaces[ns[i][0]]["data"]["vprime"][ns[i][1]] = prime[1]
-                surfaces[ns[i][0]]["data"]["vabs"][ns[i][1]] = prime[1] + surfaces[ns[i][0]]["data"]["v"][ns[i][1]]
-                #except:
-                    #print("######BBBBBBBBBBBB###############")
-                    #print("ns: ", ns)
-                    #print("c: ",prime)
-                    #print("########################")
+            for i in range(len(prime)):
+                try:
+                    surfaces[ns[i][0]]["data"]["uabs"][ns[i][1]] = prime[0][i]
+                    surfaces[ns[i][0]]["data"]["vabs"][ns[i][1]] = prime[1][i]
+                except:
+                    print("######BBBBBBBBBBBB###############")
+                    print("ns: ", ns)
+                    print("c: ",c)
+                    print("########################")
 
     return surfaces
 
