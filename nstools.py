@@ -20,6 +20,8 @@ import pickle
 #from gswmatlab.pyinterface import geo_strf_isopycnal
 import scipy.io as sio
 import itertools
+from scipy.linalg import svd
+
 
 def extractProfiles(fnames):
     ##Load JSON data into profile objects
@@ -716,6 +718,20 @@ def convertOldSurfaces(surfaces):
         newsurfaces[k] = surface
     return newsurfaces
 
+def SVDdecomp(A,n_elements=2):
+    U, s, VT = svd(A)
+    # reciprocals of s
+    d = 1.0 / s
+    # create m x n D matrix
+    D = np.zeros(A.shape)
+    # populate D with n x n diagonal matrix
+    D[:A.shape[1], :A.shape[1]] = np.diag(d)
+    D = D[:, :n_elements]
+    VT = VT[:n_elements, :]
+    # calculate pseudoinverse
+    B = VT.T.dot(D.T).dot(U.T)
+    return B
+
 def simpleInvert(surfaces,reflevel=200,debug=False):
     omega =  (7.2921 * 10**-5)
     a = 6.357 * (10**6)
@@ -768,10 +784,11 @@ def simpleInvert(surfaces,reflevel=200,debug=False):
                     print("r: ",r)
                     print("c: ",u*hx + v*hy - (beta/f)*(-u*x-v*y)/(r))
         if len(b[0])>0  :
-            b = np.matrix.transpose(np.asarray(b))
+            b = np.asarray(b)
             c = np.matrix.transpose(np.asarray(c))
-            j = np.linalg.inv(np.matmul(np.matrix.transpose(b),b))
-            prime = np.matrix.transpose(np.matmul(np.matmul(j,np.matrix.transpose(b)),c))
+            #j = np.linalg.inv(np.matmul(np.matrix.transpose(b),b))
+            j = SVDdecomp(np.matrix.transpose(b),n_elements=2)
+            prime = np.matmul(j,c)
             
             if debug:
                 print("######BBBBBBBBBBBB###############")

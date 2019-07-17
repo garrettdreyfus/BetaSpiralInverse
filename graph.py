@@ -277,5 +277,83 @@ def graphStaggeredSurface(surfaces,neighbors,debug=False):
 
     return surfaces
 
+def graphVectorField(surfaces):
+    for k in surfaces.keys():
+        fig,ax = plt.subplots(1,1)
+        mapy = Basemap(projection='ortho', lat_0=90,lon_0=-60)
+        mapy.drawmapboundary(fill_color='aqua')
+        mapy.fillcontinents(color='coral',lake_color='aqua')
+        mapy.drawcoastlines()
+        urs=[]
+        uthetas=[]
+        lons = []
+        lats = []
+        for p in range(len(surfaces[k]["data"]["uabs"])):
+            u = surfaces[k]["data"]["uabs"][p] 
+            v = surfaces[k]["data"]["vabs"][p]
+            x = surfaces[k]["x"][p]
+            y = surfaces[k]["y"][p]
+            theta = np.deg2rad(surfaces[k]["lons"][p])
+            #ur = u*np.cos(theta) + v*np.sin(theta)
+            r = np.sqrt(x**2+y**2)
+            ur = -(x*u +y*v)/r
+
+            #utheta = v*np.cos(theta) - v*np.sin(theta)
+            utheta = r*(x*v-y*u)/(r**2)
+
+            urs.append(ur)
+            uthetas.append(utheta)
+            lons.append(surfaces[k]["lons"][p])
+            lats.append(surfaces[k]["lats"][p])
+        fig.suptitle("NS: "+str(k))
+        urs = np.asarray(urs)
+        uthetas = np.asarray(uthetas)
+        lons = np.asarray(lons)
+        lats = np.asarray(lats)
+        u,v,x,y = mapy.rotate_vector(uthetas,urs,lons,lats,returnxy=True)
+        print(len(u),len(v),len(x),len(y))
+        mag = np.hypot(u,v)
+        zoomGraph(mapy,ax)
+        fig.set_size_inches(16.5,12)
+        mapy.quiver(x,y,u,v,mag,cmap="plasma",scale=0.8)
+        plt.show()
+
+
+def graphCartVectorField(surfaces):
+    for k in surfaces.keys():
+        fig,ax = plt.subplots(1,1)
+        us=[]
+        vs=[]
+        xs = []
+        ys = []
+        for p in range(len(surfaces[k]["data"]["uabs"])):
+            u = surfaces[k]["data"]["uabs"][p] 
+            v = surfaces[k]["data"]["vabs"][p]
+            x = surfaces[k]["x"][p]
+            y = surfaces[k]["y"][p]
+            us.append(u)
+            vs.append(v)
+            xs.append(x)
+            ys.append(y)
+
+        fig.suptitle("NS: "+str(k))
+        us = np.asarray(us)
+        vs = np.asarray(vs)
+        xs = np.asarray(xs)
+        ys = np.asarray(ys)
+        mag = np.hypot(us,vs)
+        fig.set_size_inches(16.5,12)
+        print(len(xs))
+        print(len(ys))
+        print(len(us))
+        print(len(vs))
+        plt.quiver(xs,ys,us,vs,mag,cmap="plasma",scale=0.8)
+        plt.show()
+
+
+
+
+
+
 
 
