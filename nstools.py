@@ -541,7 +541,7 @@ def nanCopySurfaces(surfaces):
     for k in surfaces.keys():
         nancopy[k]=emptySurface()
         nancopy[k]["lons"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["ids"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        nancopy[k]["ids"] = surfaces[k]["ids"]
         nancopy[k]["lats"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["x"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["y"] = np.full(len(surfaces[k]["lons"]),np.nan)
@@ -556,6 +556,8 @@ def nanCopySurfaces(surfaces):
         nancopy[k]["data"]["curl"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["drdt"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["dthetadt"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        nancopy[k]["data"]["uabs"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        nancopy[k]["data"]["vabs"] = np.full(len(surfaces[k]["lons"]),np.nan)
     return nancopy
     
 def addPrimeToSurfacesCartesianTrueDistance(surfaces,neighbors,lookups,debug=False):
@@ -581,6 +583,7 @@ def addPrimeToSurfacesCartesianTrueDistance(surfaces,neighbors,lookups,debug=Fal
             s=np.asarray(s)
             lon = np.mean(np.abs(surfaces[k]["lons"][s]))*np.sign(surfaces[k]["lons"][s[0]])
             staggered[k]["lons"][s[0]] = lon
+            staggered[k]["data"]["pres"][s[0]] = np.mean(surfaces[k]["data"]["pres"][s])
             staggered[k]["data"]["ids"][s[0]] = surfaces[k]["ids"][s[0]]
             staggered[k]["lats"][s[0]] = np.mean(surfaces[k]["lats"][s])
             x = np.mean(surfaces[k]["x"][s])
@@ -710,3 +713,80 @@ def convertOldSurfaces(surfaces):
         surface["ids"] = surfaces[k][3]
         newsurfaces[k] = surface
     return newsurfaces
+
+def simpleInvert(surfaces,reflevel=200,debug=False):
+    omega = 1.458*(10**-4)/2 
+    a = 6.371 * (10**6)
+    for index in range(len(surfaces[reflevel]["x"])):
+        print("inverting: ",index,"/",len(surfaces[reflevel]["x"]))
+        eyed = int(surfaces[reflevel]["ids"][index])
+        #print("id: ",eyed)
+        ns = []
+        u = [[],[]]
+        b = [[],[]]
+        for k in surfaces.keys():
+            found = np.where(np.asarray(surfaces[k]["ids"])==eyed)
+            if len(found)!=0 and len(found[0]) != 0:
+                found = found[0][0]
+                ns.append((k,found))
+                hx = surfaces[k]["data"]["hx"][found]
+                hy = surfaces[k]["data"]["hy"][found]
+                pres = surfaces[k]["data"]["pres"][found]
+                f = gsw.f(surfaces[k]["lons"][found])
+                x = surfaces[k]["x"][found]
+                y = surfaces[k]["y"][found]
+                r = np.sqrt(surfaces[k]["x"][found]**2 + surfaces[k]["x"][found]**2)
+                beta = (2*omega*np.cos(np.deg2rad(surfaces[k]["lats"][found])))/a
+                if debug and (np.isnan(hx) or np.isnan(hy) or np.isnan(x) or np.isnan(y)):
+                    print("pres is nan: ",np.isnan(pres))
+                    print("hx is nan: ",np.isnan(hx))
+                    print("hy is nan: ",np.isnan(hy))
+                    print("x is nan: ",np.isnan(x))
+                    print("y is nan: ",np.isnan(y))
+                    print("something here is nan")
+                else:
+                    b[0].append(hx+(beta*x)/(f*r))
+                    b[1].append(hy+(beta*y)/(f*r))
+                    u[0].append(surfaces[k]["data"]["u"][found])
+                    u[1].append(surfaces[k]["data"]["v"][found])
+
+                if debug:
+                    print("hx: ",hx)
+                    print("hy: ",hy)
+                    print("beta: ",beta)
+                    print("x: ",x)
+                    print("y: ",y)
+                    print("f: ",f)
+                    print("r: ",r)
+        if len(b[0])>0:
+            b = np.asarray(b)
+            u = np.asarray(u)
+            u = np.matrix.transpose(u)
+            binv = np.linalg.inv(np.matmul(np.matrix.transpose(b),b))
+            if debug:
+                print("######BBBBBBBBBBBB###############")
+                print("b: ",b.shape)
+                print("binv: ",binv.shape)
+                print("u: ",u.shape)
+                print("########################")
+            c = np.matmul(np.matmul(b,binv),u)
+            for i in range(len(c)):
+                try:
+                    surfaces[ns[i][0]]["data"]["uabs"][ns[i][1]] = c[0][i]+surfaces[ns[i][0]]["data"]["u"][ns[i][1]] 
+                    surfaces[ns[i][0]]["data"]["vabs"][ns[i][1]] = c[1][i]+surfaces[ns[i][0]]["data"]["v"][ns[i][1]]
+                except:
+                    print("######BBBBBBBBBBBB###############")
+                    print("ns: ", ns)
+                    print("c: ",c)
+                    print("########################")
+
+    return surfaces
+
+
+        
+
+
+
+        
+
+

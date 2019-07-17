@@ -95,7 +95,10 @@ def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=N
     graphSurfaces(newsurfaces,quantindex,contour,profiles,deepestindex,show,maximize,savepath)
 
 def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None):
-    quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV","u":"U","v":"V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X","hy":"Neutral Gradient Y","curl":"Curl","drdt":"Northward Velocity","dthetadt":"Eastward Velocity","ids":"IDS"}
+    quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV",\
+                     "u":"U","v":"V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X",\
+                    "hy":"Neutral Gradient Y","curl":"Curl","drdt":"Northward Velocity",\
+                    "dthetadt":"Eastward Velocity","ids":"IDS","uabs":"Absolute U","vabs":"Absolute V"}
     if savepath:
         try:
             os.makedirs(savepath+quantindex)

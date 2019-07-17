@@ -107,11 +107,24 @@ surfaces =nstools.addXYToSurfaces(surfaces)
 #with open('data/lookupNeighborsSurfaces.pickle', 'wb') as outfile:
     #pickle.dump([interpolatedsurfaces,lookups,neighbors], outfile)
 
-with open('data/lookupNeighborsSurfaces.pickle', 'rb') as outfile:
-    [interpolatedsurfaces,lookups,neighbors]=pickle.load(outfile)
+#with open('data/lookupNeighborsSurfaces.pickle', 'rb') as outfile:
+    #[interpolatedsurfaces,lookups,neighbors]=pickle.load(outfile)
 
-staggeredsurfaces = nstools.addPrimeToSurfacesCartesianTrueDistance(interpolatedsurfaces,neighbors,lookups)
-graph.graphSurfaces(staggeredsurfaces,"curl")
+#staggeredsurfaces = nstools.addPrimeToSurfacesCartesianTrueDistance(interpolatedsurfaces,neighbors,lookups)
+#with open('data/ready4inverse.pickle', 'wb') as outfile:
+    #pickle.dump(staggeredsurfaces, outfile)
+
+with open('data/ready4inverse.pickle', 'rb') as outfile:
+    staggeredsurfaces=pickle.load(outfile)
+for k in staggeredsurfaces.keys():
+    ids = staggeredsurfaces[k]["ids"]
+    print(np.min(ids),np.max(ids))
+staggeredsurfaces = nstools.simpleInvert(staggeredsurfaces,debug=False)
+#for k in staggeredsurfaces.keys():
+    #staggeredsurfaces[k]["data"]["uabs"] = np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
+    #staggeredsurfaces[k]["data"]["vabs"] = np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
+
+graph.graphSurfaces(staggeredsurfaces,"uabs")
 #graph.graphSurfaces(staggeredsurfaces,"v",show=False,savepath = "refpics/staggeredDerivatives/")
 #graph.graphSurfaces(staggeredsurfaces,"hx",show=False,savepath = "refpics/staggeredDerivatives/")
 #graph.graphSurfaces(staggeredsurfaces,"hy",show=False,savepath = "refpics/staggeredDerivatives/")
