@@ -488,56 +488,6 @@ def plotASpiral(profiles,center=None,x=None,y=None):
     #plt.plot(us,vs,c="r")
     plt.show()
 
-def addPrimeToSurfacesKinda(surfaces,neighbors,debug=False):
-    for k in surfaces.keys():
-        surfaces[k]["data"]["u"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        surfaces[k]["data"]["v"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        surfaces[k]["data"]["hx"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        surfaces[k]["data"]["hy"] = np.full(len(surfaces[k]["lons"]),np.nan)
-    alldxs = []
-    for k in neighbors.keys():
-        print("adding primes to: ",k)
-        for r in neighbors[k]:
-            dpsix = surfaces[k]["data"]["psi"][r[1]]-surfaces[k]["data"]["psi"][r[0]]
-            dhx = surfaces[k]["data"]["pres"][r[1]]-surfaces[k]["data"]["pres"][r[0]]
-            #dxfinal = (surfaces[k]["lons"][r[0]]-surfaces[k]["lons"][r[1]])*111000.0*np.cos(np.deg2rad(surfaces[k]["lats"][r[0]]))
-            dpsiy = surfaces[k]["data"]["psi"][r[2]]-surfaces[k]["data"]["psi"][r[0]]
-            dhy = surfaces[k]["data"]["pres"][r[2]]-surfaces[k]["data"]["pres"][r[0]]
-            #dyfinal = (surfaces[k]["lats"][r[0]]-surfaces[k]["lats"][r[2]])*111000.0
-            dxfinal,b = componentDistance(surfaces,k,r[1],r[0])
-            b,dyfinal = componentDistance(surfaces,k,r[2],r[0])
-            #dhdtheta = np.sqrt(dhx**2 + dhy**2)
-            u = (-1/gsw.f(surfaces[k]["lats"][r[0]]))*dpsiy/dyfinal#/dyfinal
-            v = (1/gsw.f(surfaces[k]["lats"][r[0]]))*dpsix/dxfinal#/dxfinal
-            #surfaces[k][2][4][r] = dhdtheta *(1/((90-surfaces[k][2][0][r])*111000))*(1/np.tan(np.deg2rad(surfaces[k][2][0][r])))
-            surfaces[k]["data"]["u"][r[0]] = u
-            surfaces[k]["data"]["v"][r[0]] = v
-            surfaces[k]["data"]["hx"][r[0]] = dhx/dxfinal
-            surfaces[k]["data"]["hy"][r[0]] = dhy/dyfinal
-    return surfaces
-
-def addPrimeToSurfacesCartesian(surfaces,neighbors,lookups,debug=False):
-    for k in surfaces.keys():
-        surfaces[k]["data"]["u"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        surfaces[k]["data"]["v"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        surfaces[k]["data"]["hx"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        surfaces[k]["data"]["hy"] = np.full(len(surfaces[k]["lons"]),np.nan)
-    alldxs = []
-    for k in neighbors.keys():
-        print("adding primes to: ",k)
-        for s in neighbors[k]:
-            h = np.mean(surfaces[k]["data"]["pres"][s])
-            dhdx = []
-            dhdy = []
-            avg_point= (np.mean(surfaces[k]["x"][s]),np.mean(surfaces[k]["y"][s]))
-            for i in s:
-                current_point = (surfaces[k]["x"][i],surfaces[k]["y"][i])
-                dhdx.append((h-surfaces[k]["data"]["pres"][i])/(avg_point[0]-current_point[0]))
-                dhdy.append((h-surfaces[k]["data"]["pres"][i])/(avg_point[1]-current_point[1]))
-            surfaces[k]["data"]["hx"][s[0]] = np.mean(dhdx)
-            surfaces[k]["data"]["hy"][s[0]] = np.mean(dhdy)
-    return surfaces
-
 def nanCopySurfaces(surfaces):
     nancopy = {}
     for k in surfaces.keys():
@@ -551,9 +501,11 @@ def nanCopySurfaces(surfaces):
         nancopy[k]["data"]["ids"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["v"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["hx"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        nancopy[k]["data"]["h"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["hy"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["t"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["s"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        nancopy[k]["data"]["pv"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["pres"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["curl"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["drdt"] = np.full(len(surfaces[k]["lons"]),np.nan)
@@ -563,11 +515,38 @@ def nanCopySurfaces(surfaces):
         nancopy[k]["data"]["uprime"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["vprime"] = np.full(len(surfaces[k]["lons"]),np.nan)
     return nancopy
+
+def addHToSurfaces(surfaces):
+    for k in surfaces.keys():
+        surfaces[k]["data"]["h"] = np.full(len(surfaces[k]["lons"]),np.nan)
+    minimum = int(np.min(list(surfaces.keys())))
+    maximum = int(np.max(list(surfaces.keys())))
+    depths = range(minimum,maximum+1,200)
+    for j in range(len(depths))[1:-1]:
+        for index in range(len(surfaces[depths[j]]["x"])):
+            if index%100==0:
+                print("adding thickness: ",index,"/",len(surfaces[depths[j]]["x"]),"on NS: ",depths[j])
+            eyed = int(surfaces[depths[j]]["ids"][index])
+            foundbelow = np.where(np.asarray(surfaces[depths[j-1]]["ids"])==eyed)
+            found = index
+            foundabove = np.where(np.asarray(surfaces[depths[j+1]]["ids"])==eyed)
+            if len(foundbelow)!=0 and len(foundbelow[0]) != 0 and len(foundabove)!=0 and len(foundabove[0]) != 0:
+                foundbelow = foundbelow[0][0]
+                foundabove = foundabove[0][0]
+                tophalf = abs(surfaces[depths[j+1]]["data"]["pres"][foundabove]-surfaces[depths[j]]["data"]["pres"][found])/2.0
+                bothalf = abs(surfaces[depths[j]]["data"]["pres"][found]-surfaces[depths[j-1]]["data"]["pres"][foundbelow])/2.0
+                surfaces[depths[j]]["data"]["h"][found] = tophalf + bothalf
+                #if depths[j] == 400:
+                    #print("400: ",tophalf + bothalf)
+    return surfaces
+                
+ 
     
 def addPrimeToSurfacesCartesianTrueDistance(surfaces,neighbors,lookups,debug=False):
     staggered = nanCopySurfaces(surfaces)
-    
     alldxs = []
+    surfaces = addHToSurfaces(surfaces)
+    print(surfaces[600]["data"]["h"])
     for k in neighbors.keys():
         print("adding primes to: ",k)
         #print(lookups[k].keys())
@@ -576,13 +555,17 @@ def addPrimeToSurfacesCartesianTrueDistance(surfaces,neighbors,lookups,debug=Fal
             dpsidx = []
             dhdy = []
             dpsidy = []
-            dhdx.append((surfaces[k]["data"]["pres"][s[1]]-surfaces[k]["data"]["pres"][s[0]])/lookups[k][(s[0],s[1])])
+            if surfaces[k]["x"][s[0]]>surfaces[k]["x"][s[1]]:
+                print("jesus christ X")
+            if surfaces[k]["y"][s[0]]>surfaces[k]["y"][s[2]]:
+                print("jesus christ Y")
+            dhdx.append((surfaces[k]["data"]["h"][s[1]]-surfaces[k]["data"]["h"][s[0]])/lookups[k][(s[0],s[1])])
             dpsidx.append((surfaces[k]["data"]["psi"][s[1]]-surfaces[k]["data"]["psi"][s[0]])/lookups[k][(s[0],s[1])])
-            dhdx.append((surfaces[k]["data"]["pres"][s[3]]-surfaces[k]["data"]["pres"][s[2]])/lookups[k][(s[2],s[3])])
+            dhdx.append((surfaces[k]["data"]["h"][s[3]]-surfaces[k]["data"]["h"][s[2]])/lookups[k][(s[2],s[3])])
             dpsidx.append((surfaces[k]["data"]["psi"][s[3]]-surfaces[k]["data"]["psi"][s[2]])/lookups[k][(s[2],s[3])])
-            dhdy.append((surfaces[k]["data"]["pres"][s[2]]-surfaces[k]["data"]["pres"][s[0]])/lookups[k][(s[0],s[2])])
+            dhdy.append((surfaces[k]["data"]["h"][s[2]]-surfaces[k]["data"]["h"][s[0]])/lookups[k][(s[0],s[2])])
             dpsidy.append((surfaces[k]["data"]["psi"][s[2]]-surfaces[k]["data"]["psi"][s[0]])/lookups[k][(s[0],s[2])])
-            dhdy.append((surfaces[k]["data"]["pres"][s[3]]-surfaces[k]["data"]["pres"][s[1]])/lookups[k][(s[1],s[3])])
+            dhdy.append((surfaces[k]["data"]["h"][s[3]]-surfaces[k]["data"]["h"][s[1]])/lookups[k][(s[1],s[3])])
             dpsidy.append((surfaces[k]["data"]["psi"][s[3]]-surfaces[k]["data"]["psi"][s[1]])/lookups[k][(s[1],s[3])])
             s=np.asarray(s)
             lon = np.mean(np.abs(surfaces[k]["lons"][s]))*np.sign(surfaces[k]["lons"][s[0]])
@@ -592,13 +575,15 @@ def addPrimeToSurfacesCartesianTrueDistance(surfaces,neighbors,lookups,debug=Fal
             staggered[k]["lats"][s[0]] = np.mean(surfaces[k]["lats"][s])
             x = np.mean(surfaces[k]["x"][s])
             staggered[k]["x"][s[0]] = x
+            staggered[k]["data"]["h"][s[0]] = np.mean(surfaces[k]["data"]["h"][s])
+            staggered[k]["data"]["pv"][s[0]] = np.mean(surfaces[k]["data"]["pv"][s])
             y = np.mean(surfaces[k]["y"][s])
             staggered[k]["y"][s[0]] = y
             staggered[k]["data"]["hx"][s[0]] = np.mean(dhdx)
-            u = (-1/gsw.f(surfaces[k]["lats"][s[0]]))*np.mean(dpsidy)
+            u = (1/gsw.f(surfaces[k]["lats"][s[0]]))*np.mean(dpsidy)
             staggered[k]["data"]["u"][s[0]] = u
             staggered[k]["data"]["hy"][s[0]] = np.mean(dhdy)
-            v = (1/gsw.f(surfaces[k]["lats"][s[0]]))*np.mean(dpsidx)
+            v = (-1/gsw.f(surfaces[k]["lats"][s[0]]))*np.mean(dpsidx)
             staggered[k]["data"]["v"][s[0]] = v
             staggered[k]["data"]["curl"][s[0]] = v /lookups[k][(s[2],s[3])] -u /lookups[k][(s[0],s[1])] 
             staggered[k]["data"]["drdt"][s[0]] = (u*x+v*y)/np.sqrt(x**2+y**2)
@@ -722,6 +707,7 @@ def SVDdecomp(A,n_elements=2):
     U, s, VT = svd(A)
     # reciprocals of s
     d = 1.0 / s
+    print(d[0]/d[min(n_elements,len(d)-1)])
     # create m x n D matrix
     D = np.zeros(A.shape)
     # populate D with n x n diagonal matrix
@@ -747,9 +733,9 @@ def simpleInvert(surfaces,reflevel=200,debug=False):
         prime = [[],[]]
         for k in surfaces.keys():
             found = np.where(np.asarray(surfaces[k]["ids"])==eyed)
+            ns.append((k,found))
             if len(found)!=0 and len(found[0]) != 0:
                 found = found[0][0]
-                ns.append((k,found))
                 hx = surfaces[k]["data"]["hx"][found]
                 hy = surfaces[k]["data"]["hy"][found]
                 pres = surfaces[k]["data"]["pres"][found]
@@ -765,12 +751,14 @@ def simpleInvert(surfaces,reflevel=200,debug=False):
                     print("x is nan: ",np.isnan(x))
                     print("y is nan: ",np.isnan(y))
                     print("something here is nan")
-                if not(np.isnan(hx) or np.isnan(hy) or np.isnan(x) or np.isnan(y)):
+                if k>1400 and not(np.isnan(hx) or np.isnan(hy) or np.isnan(x) or np.isnan(y)):
                     #surfaces[k]["data"]["uabs"][found]=0
-                    b[0].append((hx+(beta*x)/(f*r)))
-                    b[1].append((hy+(beta*y)/(f*r)))
+                    b[0].append(hx+(beta*x)/(f*r))
+                    b[1].append(hy+(beta*y)/(f*r))
                     u = surfaces[k]["data"]["u"][found]
                     v = surfaces[k]["data"]["v"][found]
+                    us[0].append(u)
+                    us[1].append(v)
                     c.append(u*hx + v*hy - (beta/f)*(-u*x-v*y)/(r))
 
                 if debug:
@@ -783,13 +771,12 @@ def simpleInvert(surfaces,reflevel=200,debug=False):
                     print("f: ",f)
                     print("r: ",r)
                     print("c: ",u*hx + v*hy - (beta/f)*(-u*x-v*y)/(r))
-        if len(b[0])>0  :
-            b = np.asarray(b)
+        if len(b[0])>0:
+            b = np.matrix.transpose(np.asarray(b))
             c = np.matrix.transpose(np.asarray(c))
             #j = np.linalg.inv(np.matmul(np.matrix.transpose(b),b))
-            j = SVDdecomp(np.matrix.transpose(b),n_elements=2)
+            j = SVDdecomp(b,n_elements=4)
             prime = np.matmul(j,c)
-            
             if debug:
                 print("######BBBBBBBBBBBB###############")
                 print("b: ",b)
@@ -800,19 +787,15 @@ def simpleInvert(surfaces,reflevel=200,debug=False):
                 print("########################")
 
             for i in range(len(ns)):
-                #try:
+                #print("ref: ",prime[0])
+                #print("relative: ",surfaces[ns[i][0]]["data"]["u"][ns[i][1]])
+                #print("diff: ",abs(prime[0] - surfaces[ns[i][0]]["data"]["u"][ns[i][1]]))
                 surfaces[ns[i][0]]["data"]["uprime"][ns[i][1]] = prime[0]
                 surfaces[ns[i][0]]["data"]["uabs"][ns[i][1]] = prime[0] + surfaces[ns[i][0]]["data"]["u"][ns[i][1]]
                 surfaces[ns[i][0]]["data"]["vprime"][ns[i][1]] = prime[1]
                 surfaces[ns[i][0]]["data"]["vabs"][ns[i][1]] = prime[1] + surfaces[ns[i][0]]["data"]["v"][ns[i][1]]
-                #except:
-                    #print("######BBBBBBBBBBBB###############")
-                    #print("ns: ", ns)
-                    #print("c: ",prime)
-                    #print("########################")
 
     return surfaces
-
 
         
 

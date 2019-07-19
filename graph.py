@@ -99,7 +99,7 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
                      "u":"relative U","v":"relative V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X",\
                     "hy":"Neutral Gradient Y","curl":"Curl","drdt":"Northward Velocity",\
                     "dthetadt":"Eastward Velocity","ids":"IDS","uabs":"Absolute U","vabs":"Absolute V",\
-                    "uprime":"reference U velocity","vprime":"reference V velocity"}
+                    "uprime":"reference U velocity","vprime":"reference V velocity","h":"Thickness of "}
     if savepath:
         try:
             os.makedirs(savepath+quantindex)
@@ -277,7 +277,14 @@ def graphStaggeredSurface(surfaces,neighbors,debug=False):
 
     return surfaces
 
-def graphVectorField(surfaces):
+def graphVectorField(surfaces,key1,key2,savepath=False,show=True):
+
+    if savepath:
+        try:
+            os.makedirs(savepath+key1+key2)
+        except FileExistsError as e:
+            print(e)
+
     for k in surfaces.keys():
         fig,ax = plt.subplots(1,1)
         mapy = Basemap(projection='ortho', lat_0=90,lon_0=-60)
@@ -288,9 +295,9 @@ def graphVectorField(surfaces):
         uthetas=[]
         lons = []
         lats = []
-        for p in range(len(surfaces[k]["data"]["uabs"])):
-            u = surfaces[k]["data"]["uabs"][p] 
-            v = surfaces[k]["data"]["vabs"][p]
+        for p in range(0,len(surfaces[k]["data"]["uabs"]),8):
+            u = surfaces[k]["data"][key1][p] 
+            v = surfaces[k]["data"][key2][p]
             x = surfaces[k]["x"][p]
             y = surfaces[k]["y"][p]
             theta = np.deg2rad(surfaces[k]["lons"][p])
@@ -305,30 +312,45 @@ def graphVectorField(surfaces):
             uthetas.append(utheta)
             lons.append(surfaces[k]["lons"][p])
             lats.append(surfaces[k]["lats"][p])
-        fig.suptitle("NS: "+str(k))
+        fig.suptitle(key1+"," + key2 + " NS: "+str(k))
         urs = np.asarray(urs)
         uthetas = np.asarray(uthetas)
         lons = np.asarray(lons)
         lats = np.asarray(lats)
         u,v,x,y = mapy.rotate_vector(uthetas,urs,lons,lats,returnxy=True)
         print(len(u),len(v),len(x),len(y))
-        mag = np.hypot(u,v)
+        mag = np.sqrt(u**2,v**2)
         zoomGraph(mapy,ax)
         fig.set_size_inches(16.5,12)
-        mapy.quiver(x,y,u,v,mag,cmap="plasma",scale=0.8)
-        plt.show()
+        a = np.where(abs(surfaces[k]["lats"]-90)>0.5)
+        xpv,ypv = mapy(surfaces[k]["lons"][a],surfaces[k]["lats"][a])
+        plt.tricontourf(xpv,ypv,surfaces[k]["data"]["pv"][a],levels=10)
+        mapy.colorbar()
+        mapy.quiver(x,y,u,v,mag,cmap="cool",width = 0.002)
+        if savepath:
+            plt.savefig(savepath+key1+key2+"/ns"+str(k)+".png")
+        if show:
+            plt.show()
+        plt.close()
 
 
-def graphCartVectorField(surfaces):
+
+
+def graphCartVectorField(surfaces,key1,key2,show=True,savepath=False):
+    if savepath:
+        try:
+            os.makedirs(savepath+quantindex)
+        except FileExistsError as e:
+            print(e)
     for k in surfaces.keys():
         fig,ax = plt.subplots(1,1)
         us=[]
         vs=[]
         xs = []
         ys = []
-        for p in range(len(surfaces[k]["data"]["uabs"])):
-            u = surfaces[k]["data"]["uabs"][p] 
-            v = surfaces[k]["data"]["vabs"][p]
+        for p in range(0,len(surfaces[k]["data"]["uabs"]),2):
+            u = surfaces[k]["data"][key1][p] 
+            v = surfaces[k]["data"][key2][p]
             x = surfaces[k]["x"][p]
             y = surfaces[k]["y"][p]
             us.append(u)
@@ -341,15 +363,41 @@ def graphCartVectorField(surfaces):
         vs = np.asarray(vs)
         xs = np.asarray(xs)
         ys = np.asarray(ys)
-        mag = np.hypot(us,vs)
+        mag = np.sqrt(us**2 + vs**2)
         fig.set_size_inches(16.5,12)
         print(len(xs))
         print(len(ys))
         print(len(us))
         print(len(vs))
-        plt.quiver(xs,ys,us,vs,mag,cmap="plasma",scale=0.8)
-        plt.show()
+        a = np.where(abs(surfaces[k]["lats"]-90)>0.5)
+        plt.tricontourf(surfaces[k]["x"][a],surfaces[k]["y"][a],surfaces[k]["data"]["pv"][a])
+        plt.quiver(xs,ys,us,vs,mag,cmap="spring",scale=1)
+        if savepath:
+            plt.savefig(savepath+key1+key2+"/ns"+str(k)+".png")
+        if show:
+            plt.show()
 
+def twentyRandomSpirals(surfaces,reflevel=200):
+    for index in np.random.choice(range(len(surfaces[reflevel]["x"])),20):
+        eyed = int(surfaces[reflevel]["ids"][index])
+        us = []
+        uabs = []
+        vs = []
+        vabs = []
+        for k in sorted(list(surfaces.keys())):
+            found = np.where(np.asarray(surfaces[k]["ids"])==eyed)
+            if len(found)!=0 and len(found[0]) != 0:
+                found = found[0][0]
+                us.append(surfaces[k]["data"]["u"][found])
+                vs.append(surfaces[k]["data"]["v"][found])
+                uabs.append(surfaces[k]["data"]["uabs"][found])
+                vabs.append(surfaces[k]["data"]["vabs"][found])
+        fig,ax = plt.subplots(1,1)
+        ax.plot(us,vs,color="red",label="relative current")
+        ax.plot(uabs,vabs,color="blue",label="absolute current")
+        ax.legend()
+        plt.show()
+    
 
 
 
