@@ -96,37 +96,31 @@ surfaces =nstools.addXYToSurfaces(surfaces)
 #pprint(surfaces[3600])
 ###nstools.graphTransects(nstools.filterSurfacesByLine(originalsurfaces,40),0)
     ################
-#interpolatedsurfaces = {}
-#neighbors={}
-#lookups={}
+interpolatedsurfaces = {}
+neighbors={}
+lookups={}
 #for k in surfaces.keys():
     #surfaces[k] = nstools.removeDiscontinuities(surfaces[k],radius=0.1)
     #interpolatedsurfaces[k],neighbors[k] = nstools.interpolateSurface(surfaces[k])
     #lookups[k] = nstools.trueDistanceLookup(interpolatedsurfaces[k],neighbors[k])
 
-##with open('data/lookupNeighborsSurfaces.pickle', 'wb') as outfile:
-    ##pickle.dump([interpolatedsurfaces,lookups,neighbors], outfile)
+#surfaces = nstools.addHToSurfaces(interpolatedsurfaces)
+#with open('data/lookupNeighborsSurfaces.pickle', 'wb') as outfile:
+    #pickle.dump([interpolatedsurfaces,lookups,neighbors], outfile)
 
-#with open('data/lookupNeighborsSurfaces.pickle', 'rb') as outfile:
-    #[interpolatedsurfaces,lookups,neighbors]=pickle.load(outfile)
+with open('data/lookupNeighborsSurfaces.pickle', 'rb') as outfile:
+    [interpolatedsurfaces,lookups,neighbors]=pickle.load(outfile)
 
-#staggeredsurfaces = nstools.addPrimeToSurfacesCartesianTrueDistance(interpolatedsurfaces,neighbors,lookups)
+staggeredsurfaces = nstools.addPrimeToSurfacesCartesianTrueDistance(interpolatedsurfaces,neighbors,lookups)
 
 #with open('data/ready4inverse.pickle', 'wb') as outfile:
     #pickle.dump(staggeredsurfaces,outfile)
 
 
-with open('data/ready4inverse.pickle', 'rb') as outfile:
-    staggeredsurfaces=pickle.load(outfile)
+#with open('data/ready4inverse.pickle', 'rb') as outfile:
+    #staggeredsurfaces=pickle.load(outfile)
 
-#for k in staggeredsurfaces.keys():
-    #ids = staggeredsurfaces[k]["ids"]
-    #staggeredsurfaces[k]["data"]["uprime"]=np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
-    #staggeredsurfaces[k]["data"]["vprime"]=np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
-    #staggeredsurfaces[k]["data"]["uabs"]=np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
-    #staggeredsurfaces[k]["data"]["vabs"]=np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
-    #print(np.min(ids),np.max(ids))
-staggeredsurfaces = nstools.simpleInvert(staggeredsurfaces)
+staggeredsurfaces = nstools.invert("salt",staggeredsurfaces)
 
 #with open('data/svdinverted.pickle', 'wb') as outfile:
     #pickle.dump(staggeredsurfaces, outfile)
@@ -134,33 +128,24 @@ staggeredsurfaces = nstools.simpleInvert(staggeredsurfaces)
 #with open('data/svdinverted.pickle', 'rb') as outfile:
     #staggeredsurfaces=pickle.load(outfile)
 
-
-#for k in staggeredsurfaces.keys():
-    #staggeredsurfaces[k]["data"]["uabs"] = np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
-    #staggeredsurfaces[k]["data"]["vabs"] = np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
-#graph.graphSurfaces(staggeredsurfaces,"u",show=False,savepath = "refpics/realSVD/")
-#graph.graphSurfaces(staggeredsurfaces,"v",show=False,savepath = "refpics/realSVD/")
-#graph.graphSurfaces(staggeredsurfaces,"uabs",show=False,savepath = "refpics/realSVD/")
-#graph.graphSurfaces(staggeredsurfaces,"vabs",show=False,savepath = "refpics/realSVD/")
-#graph.graphSurfaces(staggeredsurfaces,"uprime",show=False,savepath = "refpics/realSVD/")
-#graph.graphSurfaces(staggeredsurfaces,"vprime",show=False,savepath = "refpics/realSVD/")
-#graph.graphSurfaces(staggeredsurfaces,"hx",show=False,savepath = "refpics/realSVD/")
-#graph.graphSurfaces(staggeredsurfaces,"hy",show=False,savepath = "refpics/realSVD/")
-#graph.graphSurfaces(staggeredsurfaces,"h",show=False,savepath = "refpics/realSVD/")
+#graph.graphSurfaces(staggeredsurfaces,"u",show=False,savepath = "refpics/ref1000/")
+#graph.graphSurfaces(staggeredsurfaces,"v",show=False,savepath = "refpics/ref1000/")
+#graph.graphSurfaces(staggeredsurfaces,"uabs",show=False,savepath = "refpics/ref1000/")
+#graph.graphSurfaces(staggeredsurfaces,"vabs",show=False,savepath = "refpics/ref1000/")
+#graph.graphSurfaces(staggeredsurfaces,"uprime",show=False,savepath = "refpics/ref1000/")
+#graph.graphSurfaces(staggeredsurfaces,"vprime",show=False,savepath = "refpics/ref1000/")
+#graph.graphSurfaces(staggeredsurfaces,"hx",show=False,savepath = "refpics/ref1000/")
+#graph.graphSurfaces(staggeredsurfaces,"hy",show=False,savepath = "refpics/ref1000/")
+#graph.graphSurfaces(staggeredsurfaces,"h",show=False,savepath = "refpics/ref1000/")
 #graph.graphSurfaces(staggeredsurfaces,"uabs")
 ##graph.graphSurfaces(staggeredsurfaces,"vabs")
-#graph.graphVectorField(staggeredsurfaces,"u","v",show=False,savepath="refpics/realSVD/")
-#graph.graphVectorField(staggeredsurfaces,"uabs","vabs",show=False,savepath="refpics/realSVD/")
-graph.graphVectorField(staggeredsurfaces,"uabs","vabs")
+graph.graphVectorField(staggeredsurfaces,"u","v",show=False,savepath="refpics/SaltInvertR1000/")
+graph.graphVectorField(staggeredsurfaces,"uabs","vabs",show=False,savepath="refpics/SaltInvertR1000/")
+#graph.graphVectorField(staggeredsurfaces,"uabs","vabs")
+#graph.graphVectorField(staggeredsurfaces,"u","v")
 #graph.graphVectorField(staggeredsurfaces,"uabs","vabs")
 #graph.graphSurfaces(staggeredsurfaces,"v",show=False,savepath = "refpics/staggeredDerivatives/")
-graph.twentyRandomSpirals(staggeredsurfaces)
+#graph.twentyRandomSpirals(staggeredsurfaces)
 
 #interpolatedsurfaces = nstools.createStaggeredSurface(interpolatedsurfaces,neighbors)
 #graph.graphSurfacesComparison(interpolatedsurfaces,surfaces,"uprime",show=False,savepath="refpics/interpPSI/")
-
-##nstools.graphNeighbors(interpolatedsurfaces,neighbors)
-##with open('data/neighborsAndInterpolated2600.pickle', 'wb') as outfile:
-    ##pickle.dump([neighbors,interpolatedsurfaces], outfile)
-
-

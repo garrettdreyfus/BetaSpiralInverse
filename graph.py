@@ -312,14 +312,24 @@ def graphVectorField(surfaces,key1,key2,savepath=False,show=True):
             uthetas.append(utheta)
             lons.append(surfaces[k]["lons"][p])
             lats.append(surfaces[k]["lats"][p])
+
+        urs.append(0.1)
+        uthetas.append(0)
+        lons.append(89)
+        lats.append(89)
+
+        urs.append(0)
+        uthetas.append(0.1)
+        lons.append(89)
+        lats.append(89)
+
         fig.suptitle(key1+"," + key2 + " NS: "+str(k))
         urs = np.asarray(urs)
         uthetas = np.asarray(uthetas)
         lons = np.asarray(lons)
         lats = np.asarray(lats)
         u,v,x,y = mapy.rotate_vector(uthetas,urs,lons,lats,returnxy=True)
-        print(len(u),len(v),len(x),len(y))
-        mag = np.sqrt(u**2,v**2)
+        mag = np.sqrt(u**2+v**2)
         zoomGraph(mapy,ax)
         fig.set_size_inches(16.5,12)
         a = np.where(abs(surfaces[k]["lats"]-90)>0.5)
@@ -365,10 +375,6 @@ def graphCartVectorField(surfaces,key1,key2,show=True,savepath=False):
         ys = np.asarray(ys)
         mag = np.sqrt(us**2 + vs**2)
         fig.set_size_inches(16.5,12)
-        print(len(xs))
-        print(len(ys))
-        print(len(us))
-        print(len(vs))
         a = np.where(abs(surfaces[k]["lats"]-90)>0.5)
         plt.tricontourf(surfaces[k]["x"][a],surfaces[k]["y"][a],surfaces[k]["data"]["pv"][a])
         plt.quiver(xs,ys,us,vs,mag,cmap="spring",scale=1)
@@ -378,12 +384,13 @@ def graphCartVectorField(surfaces,key1,key2,show=True,savepath=False):
             plt.show()
 
 def twentyRandomSpirals(surfaces,reflevel=200):
-    for index in np.random.choice(range(len(surfaces[reflevel]["x"])),20):
+    for index in np.random.choice(range(len(surfaces[reflevel]["x"])),40):
         eyed = int(surfaces[reflevel]["ids"][index])
         us = []
         uabs = []
         vs = []
         vabs = []
+        fig,ax = plt.subplots(1,1)
         for k in sorted(list(surfaces.keys())):
             found = np.where(np.asarray(surfaces[k]["ids"])==eyed)
             if len(found)!=0 and len(found[0]) != 0:
@@ -392,7 +399,7 @@ def twentyRandomSpirals(surfaces,reflevel=200):
                 vs.append(surfaces[k]["data"]["v"][found])
                 uabs.append(surfaces[k]["data"]["uabs"][found])
                 vabs.append(surfaces[k]["data"]["vabs"][found])
-        fig,ax = plt.subplots(1,1)
+
         ax.plot(us,vs,color="red",label="relative current")
         ax.plot(uabs,vabs,color="blue",label="absolute current")
         ax.legend()
