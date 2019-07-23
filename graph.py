@@ -99,7 +99,8 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
                      "u":"relative U","v":"relative V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X",\
                     "hy":"Neutral Gradient Y","curl":"Curl","drdt":"Northward Velocity",\
                     "dthetadt":"Eastward Velocity","ids":"IDS","uabs":"Absolute U","vabs":"Absolute V",\
-                    "uprime":"reference U velocity","vprime":"reference V velocity","h":"Thickness of "}
+                    "uprime":"reference U velocity","vprime":"reference V velocity","h":"Thickness of ",\
+                    "CKVB":"KV term with roughness","CKVO":"KV term without roughness"}
     if savepath:
         try:
             os.makedirs(savepath+quantindex)
@@ -405,7 +406,30 @@ def twentyRandomSpirals(surfaces,reflevel=200):
         ax.legend()
         plt.show()
     
-
+def plotASpiral(profiles,center=None,x=None,y=None):
+    fig,ax = plt.subplots(1,1) 
+    center = getProfileById(profiles,"120389")
+    x = getProfileById(profiles,"120387")
+    y = getProfileById(profiles,"114688")
+    dx = geodesic((x.lat,x.lon),(center.lat,center.lon)).m
+    dy = geodesic((x.lat,x.lon),(center.lat,center.lon)).m
+    u = 0
+    v = 0
+    f = center.f
+    us = [0]
+    vs = [0]
+    for i in range(100,1700,100):
+        dpdx = (x.densityAtPres(i)-center.densityAtPres(i))/dx
+        dpdy = (y.densityAtPres(i)-center.densityAtPres(i))/dy
+        v = (9.8/-f)*(dpdx)
+        u = (9.8/f)*(dpdy)
+        us.append(u)
+        vs.append(v)
+        plt.plot([0,u],[0,v])
+        ax.annotate(i, (u, v))
+    #plt.scatter(us,vs)
+    #plt.plot(us,vs,c="r")
+    plt.show()
 
 
 
