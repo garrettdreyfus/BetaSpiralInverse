@@ -110,20 +110,27 @@ lookups={}
 #with open('data/lookupNeighborsSurfaces.pickle', 'wb') as outfile:
     #pickle.dump([interpolatedsurfaces,lookups,neighbors], outfile)
 
-#with open('data/lookupNeighborsSurfaces.pickle', 'rb') as outfile:
-    #[interpolatedsurfaces,lookups,neighbors]=pickle.load(outfile)
+with open('data/lookupNeighborsSurfaces.pickle', 'rb') as outfile:
+    [interpolatedsurfaces,lookups,neighbors]=pickle.load(outfile)
 
-#staggeredsurfaces = nstools.addPrimes(interpolatedsurfaces,neighbors,lookups)
+staggeredsurfaces = nstools.addPrimes(interpolatedsurfaces,neighbors,lookups)
 #with open('data/ready4inverse.pickle', 'wb') as outfile:
     #pickle.dump(staggeredsurfaces,outfile)
 
-with open('data/ready4inverse.pickle', 'rb') as outfile:
-    staggeredsurfaces=pickle.load(outfile)
-
 #ptools.saveBathVarTermCache(staggeredsurfaces,"data/bathVar.pickle")
 staggeredsurfaces = nstools.addK(staggeredsurfaces,"data/bathVar.pickle")
-graph.graphSurfaces(staggeredsurfaces,"CKVB")
-#graph.graphSurfaces(staggeredsurfaces,"CKVO")
+
+#with open('data/withK.pickle', 'wb') as outfile:
+    #pickle.dump(staggeredsurfaces,outfile)
+
+
+#with open('data/withK.pickle', 'rb') as outfile:
+    #staggeredsurfaces=pickle.load(outfile)
+
+
+
+#graph.graphSurfaces(staggeredsurfaces,"CKVB",show=False,savepath = "refpics/CKs/")
+#graph.graphSurfaces(staggeredsurfaces,"CKVO",show=False,savepath = "refpics/CKs/")
 
 #with open('data/ready4inverse.pickle', 'wb') as outfile:
     #pickle.dump(staggeredsurfaces,outfile)
@@ -132,7 +139,7 @@ graph.graphSurfaces(staggeredsurfaces,"CKVB")
 #with open('data/ready4inverse.pickle', 'rb') as outfile:
     #staggeredsurfaces=pickle.load(outfile)
 
-#staggeredsurfaces = inverttools.invert("salt",staggeredsurfaces)
+#staggeredsurfaces = inverttools.invert("simple",staggeredsurfaces)
 
 #with open('data/svdinverted.pickle', 'wb') as outfile:
     #pickle.dump(staggeredsurfaces, outfile)
@@ -149,10 +156,12 @@ graph.graphSurfaces(staggeredsurfaces,"CKVB")
 #graph.graphSurfaces(staggeredsurfaces,"hx",show=False,savepath = "refpics/ref1000/")
 #graph.graphSurfaces(staggeredsurfaces,"hy",show=False,savepath = "refpics/ref1000/")
 #graph.graphSurfaces(staggeredsurfaces,"h",show=False,savepath = "refpics/ref1000/")
-#graph.graphSurfaces(staggeredsurfaces,"uabs")
-##graph.graphSurfaces(staggeredsurfaces,"vabs")
-#graph.graphVectorField(staggeredsurfaces,"u","v",show=False,savepath="refpics/SaltInvertR1000/")
-#graph.graphVectorField(staggeredsurfaces,"uabs","vabs",show=False,savepath="refpics/SaltInvertR1000/")
+graph.graphSurfaces(staggeredsurfaces,"CKVB")
+#graph.graphSurfaces(staggeredsurfaces,"dsdx")
+#graph.graphSurfaces(staggeredsurfaces,"d2sdx2")
+#graph.graphSurfaces(staggeredsurfaces,"vabs")
+#graph.graphVectorField(staggeredsurfaces,"u","v",show=False,savepath="refpics/NormRowsREF1000/simplesalt/")
+#graph.graphVectorField(staggeredsurfaces,"uabs","vabs",show=False,savepath="refpics/NormRowsREF1000/simplesalt/")
 #graph.graphVectorField(staggeredsurfaces,"uabs","vabs")
 #graph.graphVectorField(staggeredsurfaces,"u","v")
 #graph.graphVectorField(staggeredsurfaces,"uabs","vabs")

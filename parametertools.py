@@ -9,13 +9,6 @@ def bathVarTerm(lat,lon):
     dnot = 750
     return (np.var(d)/dnot)**(0.25)
 
-def bathVarTerm(lat,lon):
-    d=bathtools.bathBox(lat,lon)
-    dnot = 750
-    return (np.var(d)/dnot)**(0.25)
-
-
-
 def saveBathVarTermCache(surfaces,outfilename):
     bathVar = {}
     coords = []
@@ -43,15 +36,9 @@ def bathVarTermCache(lat,lon,filename):
 
 
 def Kv(lat,lon,pv,pres,cachename=None):
-    f = gsw.f(lat)
-    fnot = gsw.f(30)
-    Nnot = 5.2*(10**-3)
-    N = np.sqrt((9.8*pv)/f)
-    part1 = (f*(np.cosh(N/f)**-1))/(fnot*(np.cosh(Nnot/fnot)**-1))
     if cachename:
        bVT = bathVarTermCache(lat,lon,cachename) 
     else:
         bVT = bathVarTerm(lat,lon)
-    part2 = bVT*np.exp(-(abs(bathtools.searchBath(lat,lon))-abs(pres))/5500)
-    return (part1,part1*part2)
+    return bVT*np.exp(-(abs(bathtools.searchBath(lat,lon))-abs(pres))/1000)
 

@@ -482,7 +482,6 @@ def nanCopySurfaces(surfaces):
         nancopy[k]["data"]["v"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["hx"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["h"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["CKVO"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["CKVB"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["hy"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["t"] = np.full(len(surfaces[k]["lons"]),np.nan)
@@ -496,11 +495,22 @@ def nanCopySurfaces(surfaces):
         nancopy[k]["data"]["vprime"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["dsdx"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["data"]["dsdy"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        nancopy[k]["data"]["d2sdx2"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        nancopy[k]["data"]["d2sdy2"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        nancopy[k]["data"]["dtdx"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        nancopy[k]["data"]["dtdy"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        nancopy[k]["data"]["dpdx"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        nancopy[k]["data"]["dpdy"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        nancopy[k]["data"]["n^2"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        nancopy[k]["data"]["dqnotdx"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        nancopy[k]["data"]["dqnotdy"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        nancopy[k]["data"]["d2thetads2"] = np.full(len(surfaces[k]["lons"]),np.nan)
     return nancopy
 
 def addHToSurfaces(surfaces):
     for k in surfaces.keys():
         surfaces[k]["data"]["h"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        surfaces[k]["data"]["dsdz"] = np.full(len(surfaces[k]["lons"]),np.nan)
     minimum = int(np.min(list(surfaces.keys())))
     maximum = int(np.max(list(surfaces.keys())))
     depths = range(minimum,maximum+1,200)
@@ -517,6 +527,7 @@ def addHToSurfaces(surfaces):
                 foundabove = foundabove[0][0]
                 tophalf = abs(surfaces[depths[j+1]]["data"]["pres"][foundabove]-surfaces[depths[j]]["data"]["pres"][found])/2.0
                 bothalf = abs(surfaces[depths[j]]["data"]["pres"][found]-surfaces[depths[j-1]]["data"]["pres"][foundbelow])/2.0
+                surfaces[depths[j]]["data"]["dsdz"][found] = (surfaces[depths[j+1]]["data"]["s"][foundabove]-surfaces[depths[j]]["s"]["pres"][foundbelow])/(tophalf*2+topbelow*2)
                 surfaces[depths[j]]["data"]["h"][found] = tophalf + bothalf
 
     return surfaces
@@ -531,16 +542,9 @@ def addK(surfaces,cachename=None):
             if not (np.isnan(lat) or np.isnan(lon)):
                 pv = surfaces[k]["data"]["pv"][i]
                 pres = surfaces[k]["data"]["pres"][i]
-                KV = ptools.Kv(lat,lon,pv,pres,cachename)
-                surfaces[k]["data"]["CKVO"][i] = KV[0]
-                surfaces[k]["data"]["CKVB"][i] = KV[1]
+                surfaces[k]["data"]["CKVB"][i] = ptools.Kv(lat,lon,pv,pres,cachename)
     return surfaces
             
-
-
-
-                
- 
     
 def addPrimes(surfaces,neighbors,distances,debug=False):
     staggered = nanCopySurfaces(surfaces)
@@ -554,41 +558,70 @@ def addPrimes(surfaces,neighbors,distances,debug=False):
                 print("This should never happen")
 
             s=np.asarray(s)
+            staggered[k]["data"]["n^2"][s[0]]=staggered[k]["data"]["pv"][s[0]]*(9.8/gsw.f(staggered[k]["lats"][s[0]]))
             staggered= averageOverNeighbors(staggered,surfaces,k,s)
             staggered = addGradients(staggered,surfaces,k,s,distances)
+        for s in neighbors[k]:
+            s=np.asarray(s)
+            staggered = addDoubleGradients(staggered,k,s,distances)
 
     return staggered
+
+def meanGradient(surfaces,k,distances,s,quantity):
+    dx = []
+    dy = []
+    dx.append((surfaces[k]["data"][quantity][s[1]]-surfaces[k]["data"][quantity][s[0]])/distances[k][(s[0],s[1])])
+    dx.append((surfaces[k]["data"][quantity][s[3]]-surfaces[k]["data"][quantity][s[2]])/distances[k][(s[2],s[3])])
+    dy.append((surfaces[k]["data"][quantity][s[2]]-surfaces[k]["data"][quantity][s[0]])/distances[k][(s[0],s[2])])
+    dy.append((surfaces[k]["data"][quantity][s[3]]-surfaces[k]["data"][quantity][s[1]])/distances[k][(s[1],s[3])])
+    return (np.mean(dx),np.mean(dy))
+
+def d2thetads2(surfaces,k,s):
+    temps = surfaces[k]["data"]["t"][s[0:3]]
+    salts = surfaces[k]["data"]["s"][s[0:3]]
+    l = np.argsort(salts)
+    temps = temps[l]
+    salts = salts[l]
+    d1 = (temps[1] - temps[0])/(salts[1] - salts[0])
+    d2 = (temps[2] - temps[1])/(salts[2] - salts[1])
+    return (d2-d1)/(salts[2] - salts[0])
+
+ 
 
 def addGradients(staggered,surfaces,k,s,distances):
     #NS thickness slope
-    dhdx = []
-    dhdy = []
-    dhdx.append((surfaces[k]["data"]["h"][s[1]]-surfaces[k]["data"]["h"][s[0]])/distances[k][(s[0],s[1])])
-    dhdx.append((surfaces[k]["data"]["h"][s[3]]-surfaces[k]["data"]["h"][s[2]])/distances[k][(s[2],s[3])])
-    dhdy.append((surfaces[k]["data"]["h"][s[2]]-surfaces[k]["data"]["h"][s[0]])/distances[k][(s[0],s[2])])
-    dhdy.append((surfaces[k]["data"]["h"][s[3]]-surfaces[k]["data"]["h"][s[1]])/distances[k][(s[1],s[3])])
-    #stream function gradient
-    dpsidx = []
-    dpsidy = []
-    dpsidx.append((surfaces[k]["data"]["psi"][s[1]]-surfaces[k]["data"]["psi"][s[0]])/distances[k][(s[0],s[1])])
-    dpsidx.append((surfaces[k]["data"]["psi"][s[3]]-surfaces[k]["data"]["psi"][s[2]])/distances[k][(s[2],s[3])])
-    dpsidy.append((surfaces[k]["data"]["psi"][s[2]]-surfaces[k]["data"]["psi"][s[0]])/distances[k][(s[0],s[2])])
-    dpsidy.append((surfaces[k]["data"]["psi"][s[3]]-surfaces[k]["data"]["psi"][s[1]])/distances[k][(s[1],s[3])])
-    #salt gradient 
-    dsdx = []
-    dsdy = []
-    dsdx.append((surfaces[k]["data"]["s"][s[1]]-surfaces[k]["data"]["s"][s[0]])/distances[k][(s[0],s[1])])
-    dsdx.append((surfaces[k]["data"]["s"][s[3]]-surfaces[k]["data"]["s"][s[2]])/distances[k][(s[2],s[3])])
-    dsdy.append((surfaces[k]["data"]["s"][s[2]]-surfaces[k]["data"]["s"][s[0]])/distances[k][(s[0],s[2])])
-    dsdy.append((surfaces[k]["data"]["s"][s[3]]-surfaces[k]["data"]["s"][s[1]])/distances[k][(s[1],s[3])])
-    staggered[k]["data"]["hx"][s[0]] = np.mean(dhdx)
-    staggered[k]["data"]["hy"][s[0]] = np.mean(dhdy)
-    staggered[k]["data"]["u"][s[0]] = (1/gsw.f(surfaces[k]["lats"][s[0]]))*np.mean(dpsidy)
-    staggered[k]["data"]["v"][s[0]] = (-1/gsw.f(surfaces[k]["lats"][s[0]]))*np.mean(dpsidx)
-    staggered[k]["data"]["dsdx"][s[0]] = np.mean(dsdx)
-    staggered[k]["data"]["dsdy"][s[0]] =  np.mean(dsdy)
+    dhdx,dhdy = meanGradient(surfaces,k,distances,s,"h")
+    dpsidx,dpsidy = meanGradient(surfaces,k,distances,s,"psi")
+    dsdx,dsdy = meanGradient(surfaces,k,distances,s,"psi")
+    dtdx,dtdy = meanGradient(surfaces,k,distances,s,"t")
+    dpdx,dpdy = meanGradient(surfaces,k,distances,s,"pres")
+    dqnotdx,dqnotdy = meanGradient(staggered,k,distances,s,"n^2")
+
+    staggered[k]["data"]["hx"][s[0]] = dhdx
+    staggered[k]["data"]["hy"][s[0]] = dhdy
+    staggered[k]["data"]["u"][s[0]] = (1/gsw.f(surfaces[k]["lats"][s[0]]))*dpsidy
+    staggered[k]["data"]["v"][s[0]] = (-1/gsw.f(surfaces[k]["lats"][s[0]]))*dpsidx
+    staggered[k]["data"]["dsdx"][s[0]] = dsdx
+    staggered[k]["data"]["dsdy"][s[0]] =  dsdy
+    staggered[k]["data"]["dtdx"][s[0]] = dtdx
+    staggered[k]["data"]["dtdy"][s[0]] =  dtdy
+    staggered[k]["data"]["dpdx"][s[0]] = dpdx
+    staggered[k]["data"]["dpdy"][s[0]] =  dpdy
+    staggered[k]["data"]["dqnotdx"][s[0]] =  dqnotdx*(gsw.f(surfaces[k]["lats"][s[0]])/9.8)
+    staggered[k]["data"]["dqnotdy"][s[0]] =  dqnotdy*(gsw.f(surfaces[k]["lats"][s[0]])/9.8)
+    staggered[k]["data"]["d2thetads2"][s[0]] =  d2thetads2(surfaces,k,s)
+
     return staggered
 
+def addDoubleGradients(staggered,k,s,distances):
+    #NS thickness slope
+    d2sdx2,bop = meanGradient(staggered,k,distances,s,"dsdx")
+    bop,d2sdy2 = meanGradient(staggered,k,distances,s,"dsdy")
+
+    staggered[k]["data"]["d2sdx2"][s[0]] = d2sdx2
+    staggered[k]["data"]["d2sdy2"][s[0]] =  d2sdy2
+
+    return staggered
 
 def averageOverNeighbors(staggered,surfaces,k,s):
     lon = np.mean(np.abs(surfaces[k]["lons"][s]))*np.sign(surfaces[k]["lons"][s[0]])

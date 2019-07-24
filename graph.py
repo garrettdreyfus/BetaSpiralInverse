@@ -100,7 +100,8 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
                     "hy":"Neutral Gradient Y","curl":"Curl","drdt":"Northward Velocity",\
                     "dthetadt":"Eastward Velocity","ids":"IDS","uabs":"Absolute U","vabs":"Absolute V",\
                     "uprime":"reference U velocity","vprime":"reference V velocity","h":"Thickness of ",\
-                    "CKVB":"KV term with roughness","CKVO":"KV term without roughness"}
+                    "CKVB":"KV term with roughness","CKVO":"KV term without roughness","dsdx":"Salinity X gradient",\
+                    "dsdy":"Salinity Y gradient","d2sdx2":"Salinity X curvature","d2sdy2":"Salinity Y curvature",}
     if savepath:
         try:
             os.makedirs(savepath+quantindex)
