@@ -101,7 +101,8 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
                     "dthetadt":"Eastward Velocity","ids":"IDS","uabs":"Absolute U","vabs":"Absolute V",\
                     "uprime":"reference U velocity","vprime":"reference V velocity","h":"Thickness of ",\
                     "CKVB":"KV term with roughness","CKVO":"KV term without roughness","dsdx":"Salinity X gradient",\
-                    "dsdy":"Salinity Y gradient","d2sdx2":"Salinity X curvature","d2sdy2":"Salinity Y curvature",}
+                    "dsdy":"Salinity Y gradient","d2sdx2":"Salinity X curvature",\
+                    "d2sdy2":"Salinity Y curvature","n^2":"N^2"}
     if savepath:
         try:
             os.makedirs(savepath+quantindex)
@@ -131,7 +132,12 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
                 x,y = mapy(profiles[deepestindex].lon,profiles[deepestindex].lat)
                 mapy.scatter(x,y,c="red")
             zoomGraph(mapy,ax)
-            fig.suptitle(str(quanttitlehash[quantindex]) + " at NS: "+str(i))
+
+            if quantindex in quanttitlehash.keys():
+                fig.suptitle(str(quanttitlehash[quantindex]) + " at NS: "+str(i))
+            else:
+                fig.suptitle(str(quantindex) + " at NS: "+str(i))
+
             if maximize:
                 fig.set_size_inches(16.5,12)
             if show:
@@ -432,6 +438,9 @@ def plotASpiral(profiles,center=None,x=None,y=None):
     #plt.plot(us,vs,c="r")
     plt.show()
 
+def graphAndSaveAll(surfaces,savepath):
+    for k in surfaces[200]["data"].keys():
+        graphSurfaces(surfaces,k,show=False,savepath=savepath)
 
 
 

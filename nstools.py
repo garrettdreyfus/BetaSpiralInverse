@@ -121,14 +121,15 @@ def extractProfilesBox(fnames,lonleft,lonright,latbot,lattop):
     for fname in fnames:
         json_file = open(fname) 
         data = json.load(json_file)
-        for p in data.keys():
-            profile = Profile(p,data[p])
-            if latbot <= profile.lat <= lattop and lonleft <= profile.lon <= lonright:
-                if len(profile.ipres)>0:
-                    profiles.append(profile)
-                    if data[p]["pres"][-1] > deepestdepth:
-                        deepestindex = len(profiles)-1
-                        deepestdepth=data[p]["pres"][-1]
+        for p in Bar('Loading profiles in box:   ').iter(data.keys()):
+            if len(data[p]["pres"])>10:
+                profile = Profile(p,data[p])
+                if latbot <= profile.lat <= lattop and lonleft <= profile.lon <= lonright:
+                    if len(profile.ipres)>0:
+                        profiles.append(profile)
+                        if data[p]["pres"][-1] > deepestdepth:
+                            deepestindex = len(profiles)-1
+                            deepestdepth=data[p]["pres"][-1]
     return profiles, deepestindex
 
 def removeNorwegianSea(profiles):
@@ -149,7 +150,7 @@ def closestIdentifiedNS(profiles,queryprofile,depth,radius):
     minprofile = None
     for p in profiles:
         if depth in p.neutraldepth.keys():
-            dist = geodesic((queryprofile.lat,queryprofile.lon),(p.lat,p.lon)).km
+            dist = great_circle((queryprofile.lat,queryprofile.lon),(p.lat,p.lon)).km
             if dist<minimumdistance:
                 minimumdistance = dist
                 minprofile = p
@@ -164,16 +165,15 @@ def profileInBox(profiles,lonleft,lonright,latbot,lattop):
     return results
 
 def emptySurface():
-    return {"lats":[],"lons":[],"ids":[],"data":{"pres":[],"t":[],"s":[]}}
+    return {"lats":[],"lons":[],"ids":[],\
+        "data":{"pres":[],"t":[],"s":[],"pv":[],"n^2":[],"alpha":[],"beta":[]}}
 
 def peerSearch(profiles,deepestindex,depth,profilechoice,radius=500):
     surfaces = {}
     surfaces[depth]= emptySurface()
     profilechoice.neutraldepth[depth] = depth
-    print(profilechoice.eyed)
     references=[]
     references.append(profilechoice)
-    print(len(profiles))
     while len(profiles)>0:
         foundcounter = 0
         for p in profiles.copy():
@@ -196,6 +196,15 @@ def peerSearch(profiles,deepestindex,depth,profilechoice,radius=500):
         #plotProfiles(references,"ITS SPREADING",specialprofile = profilechoice)
     return surfaces
 
+
+def runPeerSearch(profiles,deepestindex,shallowlimit,deeplimit,surfacestep,profilechoice,radius):
+    surfaces = {}
+    for d in range(shallowlimit,deeplimit,surfacestep)[::-1]:
+        print("NSearching: ",d)
+        surfaces.update(peerSearch(profiles.copy(),deepestindex,d,profilechoice,1000))
+    return surfaces
+
+
 def search(profiles,deepestindex):
     #Lets look for neutral surfaces every 200 dbar below 1000 dbar
     deeprange = range(1000,max(profiles[deepestindex].ipres),200)
@@ -215,32 +224,61 @@ def search(profiles,deepestindex):
                 surfaces[r]["data"]["pres"].append(ns)
     return surfaces
 
+def findAboveIndex(surfaces,k,l):
+    if k-200 in surfaces.keys() and k+200 in surfaces.keys():
+        eyed = surfaces[k]["ids"][l]
+        above = np.where(np.asarray(surfaces[k-200]["ids"]) == eyed)[0]
+        below = np.where(np.asarray(surfaces[k+200]["ids"]) == eyed)[0]
+        if len(above)>0 and len(below)>0:
+            middle = surfaces[k]["data"]["pres"][l]
+            above = surfaces[k-200]["data"]["pres"][above[0]]
+            below = surfaces[k+200]["data"]["pres"][below[0]]
+            return abs(above+middle)/2,abs(below+middle)/2
+    return None,None
+
+
 def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
-    if debug:
-        print("adding data to surfaces")
     tempSurfs = {}
-    negativecount = 0
-    for k in surfaces.keys():
+    for k in Bar("Adding data to: ").iter(surfaces.keys()):
+        negativecount = 0
         tempSurf = emptySurface()
+        monthcount = [0]*13
+        monthnegativecount = [0]*13
         for l in range(len(surfaces[k]["lons"])):
             p = getProfileById(profiles,surfaces[k]["ids"][l])
-            p.interpolate()
-            t,s = p.atPres(surfaces[k]["data"]["pres"])
-            pv = p.potentialVorticity(surfaces[k]["data"]["pres"][l],debug=False)
-            if pv and pv<0:
-                negativecount +=1 
-            if t and s and pv and p and pv != np.Inf and pv != np.nan and not np.isnan(t):
-                tempSurf["lons"].append(surfaces[k]["lons"][l])
-                tempSurf["lats"].append(surfaces[k]["lats"][l])
-                tempSurf["data"]["pres"].append(-surfaces[k]["data"]["pres"][l])
-                tempSurf["data"]["t"].append(t)
-                tempSurf["data"]["s"].append(s)
-                tempSurf["data"]["pv"].append(pv)
-                tempSurf["ids"].append(surfaces[k][3][l])
-        if len(tempSurf[0])>5:
+            above,below = findAboveIndex(surfaces,k,l)
+            if p and not np.isnan(p.isals).any() :
+                if (above or below):
+                    pv = p.potentialVorticityBetween(above,below)
+                    t,s = p.betweenPres(above,below)
+                else:
+                    pv = p.potentialVorticityAt(surfaces[k]["data"]["pres"][l])
+                    t,s = p.atPres(surfaces[k]["data"]["pres"][l])
+                monthcount[p.time.month]=monthcount[p.time.month]+1
+                if pv and pv<0:
+                    monthnegativecount[p.time.month]=monthnegativecount[p.time.month]+1
+                    negativecount +=1 
+                if not pv:
+                    pv = np.nan
+                if ~np.isnan(t) and ~np.isnan(s) and ~np.isnan(pv) and p and pv != np.Inf:
+                    tempSurf["lons"].append(surfaces[k]["lons"][l])
+                    tempSurf["lats"].append(surfaces[k]["lats"][l])
+                    tempSurf["data"]["pres"].append(abs(surfaces[k]["data"]["pres"][l]))
+                    tempSurf["data"]["t"].append(t)
+                    tempSurf["data"]["s"].append(s)
+                    tempSurf["data"]["pv"].append(pv)
+                    tempSurf["ids"].append(surfaces[k]["ids"][l])
+                    tempSurf["data"]["n^2"].append(pv*(9.8/gsw.f(p.lat)))
+                    tempSurf["data"]["alpha"].append(gsw.alpha(s,t,surfaces[k]["data"]["pres"][l]))
+                    tempSurf["data"]["beta"].append(gsw.beta(s,t,surfaces[k]["data"]["pres"][l]))
+        if len(tempSurf["lats"])>5:
             tempSurfs[k] = tempSurf
+        print("\n###########"+str(k)+"#################")
+        print(monthcount)
+        print(monthnegativecount)
+        print("############################")
 
-        print("ns: ",k," negative count: ",negativecount)
+        print("ns: ",k," negative count: ",negativecount/len(surfaces[k]["lons"]),"pv mean:" ,np.mean(tempSurf["data"]["pv"]))
     return tempSurfs
 
 
@@ -299,14 +337,12 @@ def deduplicateXYZ(x,y,z):
     return zip(*set(list(zip(x,y,z))))
 
 def removeDiscontinuities(surface,radius=10,debug=True):
-    if debug:
-        print("removing discontinuities")
     x=np.asarray(surface["x"])
     y=np.asarray(surface["y"])
     z=np.asarray(surface["data"]["pres"])
     final = np.zeros(x.shape)
     #print(x)
-    for i in range(len(x)):
+    for i in Bar("Removing discontinuities: ").iter(range(len(x))):
         if final[i] == False:
             r = np.sqrt((x- x[i])**2 + (y - y[i])**2)
             inside = r<radius*1000
@@ -418,10 +454,10 @@ def interpolateSurface(surface,debug=True):
     interpsurf["ids"] =finalids
     if len(xi) != len(finalids):
         print("OH NOOOOOO")
-    for k in surface["data"].keys():
+    for k in Bar("Interpolating: ").iter(surface["data"].keys()):
         notnan = ~np.isnan(surface["data"][k])
-        if len(notnan)>10:
-            gam = pygam.LinearGAM(pygam.te(0,1)).fit(X,surface["data"][k][notnan])
+        if np.count_nonzero(notnan)>10:
+            gam = pygam.LinearGAM(pygam.te(0,1)).fit(X[notnan],surface["data"][k][notnan])
             Xgrid = np.zeros((yi.shape[0],2))
             Xgrid[:,0] = xi
             Xgrid[:,1] = yi
@@ -432,6 +468,19 @@ def interpolateSurface(surface,debug=True):
     interpsurf["data"]["ids"] = finalids
     interpsurf = addLatLonToSurface(interpsurf)
     return interpsurf,neighbors
+
+def interpolateSurfaces(surfaces,debug=True):
+    interpolatedsurfaces = {}
+    neighbors={}
+    lookups={}
+    for k in surfaces.keys():
+        print(surfaces[k]["data"]["psi"])
+        if ~np.isnan(surfaces[k]["data"]["pres"]).any():
+            surfaces[k] = removeDiscontinuities(surfaces[k],radius=0.1)
+            interpolatedsurfaces[k],neighbors[k] = interpolateSurface(surfaces[k])
+            lookups[k] = trueDistanceLookup(interpolatedsurfaces[k],neighbors[k])
+    return interpolatedsurfaces,neighbors,lookups
+#
 
 def homemadeXY(lon,lat):
     x=[]
@@ -444,8 +493,6 @@ def homemadeXY(lon,lat):
     return np.asarray(x),np.asarray(y)
 
 def addLatLonToSurface(surface,debug = True):
-    if debug:
-        print("converting xyz back to lat lon a")
     lat = 90-(np.sqrt((surface["x"]**2+surface["y"]**2))/111000.0)
     lon = np.degrees(np.arctan2(surface["y"],surface["x"]))
     #print("lat: ",lat, " lon: ",lon)
@@ -467,6 +514,13 @@ def findNeighboringPoints(profiles,lat,lon,radius=30):
     plt.show()
 
 
+def surfaceDiagnostic(surfaces):
+    for d in surfaces[2000]["data"].keys():
+        print("#######")
+        print(d)
+        print("nan: ",np.count_nonzero(np.isnan(surfaces[2000]["data"][d])))
+        print("not nan:",np.count_nonzero(~np.isnan(surfaces[2000]["data"][d])))
+        
 
 def nanCopySurfaces(surfaces):
     nancopy = {}
@@ -477,66 +531,89 @@ def nanCopySurfaces(surfaces):
         nancopy[k]["lats"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["x"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["y"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["u"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["ids"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["v"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["hx"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["h"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["CKVB"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["hy"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["t"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["s"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["pv"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["pres"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["curl"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["uabs"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["vabs"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["uprime"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["vprime"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["dsdx"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["dsdy"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["d2sdx2"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["d2sdy2"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["dtdx"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["dtdy"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["dpdx"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["dpdy"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["n^2"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["dqnotdx"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["dqnotdy"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["data"]["d2thetads2"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        datafields = ["u","v","hx","h","CKVB","hy","t","s","pv","pres",\
+                     "curl","uabs","vabs","uprime","vprime","dsdx","dsdz","dsdy",\
+                    "d2sdx2","d2sdy2","dtdx","dtdy","dpdx","dpdy","n^2",\
+                    "dqnotdx","dqnotdy","d2thetads2","dalphadtheta",\
+                    "alpha","beta","dalphads","dbetads","dalphadp",\
+                    "dbetadp","psi","dqdz","dqdx","dqdy",\
+                    "d2qdz2","d2qdx2","d2qdy2","khp","khpdz"]
+        for d in datafields:
+            nancopy[k]["data"][d] = np.full(len(surfaces[k]["lons"]),np.nan)
     return nancopy
 
-def addHToSurfaces(surfaces):
+def fillOutEmptyFields(surfaces):
     for k in surfaces.keys():
-        surfaces[k]["data"]["h"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        surfaces[k]["data"]["dsdz"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        datafields = ["u","v","hx","h","CKVB","hy","t","s","pv","pres",\
+                     "curl","uabs","vabs","uprime","vprime","dsdx","dsdz","dsdy",\
+                    "d2sdx2","d2sdy2","dtdx","dtdy","dpdx","dpdy","n^2",\
+                    "dqnotdx","dqnotdy","d2thetads2","dalphadtheta",\
+                    "alpha","beta","dalphads","dbetads","dalphadp",\
+                    "dbetadp","psi","dqdz","dqdx","dqdy",\
+                    "d2qdz2","d2qdx2","d2qdy2","khp","khpdz"]
+        for d in datafields:
+            if d not in surfaces[k]["data"].keys():
+                surfaces[k]["data"][d] = np.full(len(surfaces[k]["lons"]),np.nan)
+    return surfaces
+
+
+def vertGrad(out,data,depths,k,above,center,below,attr,outattr,factor=1):
+    dattr = data[depths[k-1]]["data"][attr][above]-data[depths[k+1]]["data"][attr][below]
+    dz = data[depths[k-1]]["data"]["pres"][above]-data[depths[k+1]]["data"]["pres"][below]
+    out[depths[k]]["data"][outattr][center] = factor * dattr/dz
+    return out
+
+def addHeight(surfaces):    
     minimum = int(np.min(list(surfaces.keys())))
     maximum = int(np.max(list(surfaces.keys())))
     depths = range(minimum,maximum+1,200)
-    for j in range(len(depths))[1:-1]:
+    for j in Bar('Adding Heights:   ').iter(range(len(depths))[1:-1]):
         for index in range(len(surfaces[depths[j]]["x"])):
-            if index%100==0:
-                print("adding thickness: ",index,"/",len(surfaces[depths[j]]["x"]),"on NS: ",depths[j])
             eyed = int(surfaces[depths[j]]["ids"][index])
-            foundbelow = np.where(np.asarray(surfaces[depths[j-1]]["ids"])==eyed)
+            foundbelow = np.where(np.asarray(surfaces[depths[j+1]]["ids"])==eyed)
             found = index
-            foundabove = np.where(np.asarray(surfaces[depths[j+1]]["ids"])==eyed)
+            foundabove = np.where(np.asarray(surfaces[depths[j-1]]["ids"])==eyed)
             if len(foundbelow)!=0 and len(foundbelow[0]) != 0 and len(foundabove)!=0 and len(foundabove[0]) != 0:
                 foundbelow = foundbelow[0][0]
                 foundabove = foundabove[0][0]
-                tophalf = abs(surfaces[depths[j+1]]["data"]["pres"][foundabove]-surfaces[depths[j]]["data"]["pres"][found])/2.0
-                bothalf = abs(surfaces[depths[j]]["data"]["pres"][found]-surfaces[depths[j-1]]["data"]["pres"][foundbelow])/2.0
-                surfaces[depths[j]]["data"]["dsdz"][found] = (surfaces[depths[j+1]]["data"]["s"][foundabove]-surfaces[depths[j]]["s"]["pres"][foundbelow])/(tophalf*2+topbelow*2)
+                tophalf = abs(surfaces[depths[j-1]]["data"]["pres"][foundabove]-surfaces[depths[j]]["data"]["pres"][found])/2.0
+                bothalf = abs(surfaces[depths[j]]["data"]["pres"][found]-surfaces[depths[j+1]]["data"]["pres"][foundbelow])/2.0
                 surfaces[depths[j]]["data"]["h"][found] = tophalf + bothalf
+    return surfaces
 
+def addVerticalGrad(surfaces): 
+    minimum = int(np.min(list(surfaces.keys())))
+    maximum = int(np.max(list(surfaces.keys())))
+    depths = range(minimum,maximum+1,200)
+    for j in Bar('Adding Vertical Gradients:   ').iter(range(len(depths))[1:-1]):
+        for index in range(len(surfaces[depths[j]]["x"])):
+            eyed = int(surfaces[depths[j]]["ids"][index])
+            foundbelow = np.where(np.asarray(surfaces[depths[j+1]]["ids"])==eyed)
+            found = index
+            foundabove = np.where(np.asarray(surfaces[depths[j-1]]["ids"])==eyed)
+            if len(foundbelow)!=0 and len(foundbelow[0]) != 0 and len(foundabove)!=0 and len(foundabove[0]) != 0:
+                foundbelow = foundbelow[0][0]
+                foundabove = foundabove[0][0]
+                surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"s","dsdz",factor=-1)
+                surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"pv","dqdz",factor=-1)
+                surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"khp","khpdz",factor=-1)
+                surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"alpha","dalphadp")
+                surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"beta","dbetadp")
+    for j in Bar('Adding Vertical Double Gradients:   ').iter(range(len(depths))[1:-1]):
+        for index in range(len(surfaces[depths[j]]["x"])):
+            eyed = int(surfaces[depths[j]]["ids"][index])
+            foundbelow = np.where(np.asarray(surfaces[depths[j+1]]["ids"])==eyed)
+            found = index
+            foundabove = np.where(np.asarray(surfaces[depths[j-1]]["ids"])==eyed)
+            if len(foundbelow)!=0 and len(foundbelow[0]) != 0 and len(foundabove)!=0 and len(foundabove[0]) != 0:
+                surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"dqdz","d2qdz2",factor=-1)
     return surfaces
 
 def addK(surfaces,cachename=None):
-    for k in surfaces.keys():
+    for k in Bar("adding CKVB: ").iter(surfaces.keys()):
         surfaces[k]["data"]["CKVB"] = np.full(len(surfaces[k]["lons"]),np.nan)
         surfaces[k]["data"]["CKVO"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        for i in Bar("K "+str(k)+': ').iter(range(len(surfaces[k]["lons"]))):
+        for i in range(len(surfaces[k]["lons"])):
             lat = surfaces[k]["lats"][i]
             lon = surfaces[k]["lons"][i]
             if not (np.isnan(lat) or np.isnan(lon)):
@@ -546,24 +623,25 @@ def addK(surfaces,cachename=None):
     return surfaces
             
     
-def addPrimes(surfaces,neighbors,distances,debug=False):
+def addHorizontalGrad(surfaces,neighbors,distances,debug=False):
     staggered = nanCopySurfaces(surfaces)
     alldxs = []
 
-    for k in Bar('Adding Primes: ').iter(neighbors.keys()):
-        for s in neighbors[k]:
-            if surfaces[k]["x"][s[0]]>surfaces[k]["x"][s[1]]:
-                print("This should never happen")
-            if surfaces[k]["y"][s[0]]>surfaces[k]["y"][s[2]]:
-                print("This should never happen")
-
-            s=np.asarray(s)
-            staggered[k]["data"]["n^2"][s[0]]=staggered[k]["data"]["pv"][s[0]]*(9.8/gsw.f(staggered[k]["lats"][s[0]]))
-            staggered= averageOverNeighbors(staggered,surfaces,k,s)
-            staggered = addGradients(staggered,surfaces,k,s,distances)
+    for k in Bar('Adding Horizontal Gradients: ').iter(neighbors.keys()):
         for s in neighbors[k]:
             s=np.asarray(s)
-            staggered = addDoubleGradients(staggered,k,s,distances)
+            if not np.isnan(s).any():
+                if surfaces[k]["x"][s[0]]>surfaces[k]["x"][s[1]]:
+                    print("This should never happen")
+                if surfaces[k]["y"][s[0]]>surfaces[k]["y"][s[2]]:
+                    print("This should never happen")
+                
+                staggered= averageOverNeighbors(staggered,surfaces,k,s)
+                staggered = addGradients(staggered,surfaces,k,s,distances)
+        for s in neighbors[k]:
+            s=np.asarray(s)
+            if not np.isnan(s).any():
+                staggered = addDoubleGradients(staggered,k,s,distances)
 
     return staggered
 
@@ -586,30 +664,53 @@ def d2thetads2(surfaces,k,s):
     d2 = (temps[2] - temps[1])/(salts[2] - salts[1])
     return (d2-d1)/(salts[2] - salts[0])
 
- 
+def spatialGrad(out,data,k,s,distances,attr,attrx,attry,factorx=1,factory=1):
+    dx = []
+    dy = []
+    dx.append((data[k]["data"][attr][s[1]]-data[k]["data"][attr][s[0]])/distances[k][(s[0],s[1])])
+    dx.append((data[k]["data"][attr][s[3]]-data[k]["data"][attr][s[2]])/distances[k][(s[2],s[3])])
+    dy.append((data[k]["data"][attr][s[2]]-data[k]["data"][attr][s[0]])/distances[k][(s[0],s[2])])
+    dy.append((data[k]["data"][attr][s[3]]-data[k]["data"][attr][s[1]])/distances[k][(s[1],s[3])])
+    out[k]["data"][attrx][s[0]] = np.mean(dx)*factorx
+    out[k]["data"][attry][s[0]] = np.mean(dy)*factory
+    return out
+
+def attrGrad(out,data,k,s,attry,attrx,outattr):
+    xs = data[k]["data"][attrx][s]
+    ys = data[k]["data"][attry][s]
+    sort = np.argsort(xs)
+    xs = xs[sort]
+    ys = ys[sort]
+    grad = []
+    for i in range(1,len(ys)-1):
+        grad.append((ys[i+1]-ys[i-1])/(xs[i+1]-xs[i-1]))
+    out[k]["data"][outattr][s[0]] = np.mean(grad)
+    return out
 
 def addGradients(staggered,surfaces,k,s,distances):
     #NS thickness slope
-    dhdx,dhdy = meanGradient(surfaces,k,distances,s,"h")
-    dpsidx,dpsidy = meanGradient(surfaces,k,distances,s,"psi")
-    dsdx,dsdy = meanGradient(surfaces,k,distances,s,"psi")
-    dtdx,dtdy = meanGradient(surfaces,k,distances,s,"t")
-    dpdx,dpdy = meanGradient(surfaces,k,distances,s,"pres")
-    dqnotdx,dqnotdy = meanGradient(staggered,k,distances,s,"n^2")
+    staggered = spatialGrad(staggered,surfaces,k,s,distances,"h","hx","hy")
+    staggered = spatialGrad(staggered,surfaces,k,s,distances,"psi","v","u",(-1/gsw.f(surfaces[k]["lats"][s[0]])),(1/gsw.f(surfaces[k]["lats"][s[0]])))
+    staggered = spatialGrad(staggered,surfaces,k,s,distances,"s","dsdx","dsdy")
+    staggered = spatialGrad(staggered,surfaces,k,s,distances,"t","dtdx","dtdy")
+    staggered = spatialGrad(staggered,surfaces,k,s,distances,"pres","dpdx","dpdy")
+    staggered = spatialGrad(staggered,surfaces,k,s,distances,"n^2","dqnotdx","dqnotdy",gsw.f(surfaces[k]["lats"][s[0]])/9.8,gsw.f(surfaces[k]["lats"][s[0]])/9.8)
+    staggered = spatialGrad(staggered,surfaces,k,s,distances,"pv","dqdx","dqdy")
+    staggered = attrGrad(staggered,surfaces,k,s,"alpha","t","dalphadtheta")
+    staggered = attrGrad(staggered,surfaces,k,s,"alpha","s","dalphads")
+    staggered = attrGrad(staggered,surfaces,k,s,"beta","s","dbetads")
 
-    staggered[k]["data"]["hx"][s[0]] = dhdx
-    staggered[k]["data"]["hy"][s[0]] = dhdy
-    staggered[k]["data"]["u"][s[0]] = (1/gsw.f(surfaces[k]["lats"][s[0]]))*dpsidy
-    staggered[k]["data"]["v"][s[0]] = (-1/gsw.f(surfaces[k]["lats"][s[0]]))*dpsidx
-    staggered[k]["data"]["dsdx"][s[0]] = dsdx
-    staggered[k]["data"]["dsdy"][s[0]] =  dsdy
-    staggered[k]["data"]["dtdx"][s[0]] = dtdx
-    staggered[k]["data"]["dtdy"][s[0]] =  dtdy
-    staggered[k]["data"]["dpdx"][s[0]] = dpdx
-    staggered[k]["data"]["dpdy"][s[0]] =  dpdy
-    staggered[k]["data"]["dqnotdx"][s[0]] =  dqnotdx*(gsw.f(surfaces[k]["lats"][s[0]])/9.8)
-    staggered[k]["data"]["dqnotdy"][s[0]] =  dqnotdy*(gsw.f(surfaces[k]["lats"][s[0]])/9.8)
     staggered[k]["data"]["d2thetads2"][s[0]] =  d2thetads2(surfaces,k,s)
+    dalphadtheta = staggered[k]["data"]["dalphadtheta"][s[0]]
+    dalphadp = staggered[k]["data"]["dalphadp"][s[0]]
+    dalphads = staggered[k]["data"]["dalphads"][s[0]]
+    dbetads = staggered[k]["data"]["dbetads"][s[0]]
+    betaTherm = staggered[k]["data"]["dbetadp"][s[0]]
+    alphat = dalphadtheta+2*(alpha/betaTherm)*dalphads-(alpha**2/betaTherm**2)*dbetads
+    alphap = dalphadp -(alpha/betaTherm)*dbetadp
+    magct = staggered[k]["data"]["dtdx"][s[0]]**2 + staggered[k]["data"]["dtdx"][s[0]]**2
+    cdotp = staggered[k]["data"]["dtdx"][s[0]]*staggered[k]["data"]["dpdx"][s[0]]+staggered[k]["data"]["dtdy"][s[0]]*staggered[k]["data"]["dpdy"][s[0]]
+    staggered[k]["data"]["khp"][s[0]] = alphat*magct+alphap*cdotp
 
     return staggered
 
@@ -618,30 +719,31 @@ def addDoubleGradients(staggered,k,s,distances):
     d2sdx2,bop = meanGradient(staggered,k,distances,s,"dsdx")
     bop,d2sdy2 = meanGradient(staggered,k,distances,s,"dsdy")
 
+    d2qdx2,bop = meanGradient(staggered,k,distances,s,"dqdx")
+    bop,d2qdy2 = meanGradient(staggered,k,distances,s,"dqdy")
+
     staggered[k]["data"]["d2sdx2"][s[0]] = d2sdx2
     staggered[k]["data"]["d2sdy2"][s[0]] =  d2sdy2
+
+    staggered[k]["data"]["d2qdx2"][s[0]] = d2qdx2
+    staggered[k]["data"]["d2qdy2"][s[0]] =  d2qdy2
 
     return staggered
 
 def averageOverNeighbors(staggered,surfaces,k,s):
-    lon = np.mean(np.abs(surfaces[k]["lons"][s]))*np.sign(surfaces[k]["lons"][s[0]])
-    staggered[k]["lons"][s[0]] = lon
-    staggered[k]["data"]["pres"][s[0]] = np.mean(surfaces[k]["data"]["pres"][s])
-    staggered[k]["data"]["ids"][s[0]] = surfaces[k]["ids"][s[0]]
+    staggered[k]["lons"][s[0]] = np.mean(np.abs(surfaces[k]["lons"][s]))*np.sign(surfaces[k]["lons"][s[0]])
     staggered[k]["lats"][s[0]] = np.mean(surfaces[k]["lats"][s])
-    x = np.mean(surfaces[k]["x"][s])
-    staggered[k]["x"][s[0]] = x
-    staggered[k]["data"]["h"][s[0]] = np.mean(surfaces[k]["data"]["h"][s])
-    staggered[k]["data"]["pv"][s[0]] = np.mean(surfaces[k]["data"]["pv"][s])
-    y = np.mean(surfaces[k]["y"][s])
-    staggered[k]["y"][s[0]] = y
+    staggered[k]["x"][s[0]] = np.mean(surfaces[k]["x"][s])
+    staggered[k]["y"][s[0]] = np.mean(surfaces[k]["y"][s])
+    for d in surfaces[k]["data"].keys():
+        if d != "ids":
+            staggered[k]["data"][d][s[0]] = np.mean(surfaces[k]["data"][d][s])
     return staggered
-
 
 
 def trueDistanceLookup(surface,neighbors):
     lookup = {}
-    for square in neighbors:
+    for square in Bar("distance calc: ").iter(neighbors):
         for edge in itertools.combinations(square,2):
             p = tuple(sorted(edge))
             if p not in lookup.keys():
@@ -649,6 +751,9 @@ def trueDistanceLookup(surface,neighbors):
     return lookup
 
 def addStreamFunc(surfaces,profiles):
+    ##re organize surfaces so instead of keys of surface levels
+    ##keys of id. Essentially assemble list of ids and pressures where neutral
+    ## surfaces are defined
     neutraldepths={}
     for k in surfaces.keys():
         surfaces[k]["data"]["psi"]=np.empty(np.size(surfaces[k]["ids"]))
@@ -656,17 +761,18 @@ def addStreamFunc(surfaces,profiles):
         for i in range(len(surfaces[k]["ids"])):
             if surfaces[k]["ids"][i] not in neutraldepths:
                 neutraldepths[surfaces[k]["ids"][i]] =[[],[]]
-            if abs(k)<3700:
+            if abs(k)<3700 and int(abs(surfaces[k]["data"]["pres"][i])) not in neutraldepths[surfaces[k]["ids"][i]][1]:
                 neutraldepths[surfaces[k]["ids"][i]][0].append(k)
-                neutraldepths[surfaces[k]["ids"][i]][1].append(abs(surfaces[k]["data"]["pres"][i]))
+                neutraldepths[surfaces[k]["ids"][i]][1].append(int(abs(surfaces[k]["data"]["pres"][i])))
     refns = []
     refns_p = []
     for k in neutraldepths.keys():
         if len(neutraldepths[k][0])==18:
             p = getProfileById(profiles,k)
             for j in range(len(neutraldepths[k][0])):
-                refns.append(neutraldepths[k][0][j]) 
-                refns_p.append(p.sigma2(neutraldepths[k][1][j]))    
+                if ~np.isnan(p.sigma2(neutraldepths[k][1][j])) and neutraldepths[k][0][j] not in refns:
+                    refns.append(neutraldepths[k][0][j]) 
+                    refns_p.append(p.sigma2(neutraldepths[k][1][j]))    
             break
 
     refns = np.asarray(refns)
@@ -679,7 +785,7 @@ def addStreamFunc(surfaces,profiles):
     ns_p = []
     ks = []
     count =0
-    for k in neutraldepths.keys():
+    for k in Bar("Adding Stream Func to :").iter(neutraldepths.keys()):
         count+=1
         if count > 2000:
             break
@@ -693,6 +799,7 @@ def addStreamFunc(surfaces,profiles):
         nsa = np.abs(neutraldepths[k][1])
         #print(nslabels,nsa)
         ns_p.append(nsa)
+
         #print("refns_d", refns_d)
         #print("refns", refns)
         #print("nslabels", nslabels)
@@ -737,17 +844,4 @@ def addStreamFuncFromFile(surfaces,profiles,isopycnalfile,referencefile):
             else:
                 surfaces[k]["data"]["psi"].append(np.nan)
     return surfaces
-
-def convertOldSurfaces(surfaces):
-    newsurfaces = {}
-    for k in surfaces.keys():
-        surface = {}
-        surface["lons"] = surfaces[k][0]
-        surface["lats"] = surfaces[k][1]
-        surface["data"] = {"pres":surfaces[k][2][0],"t":surfaces[k][2][1],"s":surfaces[k][2][0],"pv":surfaces[k][2][3]}
-        surface["ids"] = surfaces[k][3]
-        newsurfaces[k] = surface
-    return newsurfaces
-        
-
 

@@ -14,7 +14,7 @@ import graph
 import copy
 import parametertools as ptools
 from pprint import pprint
-    
+ 
 profiles,deepestindex = nstools.extractProfilesBox(["data/1500mprofiles.json"],-180,180,65,90)
 profiles,deepestindex = nstools.removeNorwegianSea(profiles)
 
@@ -24,31 +24,24 @@ offsets,badfiles,beepestindex = pickle.load(fileObject)
 profiles = nstools.filterCruises(profiles,offsets.keys())
 profiles = saloffset.applyOffsets(profiles,offsets)
 
-#profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
+profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
 
-#surfaces = nstools.runPeerSearch(profiles,deepestindex,200,4000,200,profilechoice,1000)
-#fileObject = open(str(profilechoice.eyed)+".pickle",'wb')  
-## load the object from the file into var b
-#b = pickle.dump(surfaces,fileObject)  
-#fileObject.close()
-
-with open('data/287959.pickle', 'rb') as outfile:
-    surfaces=pickle.load(outfile)
+surfaces = nstools.runPeerSearch(profiles,deepestindex,200,4000,200,profilechoice,1000)
+fileObject = open(str(profilechoice.eyed)+".pickle",'wb')  
+# load the object from the file into var b
+b = pickle.dump(surfaces,fileObject)  
+fileObject.close()
 
 surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
 surfaces = nstools.addStreamFunc(surfaces,profiles)
 
 surfaces =nstools.addXYToSurfaces(surfaces)
 interpolatedsurfaces,neighbors,lookups = nstools.interpolateSurfaces(surfaces)
-#graph.graphSurfacesComparison(interpolatedsurfaces,surfaces,"psi",show=False,savepath="refpics/VersionTwo/")
 
-#graph.graphSurfacesComparison(interpolatedsurfaces,surfaces,"psi")
-#graph.graphAndSaveAll(interpolatedsurfaces,"refpics/VersionTwo/")
+graph.graphSurfacesComparison(interpolatedsurfaces,surfaces,"psi")
 
-staggeredsurfaces = nstools.fillOutEmptyFields(interpolatedsurfaces)
-staggeredsurfaces = nstools.addHeight(staggeredsurfaces)
+staggeredsurfaces = nstools.addHAndVerticalGrad(interpolatedsurfaces)
 staggeredsurfaces = nstools.addHorizontalGrad(staggeredsurfaces,neighbors,lookups)
-staggeredsurfaces = nstools.addVerticalGrad(staggeredsurfaces)
 staggeredsurfaces = nstools.addK(staggeredsurfaces,"data/bathVar.pickle")
 nstools.surfaceDiagnostic(staggeredsurfaces)
 
@@ -63,18 +56,7 @@ nstools.surfaceDiagnostic(staggeredsurfaces)
     #staggeredsurfaces=pickle.load(outfile)
 
 #graph.graphSurfaces(staggeredsurfaces,"psi")
-#simpleinvert = inverttools.invert("simple",staggeredsurfaces)
-#simplesaltinvert = inverttools.invert("simplesalt",staggeredsurfaces)
-#complexsaltinvert = inverttools.invert("complexsalt",staggeredsurfaces)
-with open('data/ready4inverse.pickle', 'wb') as outfile:
-    pickle.dump(staggeredsurfaces, outfile)
-
-staggeredsurfaces = inverttools.invert("complex",staggeredsurfaces)
-
-#graph.graphVectorField(simpleinvert,"uabs","vabs",savepath="refpics/VersionTwo/simple/",show=False)
-#graph.graphVectorField(simplesaltinvert,"uabs","vabs",savepath="refpics/VersionTwo/simplesalt/",show=False)
-#graph.graphVectorField(complexsaltinvert,"uabs","vabs",savepath="refpics/VersionTwo/complexsalt/",show=False)
-#graph.graphVectorField(simplesaltinvert,"u","v")
+staggeredsurfaces = inverttools.invert("simple",staggeredsurfaces)
 ##$$$$$$$$$$$$$$$44
 #staggeredsurfaces = inverttools.invert("complexsalt",staggeredsurfaces,debug=False)
 ##$$$$$$$$$$$$$$$44

@@ -13,14 +13,18 @@ class Profile:
         self.eyed = eyed
         self.lat = data["lat"]
         self.f = gsw.f(self.lat)
-        self.gamma = (9.8)/(f*1025.0)
+        self.gamma = (9.8)/(self.f*1025.0)
         self.lon = data["lon"]
         self.time = self.processDate(data["time"])
-        self.cruise = data["cruise"]+str(self.time.year)
+        self.cruise = data["cruise"]#+str(self.time.year)
         #Temerature Salinity and Pressure
         self.temps = np.asarray(data["temp"])
         self.sals = np.asarray(data["sal"])
         self.pres = np.asarray(data["pres"])
+        s = np.argsort(self.pres)
+        self.temps = self.temps[s]
+        self.sals = self.sals[s]
+        self.temps = gsw.CT_from_t(self.sals,self.temps,np.abs(self.pres))
         ##Interpolated Temperature, Salinity, and Pressure
         self.itemps = []
         self.isals = []
@@ -55,70 +59,86 @@ class Profile:
     #interpolate all quantities on a 1 dbar line
     def interpolate(self):
         self.ipres = range(int(min(self.pres)),int(max(self.pres)))
-        tck = interpolate.splrep(self.pres,self.sals,s=20)
-        self.isals = interpolate.splev(self.ipres,tck) 
-        #self.isals = np.interp(self.ipres,self.pres,self.sals)
-        self.temps = gsw.CT_from_t(self.sals,self.temps,self.pres)
-        self.itemps = gsw.CT_from_t(self.isals,np.interp(self.ipres,self.pres,self.temps),self.ipres)
-            
-    #
-    def neutralDepthWrong(self,p2,depth,debug=False,searchrange=50):
-        try:
-            startindexself = depth-self.ipres[0]-searchrange
-            startindexp2 = depth-p2.ipres[0]-searchrange
-        except:
-            print("This is off:   ", p2.eyed)
-            return None
-        if startindexp2 < 0 or startindexp2 + searchrange*2 > len(p2.ipres):
-            return None
-        Es = self.idensities[startindexself:startindexself + 2*searchrange]-p2.idensities[startindexp2:startindexp2 + 2*searchrange] 
-        E = np.argmin(Es)
-        self.neutraldepth[depth] = self.ipres[startindexself+E]
-        if abs(Es[E])<0.01:
-            return self.ipres[startindexself+E]
-        else:
-            return None
+        if len(self.pres)>4:
+            tck = interpolate.splrep(self.pres,self.sals)
+            self.isals = interpolate.splev(self.ipres,tck)
+            self.itemps = np.interp(self.ipres,self.pres,self.temps)
+            #self.irhos = gsw.rho(self.isals,self.itemps,self.ipres)
+            #self.n2 = (9.8/1025.0)*np.gradient(self.irhos,-np.asarray(self.ipres))
 
-    def neutralDepthWronger(self,p2,depth,debug=False,searchrange=50):
-        try:
-            startindexself = depth-self.ipres[0]-searchrange
-            startindexp2 = depth-p2.ipres[0]-searchrange
-        except:
-            print("This is off:   ", p2.eyed)
-            return None
-        if startindexp2 < 0 or startindexp2 + searchrange*2 > len(p2.ipres):
-            return None
-        Es = p2.idensities[startindexp2:startindexp2 + 2*searchrange]-self.idensities[startindexself+searchrange]
-        E = np.argmin(Es)
-        p2.neutraldepth[depth] = p2.ipres[startindexp2+E]
-        if abs(Es[E])<0.01:
-            return p2.ipres[startindexp2+E]
-        else:
-            return None
+            ###using gsw
+            self.n2 = gsw.Nsquared(self.isals,self.itemps,self.ipres,self.lat)[0]
+            #tck = interpolate.splrep(self.ipres[:-1],self.n2,s=0.01)
+            #self.n2 = interpolate.splev(self.ipres,tck) 
+
     def calculateDensity(self,s,t,p,p_ref=0):
         return gsw.rho(s,t,p)
 
-    def potentialVorticity(self,p,debug=False):
-        index = np.where(np.asarray(self.ipres) == p)[0]
-        if index!= None:
+
+    def potentialVorticityAt(self,index,debug=False):
+        index = np.where(np.asarray(self.ipres) == index)[0]
+        if index:
             index = index[0]
-            n2 = np.mean(gsw.Nsquared(self.isals[index-5:index+5],self.itemps[index-5:index+5],
-                    self.ipres[index-5:index+5], self.lat)[0])
-            if n2 < 0 and debug:
-                #plt.scatter(gsw.Nsquared(self.isals,self.itemps,self.ipres)[0],self.ipres[:-1],s=0.5)
-                plt.plot(self.isals,self.ipres)
-                plt.gca().invert_yaxis()
-                plt.show()
-            return (self.f/9.8)*(n2)
+            #if self.n2[index] < 0 and debug :
+                #print(self.isals[index],self.itemps[index],self.ipres[index])
+                
+            return (self.f/9.8)*np.mean(self.n2[index])
+
+
+    def potentialVorticityBetween(self,above,below,debug=False):
+        above = np.where(np.asarray(self.ipres) == int(above))[0]
+        below = np.where(np.asarray(self.ipres) == int(below))[0]
+        if len(above)>0 and len(below) > 0:
+            above = above[0]
+            below = below[0]
+        elif len(above)>0:
+            above = above[0]
+            below = min(self.ipres[-1],above+200)
+            below = np.where(np.asarray(self.ipres) == int(below))[0][0]
+        elif len(below)>0:
+            above = max(self.ipres[0],above-200)
+            above = np.where(np.asarray(self.ipres) == int(above))[0][0]
+            below = below[0]
         else:
-            return None
+            return
+        if np.isnan(self.n2[min(above,below):max(above,below)]).any():
+            print("###################")
+            print("######ipres#######")
+            print(self.ipres[min(above,below):max(above,below)])
+            print("###################")
+            print("######itemps#######")
+            print(self.itemps[min(above,below):max(above,below)])
+            print("###################")
+            print("######isals#######")
+            print(self.isals[min(above,below):max(above,below)])
+            print("###################")
+            print("######n2#######")
+            print(self.n2[min(above,below):max(above,below)])
+        pv = (self.f/9.8)*np.mean(self.n2[min(above,below):max(above,below)])
+        return pv
 
     def atPres(self,pres):
         i = np.where(np.asarray(self.ipres) == int(pres))[0][0]
         return self.itemps[i], self.isals[i]
 
+    def betweenPres(self,above,below):
+        above = np.where(np.asarray(self.ipres) == int(above))[0]
+        below = np.where(np.asarray(self.ipres) == int(below))[0]
+        if len(above)>0 and len(below) > 0:
+            above = above[0]
+            below = below[0]
+        elif len(above)>0:
+            above = above[0]
+            below = len(self.ipres)-1
+        elif len(below)>0:
+            below = below[0]
+            above = 0
+        else:
+            return
+        return np.mean(self.itemps[min(above,below):max(above,below)]), np.mean(self.isals[min(above,below):max(above,below)])
+
+
     def densityAtPres(self,pres,ref=0):
-        print(pres)
         i = np.where(np.asarray(self.ipres) == int(pres))[0][0]
         return gsw.rho(self.isals[i],self.itemps[i],ref)
 
@@ -179,11 +199,19 @@ class Profile:
             #print(self.cruise,p2.cruise)
             return None
     def geoIsopycnal(self,ns,nsdensref):
+        ns = ns[::-1]
+        nsdensref = nsdensref[::-1]
         self.ipres = np.abs(np.asarray(self.ipres))
-        dyn_height = gsw.geo_strf_dyn_height(self.isals,self.itemps,self.ipres,10.1235)
-        nsuniques= np.unique(np.asarray(np.abs(ns)))
-        sames = np.setdiff1d(range(len(ns)),nsuniques)
-        ns[sames[1:]] = ns[sames[1:]]+1
+
+        dyn_height = gsw.geo_strf_dyn_height(self.isals,self.itemps,self.ipres,10.25)
+        
+        #print("###########")
+        #print(ns)
+        ns, idxs = np.unique(ns,return_index=True)
+        nsdensref = nsdensref[idxs]
+        #print("between")
+        #print(ns)
+        #print("###########")
         filt = np.where(np.isin(self.ipres,ns))
         #print("################")
         #print(ns)
@@ -193,10 +221,6 @@ class Profile:
         nstemps = self.itemps[filt]
         nssals = self.isals[filt]
         #print(len(nstemps))
-        ##robbing from gibbs
-        #Things missing
-        #   Iref cast variables
-        #   enthalpy_SSO_0
         ###
         db2Pa = 1e4
         sa_iref_cast,ct_iref_cast,p_iref_cast = mygsw.interp_ref_cast(nsdensref,"s2")
