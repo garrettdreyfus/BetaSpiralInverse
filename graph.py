@@ -285,7 +285,7 @@ def graphStaggeredSurface(surfaces,neighbors,debug=False):
 
     return surfaces
 
-def graphVectorField(surfaces,key1,key2,savepath=False,show=True):
+def graphVectorField(surfaces,key1,key2,backgroundfield="pv",savepath=False,show=True):
 
     if savepath:
         try:
@@ -342,7 +342,7 @@ def graphVectorField(surfaces,key1,key2,savepath=False,show=True):
         fig.set_size_inches(16.5,12)
         a = np.where(abs(surfaces[k]["lats"]-90)>0.5)
         xpv,ypv = mapy(surfaces[k]["lons"][a],surfaces[k]["lats"][a])
-        plt.tricontourf(xpv,ypv,surfaces[k]["data"]["pv"][a],levels=10)
+        plt.tricontourf(xpv,ypv,surfaces[k]["data"][backgroundfield][a],levels=10)
         mapy.colorbar()
         mapy.quiver(x,y,u,v,mag,cmap="cool",width = 0.002)
         if savepath:

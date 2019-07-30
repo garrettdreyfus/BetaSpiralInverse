@@ -474,7 +474,6 @@ def interpolateSurfaces(surfaces,debug=True):
     neighbors={}
     lookups={}
     for k in surfaces.keys():
-        print(surfaces[k]["data"]["psi"])
         if ~np.isnan(surfaces[k]["data"]["pres"]).any():
             surfaces[k] = removeDiscontinuities(surfaces[k],radius=0.1)
             interpolatedsurfaces[k],neighbors[k] = interpolateSurface(surfaces[k])
@@ -579,7 +578,24 @@ def addHeight(surfaces):
                 tophalf = abs(surfaces[depths[j-1]]["data"]["pres"][foundabove]-surfaces[depths[j]]["data"]["pres"][found])/2.0
                 bothalf = abs(surfaces[depths[j]]["data"]["pres"][found]-surfaces[depths[j+1]]["data"]["pres"][foundbelow])/2.0
                 surfaces[depths[j]]["data"]["h"][found] = tophalf + bothalf
+                surfaces[depths[j]]["data"]["dbetadp"][found] = (surfaces[depths[j-1]]["data"]["beta"][foundabove] - surfaces[depths[j+1]]["data"]["beta"][foundbelow])/((tophalf + bothalf)*2)
     return surfaces
+
+def calculateKHP(staggered,k,index):
+    dalphadtheta = staggered[k]["data"]["dalphadtheta"][index]
+    dalphadp = staggered[k]["data"]["dalphadp"][index]
+    dalphads = staggered[k]["data"]["dalphads"][index]
+    dbetads = staggered[k]["data"]["dbetads"][index]
+    alpha = staggered[k]["data"]["alpha"][index]
+    beta = staggered[k]["data"]["beta"][index]
+    dbetadp = staggered[k]["data"]["dbetadp"][index]
+    betaTherm = staggered[k]["data"]["dbetadp"][index]
+    alphat = dalphadtheta+2*(alpha/betaTherm)*dalphads-(alpha**2/betaTherm**2)*dbetads
+    alphap = dalphadp -(alpha/betaTherm)*dbetadp
+    magct = staggered[k]["data"]["dtdx"][index]**2 + staggered[k]["data"]["dtdx"][index]**2
+    cdotp = staggered[k]["data"]["dtdx"][index]*staggered[k]["data"]["dpdx"][index]+staggered[k]["data"]["dtdy"][index]*staggered[k]["data"]["dpdy"][index]
+    return alphat*magct+alphap*cdotp
+
 
 def addVerticalGrad(surfaces): 
     minimum = int(np.min(list(surfaces.keys())))
@@ -596,9 +612,10 @@ def addVerticalGrad(surfaces):
                 foundabove = foundabove[0][0]
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"s","dsdz",factor=-1)
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"pv","dqdz",factor=-1)
-                surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"khp","khpdz",factor=-1)
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"alpha","dalphadp")
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"beta","dbetadp")
+                surfaces[depths[j]]["data"]["khp"][found] = calculateKHP(surfaces,depths[j],found)
+                
     for j in Bar('Adding Vertical Double Gradients:   ').iter(range(len(depths))[1:-1]):
         for index in range(len(surfaces[depths[j]]["x"])):
             eyed = int(surfaces[depths[j]]["ids"][index])
@@ -607,6 +624,7 @@ def addVerticalGrad(surfaces):
             foundabove = np.where(np.asarray(surfaces[depths[j-1]]["ids"])==eyed)
             if len(foundbelow)!=0 and len(foundbelow[0]) != 0 and len(foundabove)!=0 and len(foundabove[0]) != 0:
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"dqdz","d2qdz2",factor=-1)
+                surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"khp","khpdz",factor=-1)
     return surfaces
 
 def addK(surfaces,cachename=None):
@@ -699,18 +717,7 @@ def addGradients(staggered,surfaces,k,s,distances):
     staggered = attrGrad(staggered,surfaces,k,s,"alpha","t","dalphadtheta")
     staggered = attrGrad(staggered,surfaces,k,s,"alpha","s","dalphads")
     staggered = attrGrad(staggered,surfaces,k,s,"beta","s","dbetads")
-
     staggered[k]["data"]["d2thetads2"][s[0]] =  d2thetads2(surfaces,k,s)
-    dalphadtheta = staggered[k]["data"]["dalphadtheta"][s[0]]
-    dalphadp = staggered[k]["data"]["dalphadp"][s[0]]
-    dalphads = staggered[k]["data"]["dalphads"][s[0]]
-    dbetads = staggered[k]["data"]["dbetads"][s[0]]
-    betaTherm = staggered[k]["data"]["dbetadp"][s[0]]
-    alphat = dalphadtheta+2*(alpha/betaTherm)*dalphads-(alpha**2/betaTherm**2)*dbetads
-    alphap = dalphadp -(alpha/betaTherm)*dbetadp
-    magct = staggered[k]["data"]["dtdx"][s[0]]**2 + staggered[k]["data"]["dtdx"][s[0]]**2
-    cdotp = staggered[k]["data"]["dtdx"][s[0]]*staggered[k]["data"]["dpdx"][s[0]]+staggered[k]["data"]["dtdy"][s[0]]*staggered[k]["data"]["dpdy"][s[0]]
-    staggered[k]["data"]["khp"][s[0]] = alphat*magct+alphap*cdotp
 
     return staggered
 

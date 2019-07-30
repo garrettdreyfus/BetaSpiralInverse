@@ -301,10 +301,10 @@ def complexSaltInvert(surfaces,reflevel=1000,debug=False):
                 vref = surfaces[reflevel]["data"]["v"][index]
                 outsurfaces[ns[i][0]]["data"]["uprime"][ns[i][1]] = uref
                 outsurfaces[ns[i][0]]["data"]["uabs"][ns[i][1]] = prime[0] + surfaces[ns[i][0]]["data"]["u"][ns[i][1]]-uref
-                outsurfaces[ns[i][0]]["data"]["u"][ns[i][1]] = surfaces[ns[i][0]]["data"]["u"][ns[i][1]]#-uref
+                outsurfaces[ns[i][0]]["data"]["u"][ns[i][1]] = surfaces[ns[i][0]]["data"]["u"][ns[i][1]]-uref
                 outsurfaces[ns[i][0]]["data"]["vprime"][ns[i][1]] = vref
                 outsurfaces[ns[i][0]]["data"]["vabs"][ns[i][1]] = prime[1] + surfaces[ns[i][0]]["data"]["v"][ns[i][1]]-vref
-                outsurfaces[ns[i][0]]["data"]["v"][ns[i][1]] = surfaces[ns[i][0]]["data"]["v"][ns[i][1]]#-vref
+                outsurfaces[ns[i][0]]["data"]["v"][ns[i][1]] = surfaces[ns[i][0]]["data"]["v"][ns[i][1]]-vref
     return outsurfaces
 
 
@@ -369,7 +369,7 @@ def complexInvert(surfaces,reflevel=1000,debug=False):
                 isitnan = [alpha,betaTherm,dsdz,hx,hy,dsdx,dsdy,pres,d2sdx2,d2sdy2,\
                           dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
                           dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
-                          beta]
+                          beta,d2qdx2,d2qdy2,khpdz]
 
                 if debug and (np.isnan(isitnan).any()):
                     print("pres is nan: ",np.isnan(pres))
@@ -417,7 +417,7 @@ def complexInvert(surfaces,reflevel=1000,debug=False):
             b = np.asarray(b)
             c = np.matrix.transpose(np.asarray(c))
             us = np.asarray(us)
-            j = SVDdecomp(b,n_elements=3)
+            j = SVDdecomp(b,n_elements=4)
             prime = np.matmul(j,c)
             error = []
             #graphError(b,us,prime)
@@ -427,10 +427,10 @@ def complexInvert(surfaces,reflevel=1000,debug=False):
                 vref = surfaces[reflevel]["data"]["v"][index]
                 outsurfaces[ns[i][0]]["data"]["uprime"][ns[i][1]] = uref
                 outsurfaces[ns[i][0]]["data"]["uabs"][ns[i][1]] = prime[0] + surfaces[ns[i][0]]["data"]["u"][ns[i][1]]-uref
-                outsurfaces[ns[i][0]]["data"]["u"][ns[i][1]] = surfaces[ns[i][0]]["data"]["u"][ns[i][1]]#-uref
+                outsurfaces[ns[i][0]]["data"]["u"][ns[i][1]] = surfaces[ns[i][0]]["data"]["u"][ns[i][1]]-uref
                 outsurfaces[ns[i][0]]["data"]["vprime"][ns[i][1]] = vref
                 outsurfaces[ns[i][0]]["data"]["vabs"][ns[i][1]] = prime[1] + surfaces[ns[i][0]]["data"]["v"][ns[i][1]]-vref
-                outsurfaces[ns[i][0]]["data"]["v"][ns[i][1]] = surfaces[ns[i][0]]["data"]["v"][ns[i][1]]#-vref
+                outsurfaces[ns[i][0]]["data"]["v"][ns[i][1]] = surfaces[ns[i][0]]["data"]["v"][ns[i][1]]-vref
     return outsurfaces
 
 
