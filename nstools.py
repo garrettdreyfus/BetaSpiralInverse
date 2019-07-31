@@ -24,6 +24,7 @@ from scipy.linalg import svd
 from sklearn.decomposition import TruncatedSVD
 from progress.bar import Bar
 import parametertools as ptools
+from prettytable import PrettyTable
 
 
 def extractProfiles(fnames):
@@ -514,12 +515,19 @@ def findNeighboringPoints(profiles,lat,lon,radius=30):
 
 
 def surfaceDiagnostic(surfaces):
-    for d in surfaces[2000]["data"].keys():
-        print("#######")
-        print(d)
-        print("nan: ",np.count_nonzero(np.isnan(surfaces[2000]["data"][d])))
-        print("not nan:",np.count_nonzero(~np.isnan(surfaces[2000]["data"][d])))
-        
+    diagnostics ={}
+    t = PrettyTable(['Property', 'nan%'])
+    for k in surfaces.keys():
+        for d in surfaces[2000]["data"].keys():
+            if d not in diagnostics.keys():
+                diagnostics[d]=[0,0]
+            diagnostics[d][0] = diagnostics[d][0] + np.count_nonzero(np.isnan(surfaces[k]["data"][d]))
+            diagnostics[d][1] = diagnostics[d][1] + np.count_nonzero(~np.isnan(surfaces[k]["data"][d]))
+    for d in diagnostics.keys():
+        percentage = int(round(diagnostics[d][0]/sum(diagnostics[d]),3)*100)
+        t.add_row([d,percentage])
+    print(t)
+
 
 def nanCopySurfaces(surfaces):
     nancopy = {}
@@ -535,7 +543,7 @@ def nanCopySurfaces(surfaces):
                     "d2sdx2","d2sdy2","dtdx","dtdy","dpdx","dpdy","n^2",\
                     "dqnotdx","dqnotdy","d2thetads2","dalphadtheta",\
                     "alpha","beta","dalphads","dbetads","dalphadp",\
-                    "dbetadp","psi","dqdz","dqdx","dqdy",\
+                    "dbetadp","psi","psinew","dqdz","dqdx","dqdy",\
                     "d2qdz2","d2qdx2","d2qdy2","khp","khpdz"]
         for d in datafields:
             nancopy[k]["data"][d] = np.full(len(surfaces[k]["lons"]),np.nan)
@@ -657,8 +665,8 @@ def addHorizontalGrad(surfaces,neighbors,distances,debug=False):
     return staggered
 
 def spatialGrad(surfaces,k,distances,s,quantity):
-    dx = (surfaces[k]["data"][quantity][s[1]]-surfaces[k]["data"][quantity][s[2]])/distances[k][(s[1],s[2])]
-    dy= (surfaces[k]["data"][quantity][s[3]]-surfaces[k]["data"][quantity][s[4]])/distances[k][(s[3],s[4])]
+    dx = (surfaces[k]["data"][quantity][s[2]]-surfaces[k]["data"][quantity][s[1]])/distances[k][(s[1],s[2])]
+    dy= (surfaces[k]["data"][quantity][s[4]]-surfaces[k]["data"][quantity][s[3]])/distances[k][(s[3],s[4])]
     return dx,dy
 
 def d2thetads2(surfaces,k,s):
@@ -804,6 +812,14 @@ def addStreamFunc(surfaces,profiles):
     #with open('data/geoisopycnal.pickle', 'wb') as outfile:
         #pickle.dump([results,ks], outfile)
     #print(results)
+    return surfaces
+
+def streamFuncToUV(surfaces,neighbors,distances):
+    for k in Bar('Adding uv: ').iter(neighbors.keys()):
+        for s in neighbors[k]:
+            s=np.asarray(s)
+            if not np.isnan(s).any():
+                surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psinew","vabs","uabs",(-1/gsw.f(surfaces[k]["lats"][s[0]])),(1/gsw.f(surfaces[k]["lats"][s[0]])))
     return surfaces
 
 def addStreamFuncFromFile(surfaces,profiles,isopycnalfile,referencefile):
