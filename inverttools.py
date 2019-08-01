@@ -83,7 +83,7 @@ def kterms(surfaces,k,found,debug=False):
         skhpart1 = (f/pv)*dsdz*(alphat*(dtdx**2 + dtdy**2)+alphap*(dtdx*dpdx+dtdy*dpdy))
         skhpart2 = (d2sdx2+d2sdy2)-2*(dqnotdx*dsdx + dqnotdy*dsdy)/pv
         skh = skhpart1 + skhpart2
-        return (pvkv0,pvkvb,pvkh),(skvo,skvb,skh)
+        return (-pvkv0,-pvkvb,-pvkh),(-skvo,-skvb,-skh)
 
 
  
@@ -513,7 +513,7 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
         for s in Bar('coupled invert: ').iter(neighbors[k]):
             s=np.asarray(s)
             kpv,ks = kterms(surfaces,k,s[0])
-            if kpv and ks and abs(surfaces[k]["lons"][s[0]])<45 and k >=1000:
+            if kpv and ks and abs(surfaces[k]["lons"][s[0]])<30 and k >=1000:
                 ##find/store column indexs for each neighbor
                 columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s,columndictionary)
                 dx = distances[k][(s[1],s[2])]
@@ -523,7 +523,7 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
                 ##make rows that can fit it 
                 Apsirow = [0]*(max(columnindexs)+1)
                 Akvbrow = [0]*(max(columnindexs)+1)
-                ##im a rascal and this is a shorthad way of converting the NS to an index :P
+                ##this is a shorthad way of converting the NS to an index
                 Akhrow = [0]*(int(k/200))
 
                 f = gsw.f(surfaces[k]["lats"][center])
