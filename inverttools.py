@@ -383,6 +383,7 @@ def complexInvert(surfaces,reflevel=1000,debug=False):
         outsurfaces[k]["data"]["v"].fill(np.nan)  
         outsurfaces[k]["data"]["uabs"].fill(np.nan)  
         outsurfaces[k]["data"]["vabs"].fill(np.nan)  
+    stats=[[],[],[]]
     for index in  Bar('Complex Salt Invert: ').iter(range(len(surfaces[reflevel]["x"]))):
         eyed = int(surfaces[reflevel]["ids"][index])
         #print("id: ",eyed)
@@ -435,6 +436,9 @@ def complexInvert(surfaces,reflevel=1000,debug=False):
             us = np.asarray(us)
             j = SVDdecomp(b,n_elements=4)
             prime = np.matmul(j,c)
+            stats[0].append(prime[2])
+            stats[1].append(prime[3])
+            stats[2].append(prime[4])
             error = []
             #graphError(b,us,prime)
             #print(prime)
@@ -447,6 +451,7 @@ def complexInvert(surfaces,reflevel=1000,debug=False):
                 outsurfaces[ns[i][0]]["data"]["vprime"][ns[i][1]] = vref
                 outsurfaces[ns[i][0]]["data"]["vabs"][ns[i][1]] = prime[1] + surfaces[ns[i][0]]["data"]["v"][ns[i][1]]-vref
                 outsurfaces[ns[i][0]]["data"]["v"][ns[i][1]] = surfaces[ns[i][0]]["data"]["v"][ns[i][1]]-vref
+    print(np.mean(stats[0]),np.mean(stats[1]),np.mean(stats[2]))
     return outsurfaces
 
 
@@ -466,6 +471,26 @@ def neighborsColumnNumbers(surfaces,k,s,eyedict):
         eyedict,col = getColumnNumber(eyedict,surfaces[k]["ids"][l])
         columnnumbers.append(col)
     return eyedict,columnnumbers
+
+def applyRefLevel(surfaces,reflevel=1800):
+    for k in surfaces.keys():
+        surfaces[k]["data"]["psiref"] = np.full(len(surfaces[k]["data"]["psi"]),np.nan)
+        for l in range(len(surfaces[k]["data"]["psi"])):
+            found = np.where(np.asarray(surfaces[reflevel]["ids"])==surfaces[k]["ids"][l])
+            if len(found) != 0 and len(found[0]) != 0:
+                surfaces[k]["data"]["psiref"][l] = surfaces[k]["data"]["psi"][l] - surfaces[reflevel]["data"]["psi"][found[0][0]]
+    return surfaces
+
+def applyPrime(staggeredsurfaces,prime,coldict):
+    for k in staggeredsurfaces.keys():
+        staggeredsurfaces[k]["data"]["psinew"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
+        for i in range(len(staggeredsurfaces[k]["data"]["ids"])):
+            eyed = staggeredsurfaces[k]["data"]["ids"][i] 
+            if eyed in coldict.keys():
+                staggeredsurfaces[k]["data"]["psinew"][i] = staggeredsurfaces[k]["data"]["psiref"][i] + prime[coldict[eyed]]
+    return staggeredsurfaces
+
+
         
 
 def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
@@ -477,12 +502,13 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
     c=[]
     ##dictionary of ids to column numbers
     columndictionary = {"max":-1}
+    surfaces = applyRefLevel(surfaces)
     for k in neighbors.keys():
         print(k)
         for s in Bar('coupled invert: ').iter(neighbors[k]):
             s=np.asarray(s)
             kpv,ks = kterms(surfaces,k,s[0])
-            if kpv and ks and abs(surfaces[k]["lons"][s[0]])<45:
+            if kpv and ks and abs(surfaces[k]["lons"][s[0]])<45 and k >=1800:
                 ##find/store column indexs for each neighbor
                 columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s,columndictionary)
                 dx = distances[k][(s[1],s[2])]
@@ -501,25 +527,27 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
                 dqnotdx = surfaces[k]["data"]["dqnotdx"][center] 
                 dqnotdy = surfaces[k]["data"]["dqnotdy"][center] 
                 #use mean gradient instead
-                dAdx,dAdy = spatialGrad(surfaces,k,distances,s,"psi")
+                dAdx,dAdy = spatialGrad(surfaces,k,distances,s,"psiref")
                
                 ## (-1/f)dAr/dy*dQnotdx
-                Apsirow[columnindexs[4]] = (-1.0/f)*(1.0/dy)*dqnotdx
-                Apsirow[columnindexs[3]] = (1.0/f)*(1.0/dy)*dqnotdx
+                compositerow = ((-1.0/f)*(1.0/dy)*dqnotdx,(1.0/f)*(1.0/dy)*dqnotdx,(1.0/f)*(1.0/dx)*(dqnotdy+(beta/f)*pv),(-1.0/f)*(1.0/dx)*(dqnotdy+(beta/f)*pv),kpv[1],kpv[2],kpv[0])
+                n = np.linalg.norm(compositerow)
+                Apsirow[columnindexs[4]] = (-1.0/f)*(1.0/dy)*dqnotdx/n
+                Apsirow[columnindexs[3]] = (1.0/f)*(1.0/dy)*dqnotdx/n
                 ## (-1/f)dAr/dx*dQnotdx
-                Apsirow[columnindexs[2]] = (1.0/f)*(1.0/dx)*(dqnotdy+(beta/f)*pv)
-                Apsirow[columnindexs[1]] = (-1.0/f)*(1.0/dx)*(dqnotdy+(beta/f)*pv)
+                Apsirow[columnindexs[2]] = (1.0/f)*(1.0/dx)*(dqnotdy+(beta/f)*pv)/n
+                Apsirow[columnindexs[1]] = (-1.0/f)*(1.0/dx)*(dqnotdy+(beta/f)*pv)/n
 
-                Akvbrow[columnindexs[0]]=kpv[1]
-                Akhrow[(int(k/200)-1)] = kpv[2]
+                Akvbrow[columnindexs[0]]=kpv[1]/n
+                Akhrow[(int(k/200)-1)] = kpv[2]/n
                 Apsi.append(Apsirow)
                 Akvb.append(Akvbrow)
                 Akh.append(Akhrow)
-                Akvo.append([kpv[1]])
+                Akvo.append([kpv[0]/n])
 
 
                 ######PV Error row
-                c.append((1.0/f)*dAdy*dqnotdx-(1.0/f)*dAdx*(dqnotdy+(beta/f)*pv))
+                c.append(((1.0/f)*dAdy*dqnotdx-(1.0/f)*dAdx*(dqnotdy+(beta/f)*pv))/n)
 
                 #######SALROW
                 ##make rows that can fit it 
@@ -530,21 +558,23 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
 
                 dsdx = surfaces[k]["data"]["dsdx"][center]
                 dsdy = surfaces[k]["data"]["dsdy"][center]
+                compositerow = ((-1.0/f)*(1.0/dy)*dsdx,(1.0/f)*(1.0/dy)*dsdx,(1.0/f)*(1.0/dx)*(dsdy),(-1.0/f)*(1.0/dx)*(dsdy),ks[0],ks[1],ks[2])
+                n = np.linalg.norm(compositerow)
                  ## (-1/f)dAr/dy*dQnotdx
-                Apsirow[columnindexs[4]] = (-1.0/f)*(1.0/dy)*dsdx
-                Apsirow[columnindexs[3]] = (1.0/f)*(1.0/dy)*dsdx
+                Apsirow[columnindexs[4]] = ((-1.0/f)*(1.0/dy)*dsdx)/n
+                Apsirow[columnindexs[3]] = ((1.0/f)*(1.0/dy)*dsdx)/n
                 ## (-1/f)dAr/dx*dQnotdx
-                Apsirow[columnindexs[2]] = (1.0/f)*(1.0/dx)*(dsdy)
-                Apsirow[columnindexs[1]] = (-1.0/f)*(1.0/dx)*(dsdy)
-                Akvbrow[columnindexs[0]]=ks[1]
-                Akhrow[(int(k/200)-1)] = ks[2]
+                Apsirow[columnindexs[2]] = ((1.0/f)*(1.0/dx)*(dsdy))/n
+                Apsirow[columnindexs[1]] = ((-1.0/f)*(1.0/dx)*(dsdy))/n
+                Akvbrow[columnindexs[0]]=ks[1]/n
+                Akhrow[(int(k/200)-1)] = ks[2]/n
                 Apsi.append(Apsirow)
                 Akvb.append(Akvbrow)
                 Akh.append(Akhrow)
-                Akvo.append([ks[1]])
+                Akvo.append([ks[0]/n])
 
                 ######SAL Error row
-                c.append((1.0/f)*dAdy*dsdx-(1.0/f)*dAdx*dsdy)
+                c.append(((1.0/f)*dAdy*dsdx-(1.0/f)*dAdx*dsdy)/n)
 
     ##We now have all the terms we need, we just need to reshape and concatenate
     m = columndictionary["max"]+1
@@ -563,9 +593,10 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
     print(len(c))
     print("#############")
     c = np.matrix.transpose(np.asarray(c))
-    j = SVDdecomp(A,n_elements=2000)
+    j = SVDdecomp(A,n_elements=2400)
     prime = np.matmul(j,c)
-    return prime,columndictionary
+    surfaces = applyPrime(surfaces,prime,columndictionary)
+    return surfaces,prime,columndictionary
 
 #a is an array to rectangularize
 #l is the maximum length

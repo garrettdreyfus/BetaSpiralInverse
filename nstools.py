@@ -820,6 +820,7 @@ def streamFuncToUV(surfaces,neighbors,distances):
             s=np.asarray(s)
             if not np.isnan(s).any():
                 surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psinew","vabs","uabs",(-1/gsw.f(surfaces[k]["lats"][s[0]])),(1/gsw.f(surfaces[k]["lats"][s[0]])))
+                surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psiref","v","u",(-1/gsw.f(surfaces[k]["lats"][s[0]])),(1/gsw.f(surfaces[k]["lats"][s[0]])))
     return surfaces
 
 def addStreamFuncFromFile(surfaces,profiles,isopycnalfile,referencefile):
