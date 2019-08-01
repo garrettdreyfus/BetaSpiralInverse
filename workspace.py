@@ -74,18 +74,22 @@ with open('data/ready4inverse.pickle', 'rb') as outfile:
 #realinvert = inverttools.invert("coupled",staggeredsurfaces)
 #simpleinverted = inverttools.invert("simple",staggeredsurfaces)
 #graph.graphVectorField(simpleinverted,"uabs","vabs","s")
-complexinverted = inverttools.invert("complex",staggeredsurfaces)
+#complexinverted = inverttools.invert("complex",staggeredsurfaces)
 #graph.graphVectorField(saltinverted,"uabs","vabs","s")
 #complexinverted = inverttools.invert("complex",staggeredsurfaces)
 #graph.graphVectorField(complexinverted,"uabs","vabs","s")
 
-#staggeredsurfaces,prime,coldict = inverttools.invert("coupled",staggeredsurfaces,neighbors,lookups)
+staggeredsurfaces,prime,coldict,j,e = inverttools.invert("coupled",staggeredsurfaces,neighbors,lookups)
 
-#with open('data/coupledoutput.pickle', 'wb') as outfile:
-    #pickle.dump([staggeredsurfaces,prime,coldict], outfile)
+with open('data/coupledoutput.pickle', 'wb') as outfile:
+    pickle.dump([staggeredsurfaces,prime,coldict,j,e], outfile)
 
 #with open('data/coupledoutput.pickle', 'rb') as outfile:
-    #[prime,coldict]=pickle.load(outfile)
+    #[staggeredsurfaces,prime,coldict,j,e]=pickle.load(outfile)
+
+d = e[1].diagonal()
+print(d[-1]/d[0])
+print(d[1500]/d[0])
 
 #psis = prime[:coldict["max"]]
 #kvbs = prime[coldict["max"]:coldict["max"]*2]
@@ -93,18 +97,19 @@ complexinverted = inverttools.invert("complex",staggeredsurfaces)
 #kvos = prime[-1]
 #print(len(prime-19)/coldict["max"])
 #print("#####psis#######")
-#print(np.min(psis),np.max(psis),np.mean(psis))
+#print(np.min(psis),np.max(psis),np.mean(psis),np.median(psis))
 #print("#####kvbs#######")
-#print(np.min(kvbs),np.max(kvbs),np.mean(kvbs))
+#print(np.min(kvbs),np.max(kvbs),np.mean(kvbs),np.median(psis))
 #print("#####kvhs#######")
-#print(np.min(kvhs),np.max(kvhs),np.mean(kvhs))
+#print(np.min(kvhs),np.max(kvhs),np.mean(kvhs),np.median(psis))
 #print("#####kvo#############")
 #print(kvos)
 
-#staggeredsurfaces = nstools.streamFuncToUV(staggeredsurfaces,neighbors,lookups)
+staggeredsurfaces = nstools.streamFuncToUV(staggeredsurfaces,neighbors,lookups)
 
 
-graph.graphVectorField(complexinverted,"uabs","vabs","pv")
+graph.graphVectorField(staggeredsurfaces,"uabs","vabs","pv")
+graph.graphVectorField(staggeredsurfaces,"u","v","pv")
 
 #graph.graphVectorField(simpleinvert,"uabs","vabs",savepath="refpics/VersionTwo/simple/",show=False)
 #graph.graphVectorField(simplesaltinvert,"uabs","vabs",savepath="refpics/VersionTwo/simplesalt/",show=False)

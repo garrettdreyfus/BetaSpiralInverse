@@ -1,6 +1,13 @@
 from nstools import *
 import copy
 
+def SVDCalc(VT,D,U,n_elements=False):
+    if n_elements:
+        D = D[:, :n_elements]
+        VT = VT[:n_elements, :]
+
+    B = VT.T.dot(D.T).dot(U.T)
+    return B
 def SVDdecomp(A,n_elements=2):
     U, s, VT = svd(A,full_matrices=True)
     # reciprocals of s
@@ -9,11 +16,9 @@ def SVDdecomp(A,n_elements=2):
     D = np.zeros(A.shape)
     # populate D with n x n diagonal matrix
     D[:A.shape[1], :A.shape[1]] = np.diag(d)
-    D = D[:, :n_elements]
-    VT = VT[:n_elements, :]
-    # calculate pseudoinverse
-    B = VT.T.dot(D.T).dot(U.T)
-    return B
+
+    B = SVDCalc(VT,D,U,n_elements)
+    return B, VT, D, U
 
 def kterms(surfaces,k,found,debug=False):
     f = gsw.f(surfaces[k]["lats"][found])
@@ -78,7 +83,7 @@ def kterms(surfaces,k,found,debug=False):
         skhpart1 = (f/pv)*dsdz*(alphat*(dtdx**2 + dtdy**2)+alphap*(dtdx*dpdx+dtdy*dpdy))
         skhpart2 = (d2sdx2+d2sdy2)-2*(dqnotdx*dsdx + dqnotdy*dsdy)/pv
         skh = skhpart1 + skhpart2
-        return (-pvkv0,-pvkvb,-pvkh),(-skvo,-skvb,-skh)
+        return (pvkv0,pvkvb,pvkh),(skvo,skvb,skh)
 
 
  
@@ -472,7 +477,7 @@ def neighborsColumnNumbers(surfaces,k,s,eyedict):
         columnnumbers.append(col)
     return eyedict,columnnumbers
 
-def applyRefLevel(surfaces,reflevel=1800):
+def applyRefLevel(surfaces,reflevel=1000):
     for k in surfaces.keys():
         surfaces[k]["data"]["psiref"] = np.full(len(surfaces[k]["data"]["psi"]),np.nan)
         for l in range(len(surfaces[k]["data"]["psi"])):
@@ -508,7 +513,7 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
         for s in Bar('coupled invert: ').iter(neighbors[k]):
             s=np.asarray(s)
             kpv,ks = kterms(surfaces,k,s[0])
-            if kpv and ks and abs(surfaces[k]["lons"][s[0]])<45 and k >=1800:
+            if kpv and ks and abs(surfaces[k]["lons"][s[0]])<45 and k >=1000:
                 ##find/store column indexs for each neighbor
                 columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s,columndictionary)
                 dx = distances[k][(s[1],s[2])]
@@ -593,10 +598,26 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
     print(len(c))
     print("#############")
     c = np.matrix.transpose(np.asarray(c))
-    j = SVDdecomp(A,n_elements=2400)
+    j,VT, D, U = SVDdecomp(A,n_elements=2500)
+    print("inverted!")
     prime = np.matmul(j,c)
+    print("multiplied:!")
+    parameterErrors(A,prime,c,D)
+
     surfaces = applyPrime(surfaces,prime,columndictionary)
-    return surfaces,prime,columndictionary
+    return surfaces,prime,columndictionary,j,[VT,D,U]
+
+def parameterErrors(A,prime,c,j):
+    R = np.matmul(A,prime)
+    R = R-c
+    R = np.matmul(R,np.matrix.transpose(R))
+    delta = (R/(A.shape[0]-2))**(1/2)
+    errors = []
+    for i in j.diagonal():
+        errors.append(delta*(i**(1/2)))
+    plt.plot(range(len(errors)),errors)
+    plt.show()
+
 
 #a is an array to rectangularize
 #l is the maximum length
