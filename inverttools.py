@@ -496,7 +496,21 @@ def applyPrime(staggeredsurfaces,prime,coldict):
     return staggeredsurfaces
 
 
-        
+def generateWhiteList(surfaces,neighbors,inversionlevel):
+    idCount = {}
+    for k in neighbors.keys():
+        if k > inversionlevel:
+            for s in neighbors[k]:
+                for h in s:
+                    l = surfaces[k]["ids"][h]
+                    if l not in idCount.keys():
+                        idCount[l] = 0
+                    idCount[l] = idCount[l]+1
+    whitelist = []
+    for d in idCount.keys():
+        if idCount[d] > 30:
+            whitelist.append(d)
+    return whitelist
 
 def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
     outsurfaces = copy.deepcopy(surfaces)
@@ -508,17 +522,21 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
     ##dictionary of ids to column numbers
     columndictionary = {"max":-1}
     surfaces = applyRefLevel(surfaces)
+    selects = False
+    
     for k in neighbors.keys():
         print(k)
-        for s in Bar('coupled invert: ').iter(neighbors[k]):
+        #for s in Bar('coupled invert: ').iter(neighbors[k]):
+        for s in neighbors[k]:
             s=np.asarray(s)
             kpv,ks = kterms(surfaces,k,s[0])
-            if kpv and ks and abs(surfaces[k]["lons"][s[0]])<30 and k >=1000:
+            if kpv and ks and abs(surfaces[k]["lons"][s[0]]-40)<15 and k>=1000 :#and (not selects or selects == surfaces[k]["ids"][s[0]] or True) and surfaces[k]["ids"][s[0]] in whitelist:
                 ##find/store column indexs for each neighbor
                 columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s,columndictionary)
-                dx = distances[k][(s[1],s[2])]
-                dy = distances[k][(s[3],s[4])]
+                dx = abs(distances[k][(s[1],s[2])])
+                dy = abs(distances[k][(s[3],s[4])])
                 center = s[0]
+                selects = surfaces[k]["ids"][s[0]]
                 #######PVROW
                 ##make rows that can fit it 
                 Apsirow = [0]*(max(columnindexs)+1)
@@ -535,7 +553,7 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
                 dAdx,dAdy = spatialGrad(surfaces,k,distances,s,"psiref")
                
                 ## (-1/f)dAr/dy*dQnotdx
-                compositerow = ((-1.0/f)*(1.0/dy)*dqnotdx,(1.0/f)*(1.0/dy)*dqnotdx,(1.0/f)*(1.0/dx)*(dqnotdy+(beta/f)*pv),(-1.0/f)*(1.0/dx)*(dqnotdy+(beta/f)*pv),kpv[1],kpv[2],kpv[0])
+                compositerow = ((-1.0/f)*(1.0/dy)*dqnotdx,(1.0/f)*(1.0/dy)*dqnotdx,(1.0/f)*(1.0/dx)*(dqnotdy+(beta/f)*pv),(-1.0/f)*(1.0/dx)*(dqnotdy+(beta/f)*pv))#,kpv[1],kpv[2],kpv[0])
                 n = np.linalg.norm(compositerow)
                 Apsirow[columnindexs[4]] = (-1.0/f)*(1.0/dy)*dqnotdx/n
                 Apsirow[columnindexs[3]] = (1.0/f)*(1.0/dy)*dqnotdx/n
@@ -549,8 +567,6 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
                 Akvb.append(Akvbrow)
                 Akh.append(Akhrow)
                 Akvo.append([kpv[0]/n])
-
-
                 ######PV Error row
                 c.append(((1.0/f)*dAdy*dqnotdx-(1.0/f)*dAdx*(dqnotdy+(beta/f)*pv))/n)
 
@@ -563,14 +579,15 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
 
                 dsdx = surfaces[k]["data"]["dsdx"][center]
                 dsdy = surfaces[k]["data"]["dsdy"][center]
-                compositerow = ((-1.0/f)*(1.0/dy)*dsdx,(1.0/f)*(1.0/dy)*dsdx,(1.0/f)*(1.0/dx)*(dsdy),(-1.0/f)*(1.0/dx)*(dsdy),ks[0],ks[1],ks[2])
+                compositerow = ((-1.0/f)*(1.0/dy)*dsdx,(1.0/f)*(1.0/dy)*dsdx,(1.0/f)*(1.0/dx)*(dsdy),(-1.0/f)*(1.0/dx)*(dsdy))#,ks[0],ks[1],ks[2])
+                #print(compositerow)
                 n = np.linalg.norm(compositerow)
-                 ## (-1/f)dAr/dy*dQnotdx
+                 ## (-1/f)dAr/dy*dsdx
                 Apsirow[columnindexs[4]] = ((-1.0/f)*(1.0/dy)*dsdx)/n
                 Apsirow[columnindexs[3]] = ((1.0/f)*(1.0/dy)*dsdx)/n
-                ## (-1/f)dAr/dx*dQnotdx
-                Apsirow[columnindexs[2]] = ((1.0/f)*(1.0/dx)*(dsdy))/n
-                Apsirow[columnindexs[1]] = ((-1.0/f)*(1.0/dx)*(dsdy))/n
+                ## (1/f)dAr/dx*dsdy
+                Apsirow[columnindexs[2]] = ((1.0/f)*(1.0/dx)*dsdy)/n
+                Apsirow[columnindexs[1]] = ((-1.0/f)*(1.0/dx)*dsdy)/n
                 Akvbrow[columnindexs[0]]=ks[1]/n
                 Akhrow[(int(k/200)-1)] = ks[2]/n
                 Apsi.append(Apsirow)
@@ -581,10 +598,37 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
                 ######SAL Error row
                 c.append(((1.0/f)*dAdy*dsdx-(1.0/f)*dAdx*dsdy)/n)
 
+    Apsi.insert(0,[1])
+    Akvb.insert(0,[1])
+    Akh.insert(0,[1])
+    Akvo.insert(0,[1])
+    c.insert(0,0)
     ##We now have all the terms we need, we just need to reshape and concatenate
     m = columndictionary["max"]+1
-    A = combineAs([m,m,18,1],Apsi,Akvb,Akh,Akvo)
-    s = []
+    #print(Apsi)
+    number = [0]*m
+    for i in Apsi:
+        for j in range(len(i)):
+            if i[j] !=0:
+                number[j] = number[j]+1
+    plt.hist(number)
+    plt.show()
+
+
+    A = combineAs([m,m,18,1],Apsi)#,Akvb,Akh,Akvo)
+    #print(A)
+    number = []
+    for i in range(A.shape[1]):
+        number.append(np.count_nonzero(A[:,i]))
+    #print("in each column",number)
+
+    #A = np.delete(A,np.where(np.asarray(number)<70),axis=1)
+
+    number = []
+    for i in range(A.shape[0]):
+        number.append(np.count_nonzero(A[i]))
+    print("in each row: ",np.unique(number))
+
     #print(np.matrix(A))
     print("#####A########")
     print(A.shape)
@@ -598,14 +642,25 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
     print(len(c))
     print("#############")
     c = np.matrix.transpose(np.asarray(c))
-    j,VT, D, U = SVDdecomp(A,n_elements=2500)
+    j,VT, D, U = SVDdecomp(A,n_elements=A.shape[1]-4)
     print("inverted!")
     prime = np.matmul(j,c)
     print("multiplied:!")
-    parameterErrors(A,prime,c,D)
+    #parameterErrors(A,prime,c,D)
+    rdivc(D)
 
     surfaces = applyPrime(surfaces,prime,columndictionary)
     return surfaces,prime,columndictionary,j,[VT,D,U]
+
+def rdivc(D):
+    d = D.diagonal()
+    d = 1.0/d
+    print(d)
+    print(d[-1]/d[0])
+    #print(d[-20]/d[0])
+    plt.scatter(range(len(d[:])),(d[0]/d[:]))
+    plt.show()
+
 
 def parameterErrors(A,prime,c,j):
     R = np.matmul(A,prime)
@@ -615,7 +670,7 @@ def parameterErrors(A,prime,c,j):
     errors = []
     for i in j.diagonal():
         errors.append(delta*(i**(1/2)))
-    plt.plot(range(len(errors)),errors)
+    plt.scatter(range(len(errors)),errors)
     plt.show()
 
 

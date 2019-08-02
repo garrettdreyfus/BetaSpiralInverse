@@ -78,7 +78,7 @@ with open('data/ready4inverse.pickle', 'rb') as outfile:
 #graph.graphVectorField(saltinverted,"uabs","vabs","s")
 #complexinverted = inverttools.invert("complex",staggeredsurfaces)
 #graph.graphVectorField(complexinverted,"uabs","vabs","s")
-
+#graph.graphSurfaces(staggeredsurfaces,"dqnotdx")
 staggeredsurfaces,prime,coldict,j,e = inverttools.invert("coupled",staggeredsurfaces,neighbors,lookups)
 
 with open('data/coupledoutput.pickle', 'wb') as outfile:
@@ -87,9 +87,6 @@ with open('data/coupledoutput.pickle', 'wb') as outfile:
 #with open('data/coupledoutput.pickle', 'rb') as outfile:
     #[staggeredsurfaces,prime,coldict,j,e]=pickle.load(outfile)
 
-d = e[1].diagonal()
-print(d[-1]/d[0])
-print(d[1500]/d[0])
 
 #psis = prime[:coldict["max"]]
 #kvbs = prime[coldict["max"]:coldict["max"]*2]

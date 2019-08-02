@@ -438,11 +438,11 @@ def plotASpiral(profiles,center=None,x=None,y=None):
     #plt.plot(us,vs,c="r")
     plt.show()
 
-def graphAndSaveAll(surfaces,savepath):
-    for k in surfaces[200]["data"].keys():
-        graphSurfaces(surfaces,k,show=False,savepath=savepath)
-
-
-
-
-
+#def graphAndSaveAll(surfaces,savepath):
+    #for k in surfaces[200]["data"].keys():
+        #graphSurfaces(surfaces,k,show=False,savepath=savepath)
+        #if contour:
+            #plt.tricontourf(x,y,np.asarray(surfaces[i]["data"][quantindex]),cmap="plasma")
+        #else:
+            #plt.scatter(x,y,c=np.asarray(surfaces[i]["data"][quantindex]),cmap="plasma")
+ 
