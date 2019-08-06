@@ -417,14 +417,13 @@ def generateMaskedMesh(x,y,radius=150):
                 finalxi.append(xi[l][k])
                 finalyi.append(yi[l][k])
                 finalids.append(l*125+k)
-            if l != final.shape[0]-1 and k != final.shape[1]-1 and l > 0 and k>0:
+            if l != final.shape[0]-1 and k != final.shape[1]-1:
                 s = []
-                if final[l][k] and final[l][k-1] and final[l][k+1] and final[l-1][k] and final[l+1][k]:
+                if final[l][k] and final[l][k+1] and final[l+1][k+1] and final[l+1][k]:
                     s.append(int(indexcount[l][k]))
-                    s.append(int(indexcount[l][k-1]))
                     s.append(int(indexcount[l][k+1]))
-                    s.append(int(indexcount[l-1][k]))
                     s.append(int(indexcount[l+1][k]))
+                    s.append(int(indexcount[l+1][k+1]))
                     finalneighbors.append(tuple(s))
     return np.asarray(finalxi),np.asarray(finalyi),finalneighbors,finalids
 
@@ -557,7 +556,7 @@ def fillOutEmptyFields(surfaces):
                     "dqnotdx","dqnotdy","d2thetads2","dalphadtheta",\
                     "alpha","beta","dalphads","dbetads","dalphadp",\
                     "dbetadp","psi","dqdz","dqdx","dqdy",\
-                    "d2qdz2","d2qdx2","d2qdy2","khp","khpdz"]
+                    "d2qdz2","d2qdx2","d2qdy2","khp","khpdz","dpsidx","dpsidy"]
         for d in datafields:
             if d not in surfaces[k]["data"].keys():
                 surfaces[k]["data"][d] = np.full(len(surfaces[k]["lons"]),np.nan)
@@ -635,6 +634,16 @@ def addVerticalGrad(surfaces):
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"khp","khpdz",factor=-1)
     return surfaces
 
+def averageOverNeighbors(staggered,surfaces,k,s):
+    staggered[k]["lons"][s[0]] = np.mean(np.abs(surfaces[k]["lons"][s]))*np.sign(surfaces[k]["lons"][s[0]])
+    staggered[k]["lats"][s[0]] = np.mean(surfaces[k]["lats"][s])
+    staggered[k]["x"][s[0]] = np.mean(surfaces[k]["x"][s])
+    staggered[k]["y"][s[0]] = np.mean(surfaces[k]["y"][s])
+    for d in surfaces[k]["data"].keys():
+        if d != "ids":
+            staggered[k]["data"][d][s[0]] = np.mean(surfaces[k]["data"][d][s])
+    return staggered
+
 def addK(surfaces,cachename=None):
     for k in Bar("adding CKVB: ").iter(surfaces.keys()):
         surfaces[k]["data"]["CKVB"] = np.full(len(surfaces[k]["lons"]),np.nan)
@@ -651,6 +660,7 @@ def addK(surfaces,cachename=None):
     
 def addHorizontalGrad(surfaces,neighbors,distances,debug=False):
     alldxs = []
+    staggered = nanCopySurfaces(surfaces)
 
     for k in Bar('Adding Horizontal Gradients: ').iter(neighbors.keys()):
         for s in neighbors[k]:
@@ -660,18 +670,25 @@ def addHorizontalGrad(surfaces,neighbors,distances,debug=False):
         for s in neighbors[k]:
             s=np.asarray(s)
             if not np.isnan(s).any():
+                staggered= averageOverNeighbors(staggered,surfaces,k,s)
                 staggered = addDoubleGradients(surfaces,k,s,distances)
 
     return staggered
 
-def spatialGrad(surfaces,k,distances,s,quantity):
-    dx = (surfaces[k]["data"][quantity][s[2]]-surfaces[k]["data"][quantity][s[1]])/distances[k][(s[1],s[2])]
-    dy= (surfaces[k]["data"][quantity][s[4]]-surfaces[k]["data"][quantity][s[3]])/distances[k][(s[3],s[4])]
+def spatialGrad(surfaces,k,distances,s,attr,factorx=1,factory=1):
+    dx = []
+    dy = []
+    dx.append((surfaces[k]["data"][attr][s[1]]-surfaces[k]["data"][attr][s[0]])/distances[k][(s[0],s[1])])
+    dx.append((surfaces[k]["data"][attr][s[3]]-surfaces[k]["data"][attr][s[2]])/distances[k][(s[2],s[3])])
+    dy.append((surfaces[k]["data"][attr][s[2]]-surfaces[k]["data"][attr][s[0]])/distances[k][(s[0],s[2])])
+    dy.append((surfaces[k]["data"][attr][s[3]]-surfaces[k]["data"][attr][s[1]])/distances[k][(s[1],s[3])])
+    dx = np.mean(dx)*factorx
+    dy = np.mean(dy)*factory
     return dx,dy
 
 def d2thetads2(surfaces,k,s):
-    temps = surfaces[k]["data"]["t"][s[0:4]]
-    salts = surfaces[k]["data"]["s"][s[0:4]]
+    temps = surfaces[k]["data"]["t"][s[0:3]]
+    salts = surfaces[k]["data"]["s"][s[0:3]]
     l = np.argsort(salts)
     temps = temps[l]
     salts = salts[l]
@@ -701,6 +718,7 @@ def addGradients(staggered,surfaces,k,s,distances):
     #NS thickness slope
     staggered = setSpatialGrad(staggered,surfaces,k,s,distances,"h","hx","hy")
     staggered = setSpatialGrad(staggered,surfaces,k,s,distances,"psi","v","u",(-1/gsw.f(surfaces[k]["lats"][s[0]])),(1/gsw.f(surfaces[k]["lats"][s[0]])))
+    staggered = setSpatialGrad(staggered,surfaces,k,s,distances,"psi","dpsidx","dpsidy")
     staggered = setSpatialGrad(staggered,surfaces,k,s,distances,"s","dsdx","dsdy")
     staggered = setSpatialGrad(staggered,surfaces,k,s,distances,"t","dtdx","dtdy")
     staggered = setSpatialGrad(staggered,surfaces,k,s,distances,"pres","dpdx","dpdy")

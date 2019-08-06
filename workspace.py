@@ -24,14 +24,14 @@ from pprint import pprint
 #profiles = nstools.filterCruises(profiles,offsets.keys())
 #profiles = saloffset.applyOffsets(profiles,offsets)
 
-##profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
-##profilechoice = nstools.getProfileById(profiles,"286364")
+###profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
+###profilechoice = nstools.getProfileById(profiles,"286364")
 
-##surfaces = nstools.runPeerSearch(profiles,deepestindex,200,4000,200,profilechoice,1000)
-##fileObject = open(str(profilechoice.eyed)+"new.pickle",'wb')  
-### load the object from the file into var b
-##b = pickle.dump(surfaces,fileObject)  
-##fileObject.close()
+###surfaces = nstools.runPeerSearch(profiles,deepestindex,200,4000,200,profilechoice,1000)
+###fileObject = open(str(profilechoice.eyed)+"new.pickle",'wb')  
+#### load the object from the file into var b
+###b = pickle.dump(surfaces,fileObject)  
+###fileObject.close()
 
 #with open('data/286364new.pickle', 'rb') as outfile:
     #surfaces=pickle.load(outfile)
@@ -45,17 +45,17 @@ from pprint import pprint
 #staggeredsurfaces = nstools.fillOutEmptyFields(interpolatedsurfaces)
 #staggeredsurfaces = nstools.addHeight(staggeredsurfaces)
 
-#with open('data/ready4horizontalgrad.pickle', 'wb') as outfile:
-    #pickle.dump([staggeredsurfaces,neighbors,lookups], outfile)
+##with open('data/ready4horizontalgrad.pickle', 'wb') as outfile:
+    ##pickle.dump([staggeredsurfaces,neighbors,lookups], outfile)
 
-#with open('data/ready4horizontalgrad.pickle', 'rb') as outfile:
-    #[staggeredsurfaces,neighbors,lookups]=pickle.load(outfile)
+##with open('data/ready4horizontalgrad.pickle', 'rb') as outfile:
+    ##[staggeredsurfaces,neighbors,lookups]=pickle.load(outfile)
 
-#nstools.surfaceDiagnostic(staggeredsurfaces)
+##nstools.surfaceDiagnostic(staggeredsurfaces)
 #staggeredsurfaces = nstools.addHorizontalGrad(staggeredsurfaces,neighbors,lookups)
-#nstools.surfaceDiagnostic(staggeredsurfaces)
+##nstools.surfaceDiagnostic(staggeredsurfaces)
 #staggeredsurfaces = nstools.addVerticalGrad(staggeredsurfaces)
-#nstools.surfaceDiagnostic(staggeredsurfaces)
+##nstools.surfaceDiagnostic(staggeredsurfaces)
 ##ptools.saveBathVarTermCache(staggeredsurfaces,"data/bathVar.pickle")
 #staggeredsurfaces = nstools.addK(staggeredsurfaces,"data/bathVar.pickle")
 
@@ -68,10 +68,11 @@ from pprint import pprint
 with open('data/ready4inverse.pickle', 'rb') as outfile:
     [staggeredsurfaces,neighbors,lookups]=pickle.load(outfile)
 
+#nstools.surfaceDiagnostic(staggeredsurfaces)
 #with open('data/ready4inverse.pickle', 'wb') as outfile:
     #pickle.dump([staggeredsurfaces,neighbors,lookups], outfile)
 
-#realinvert = inverttools.invert("coupled",staggeredsurfaces)
+coupleinvert,columndictionary,svds = inverttools.invert("coupled",staggeredsurfaces,neighbors,lookups)
 #simpleinverted = inverttools.invert("simple",staggeredsurfaces)
 #graph.graphVectorField(simpleinverted,"uabs","vabs","s")
 #complexinverted = inverttools.invert("complex",staggeredsurfaces)
@@ -79,10 +80,10 @@ with open('data/ready4inverse.pickle', 'rb') as outfile:
 #complexinverted = inverttools.invert("complex",staggeredsurfaces)
 #graph.graphVectorField(complexinverted,"uabs","vabs","s")
 #graph.graphSurfaces(staggeredsurfaces,"dqnotdx")
-staggeredsurfaces,prime,coldict,j,e = inverttools.invert("coupled",staggeredsurfaces,neighbors,lookups)
+#staggeredsurfaces,prime,coldict,j,e = inverttools.invert("coupled",staggeredsurfaces,neighbors,lookups)
 
-with open('data/coupledoutput.pickle', 'wb') as outfile:
-    pickle.dump([staggeredsurfaces,prime,coldict,j,e], outfile)
+#with open('data/coupledoutput.pickle', 'wb') as outfile:
+    #pickle.dump([staggeredsurfaces,prime,coldict,j,e], outfile)
 
 #with open('data/coupledoutput.pickle', 'rb') as outfile:
     #[staggeredsurfaces,prime,coldict,j,e]=pickle.load(outfile)
@@ -102,11 +103,11 @@ with open('data/coupledoutput.pickle', 'wb') as outfile:
 #print("#####kvo#############")
 #print(kvos)
 
-staggeredsurfaces = nstools.streamFuncToUV(staggeredsurfaces,neighbors,lookups)
+coupleinvert = nstools.streamFuncToUV(coupleinvert,neighbors,lookups)
 
-
-graph.graphVectorField(staggeredsurfaces,"uabs","vabs","pv")
-graph.graphVectorField(staggeredsurfaces,"u","v","pv")
+inverttools.exportMat(coupleinvert,columndictionary,svds)
+graph.graphVectorField(coupleinvert,"uabs","vabs","pv")
+graph.graphVectorField(coupleinvert,"u","v","pv")
 
 #graph.graphVectorField(simpleinvert,"uabs","vabs",savepath="refpics/VersionTwo/simple/",show=False)
 #graph.graphVectorField(simplesaltinvert,"uabs","vabs",savepath="refpics/VersionTwo/simplesalt/",show=False)
