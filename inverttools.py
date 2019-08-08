@@ -69,9 +69,9 @@ def kterms(surfaces,k,found,debug=False):
               dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
               dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
               beta,d2qdx2,d2qdy2,khpdz]
-    kvbscale = 5*10**-5
-    kvoscale = 5*10**-6
-    khscale = 500
+    kvbscale = 5*(10**-5)#5*(10**-5)
+    kvoscale = 5*(10**-6)#5*(10**-6)
+    khscale = 1#500
 
     if (np.isnan(isitnan).any()):
         if debug:
@@ -83,7 +83,7 @@ def kterms(surfaces,k,found,debug=False):
             print("something here is nan")
         return None, None
     if not (np.isnan(isitnan).any()):
-        pvkvb = (d2qdz2+2*(1/200)*dqdz+(1/(200**2))*pv)*CKVB
+        pvkvb = (d2qdz2+2*(1/1000)*dqdz+(1/(1000**2))*pv)*CKVB
         pvkv0 = d2qdz2
         pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv -f*khpdz
         skvo = -alpha*f*(1/pv)*(dsdz**3)*doublets
@@ -165,14 +165,6 @@ def simpleInvert(surfaces,reflevel=1000,debug=False):
             errorafter = []
             for i in range(len(b[0])):
                 errorafter.append(b[0][i]*(us[0][i]) + b[1][i]*(us[1][i]))
-            #plt.plot(errorbefore,label="after")
-            #plt.plot(errorafter,label="before")
-            #plt.gca().legend()
-            #plt.show()
-            #R = np.matmul((np.matmul(b.T,prime)-c),(np.matmul(b.T,prime)-c).T)
-            #delta = np.sqrt(R/(b.shape[1]-2))
-            #for i in b.shape[0]:
-                #lon.alg.solv(np.matmul(b.T,b)[i][i]
 
             for i in range(len(ns)):
                 uref = surfaces[reflevel]["data"]["u"][index]
@@ -655,16 +647,6 @@ def coupledInvertNoMixing(surfaces,reflevel,neighbors,distances,debug=False,sing
                 Apsi.append(betarow/n)
 
                 ##make rows that can fit it 
-                Akvbrow = [0]*(max(columnindexs)+1)
-                Akvbrow[columnindexs[0]]=kpv[1]/n
-                Akvb.append(Akvbrow/n)
-
-                Akhrow = [0]*(int(k/200))
-                Akhrow[(int(k/200)-1)] = kpv[2]
-                Akh.append(Akhrow/n)
-
-
-                Akvo.append([kpv[0]])
                 us[columnindexs[0]] = surfaces[k]["data"]["psiref"][s[0]]
                 c.append(crow/n)
 
@@ -674,24 +656,10 @@ def coupledInvertNoMixing(surfaces,reflevel,neighbors,distances,debug=False,sing
                 n = np.linalg.norm(salvals)
                 Apsi.append(salrow/n)
                 ##im a rascal and this is a shorthad way of converting the NS to an index :P
-                Akvbrow = [0]*(max(columnindexs)+1)
-                Akvbrow[columnindexs[0]]=ks[1]/n
-
-                Akhrow = [0]*(int(k/200))
-                Akhrow[(int(k/200)-1)] = ks[2]/n
-
-                Akvb.append(Akvbrow)
-                Akh.append(Akhrow)
-
-                Akvo.append([ks[0]/n])
-
-                ######SAL Error row
+                 ######SAL Error row
                 c.append(crow/n)
 
     Apsi.insert(0,[1])
-    Akvb.insert(0,[0])
-    Akh.insert(0,[0])
-    Akvo.insert(0,[0])
     c.insert(0,0)
     us.insert(0,0)
     ##We now have all the terms we need, we just need to reshape and concatenate
@@ -717,7 +685,7 @@ def coupledInvertNoMixing(surfaces,reflevel,neighbors,distances,debug=False,sing
 
     c = np.matrix.transpose(np.asarray(c))
     us =  np.matrix.transpose(np.asarray(us))
-    j,[VT, D, U] = SVDdecomp(A,n_elements=A.shape[1]-100)
+    j,[VT, D, U] = SVDdecomp(A,n_elements=A.shape[1])
     prime = np.matmul(j,c)
     print("singular values: ", 1/(np.diag(D)))
     #def graphError(b,us,prime):
@@ -758,14 +726,17 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
                 ##this is a shorthad way of converting the NS to an index
                 #######PVROW
                 betarow,betavals, crow = constructBetaRow(surfaces,k,distances,s,columnindexs)
-                betavals = np.asarray(betavals)/0.05
-                n = np.linalg.norm(np.concatenate((np.asarray(betavals)/0.05,kpv[0:1])))
+                betavals = np.asarray(betavals)
+                n = np.linalg.norm(np.concatenate((np.asarray(betavals),kpv[0:2])))
                 #n = np.linalg.norm(betavals)
+                print("betarow: ",betarow)
+                print("kpv: ",kpv)
                 Apsi.append(betarow/n)
 
                 ##make rows that can fit it 
-                Akvbrow = [0]*(max(columnindexs)+1)
+                Akvbrow = [0]*(columnindexs[0]+1)
                 Akvbrow[columnindexs[0]]=kpv[1]/n
+                #Akvbrow[columnindexs[0]]=0
                 Akvb.append(Akvbrow)
 
                 Akhrow = [0]*(int(k/200))
@@ -773,19 +744,20 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
                 Akh.append(Akhrow)
 
 
-                Akvo.append([kpv[0]/n])
+                Akvo.append([0])
+                #Akvo.append([kpv[0]/n])
                 us[columnindexs[0]] = surfaces[k]["data"]["psiref"][s[0]]
                 c.append(crow/n)
 
                 #######SALROW
                 ##make rows that can fit it 
                 salrow, salvals, crow = constructSalRow(surfaces,k,distances,s,columnindexs)
-                salvals = np.asarray(salvals)/0.05
-                n = np.linalg.norm(np.concatenate((np.asarray(salvals),ks[0:1])))
+                salvals = np.asarray(salvals)
+                n = np.linalg.norm(np.concatenate((np.asarray(salvals),ks[0:2])))
                 #n = np.linalg.norm(salvals)
                 Apsi.append(salrow/n)
                 ##im a rascal and this is a shorthad way of converting the NS to an index :P
-                Akvbrow = [0]*(max(columnindexs)+1)
+                Akvbrow = [0]*(columnindexs[0]+1)
                 Akvbrow[columnindexs[0]]=ks[1]/n
 
                 Akhrow = [0]*(int(k/200))
@@ -811,7 +783,8 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
     #print(Apsi)
 
     #A = combineAs([m,m,18,1],Apsi,Akvb,Akh,Akvo)
-    A = combineAs([m,1],Apsi,Akvo)
+    A = combineAs([m,m,1],Apsi,Akvb,Akvo)
+    print(A)
     rowCount(A)
 
         #print(np.matrix(A))
@@ -828,10 +801,10 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
     print("#############")
     c = np.matrix.transpose(np.asarray(c))
     us =  np.matrix.transpose(np.asarray(us))
-    j,[VT, D, U] = SVDdecomp(A,n_elements=A.shape[1])
+    j,[VT, D, U] = SVDdecomp(A,n_elements=int(A.shape[1]))
     prime = np.matmul(j,c)
     #graphError(A,np.concatenate((us,[0]*(len(us)+19))),prime)
-    graphError(A,np.concatenate((us,[0]*(1))),prime)
+    graphError(A,np.concatenate((us,[0]*(A.shape[1]-len(us)))),prime)
     graphKs(prime,m)
     print("singular values: ", 1/(np.diag(D)))
 
@@ -944,9 +917,11 @@ def graphKs(prime,m):
     kvb = prime[m:2*m]
     kvh = prime[2*m:2*m+8]
     kvo =prime[-1]
-    plt.plot(range(len(kvb)),kvb)
-    plt.show()
-    plt.plot(range(len(kvh)),kvh)
+    fig, (ax1,ax2) = plt.subplots(1,2)
+    ax1.set_title("KVB")
+    ax1.plot(range(len(kvb)),kvb+kvo)
+    ax2.set_title("KVH")
+    ax2.plot(range(len(kvh)),kvh)
     plt.show()
     print(kvo)
 
