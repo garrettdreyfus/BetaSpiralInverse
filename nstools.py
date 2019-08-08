@@ -25,7 +25,7 @@ from sklearn.decomposition import TruncatedSVD
 from progress.bar import Bar
 import parametertools as ptools
 from prettytable import PrettyTable
-
+import pdb
 
 def extractProfiles(fnames):
     ##Load JSON data into profile objects
@@ -371,6 +371,7 @@ def removeDiscontinuities(surface,radius=10,debug=True):
             surface[k] = np.asarray(surface[k])[final]
     return surface
 
+
 def createMesh(n,xvals,yvals,custom=False):
     if custom:
         return np.meshgrid(np.linspace(np.min(xvals),np.max(xvals),n), np.linspace(np.min(yvals),np.max(yvals),n),indexing="xy")
@@ -382,7 +383,7 @@ def createMesh(n,xvals,yvals,custom=False):
         return np.meshgrid(np.linspace(xmin,xmax,n), np.linspace(ymin,ymax,n),indexing="xy")
 
 
-def generateMaskedMesh(x,y,radius=150):
+def generateMaskedMesh(x,y,radius=100):
     xi,yi = createMesh(125,x,y)
     final = np.zeros(xi.shape)
     neighbors = []
@@ -640,8 +641,10 @@ def averageOverNeighbors(staggered,surfaces,k,s):
     staggered[k]["x"][s[0]] = np.mean(surfaces[k]["x"][s])
     staggered[k]["y"][s[0]] = np.mean(surfaces[k]["y"][s])
     for d in surfaces[k]["data"].keys():
-        if d != "ids":
+        if d in ["t","s","pv","h","pres"]:
             staggered[k]["data"][d][s[0]] = np.mean(surfaces[k]["data"][d][s])
+        else:
+            staggered[k]["data"][d][s[0]] = surfaces[k]["data"][d][s[0]]
     return staggered
 
 def addK(surfaces,cachename=None):
@@ -839,6 +842,7 @@ def streamFuncToUV(surfaces,neighbors,distances):
             if not np.isnan(s).any():
                 surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psinew","vabs","uabs",(-1/gsw.f(surfaces[k]["lats"][s[0]])),(1/gsw.f(surfaces[k]["lats"][s[0]])))
                 surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psiref","v","u",(-1/gsw.f(surfaces[k]["lats"][s[0]])),(1/gsw.f(surfaces[k]["lats"][s[0]])))
+                surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psisol","vsol","usol",(-1/gsw.f(surfaces[k]["lats"][s[0]])),(1/gsw.f(surfaces[k]["lats"][s[0]])))
     return surfaces
 
 def addStreamFuncFromFile(surfaces,profiles,isopycnalfile,referencefile):

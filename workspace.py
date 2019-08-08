@@ -14,6 +14,7 @@ import graph
 import copy
 import parametertools as ptools
 from pprint import pprint
+import pdb
     
 #profiles,deepestindex = nstools.extractProfilesBox(["data/1500mprofiles.json"],-180,180,65,90)
 #profiles,deepestindex = nstools.removeNorwegianSea(profiles)
@@ -24,14 +25,14 @@ from pprint import pprint
 #profiles = nstools.filterCruises(profiles,offsets.keys())
 #profiles = saloffset.applyOffsets(profiles,offsets)
 
-###profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
-###profilechoice = nstools.getProfileById(profiles,"286364")
+#####profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
+#####profilechoice = nstools.getProfileById(profiles,"286364")
 
-###surfaces = nstools.runPeerSearch(profiles,deepestindex,200,4000,200,profilechoice,1000)
-###fileObject = open(str(profilechoice.eyed)+"new.pickle",'wb')  
-#### load the object from the file into var b
-###b = pickle.dump(surfaces,fileObject)  
-###fileObject.close()
+#####surfaces = nstools.runPeerSearch(profiles,deepestindex,200,4000,200,profilechoice,1000)
+#####fileObject = open(str(profilechoice.eyed)+"new.pickle",'wb')  
+###### load the object from the file into var b
+#####b = pickle.dump(surfaces,fileObject)  
+#####fileObject.close()
 
 #with open('data/286364new.pickle', 'rb') as outfile:
     #surfaces=pickle.load(outfile)
@@ -41,27 +42,26 @@ from pprint import pprint
 
 #surfaces =nstools.addXYToSurfaces(surfaces)
 #interpolatedsurfaces,neighbors,lookups = nstools.interpolateSurfaces(surfaces)
-
+#graph.graphSurfaces(interpolatedsurfaces,"pv")
 #staggeredsurfaces = nstools.fillOutEmptyFields(interpolatedsurfaces)
 #staggeredsurfaces = nstools.addHeight(staggeredsurfaces)
 
-##with open('data/ready4horizontalgrad.pickle', 'wb') as outfile:
-    ##pickle.dump([staggeredsurfaces,neighbors,lookups], outfile)
+###with open('data/ready4horizontalgrad.pickle', 'wb') as outfile:
+    ###pickle.dump([staggeredsurfaces,neighbors,lookups], outfile)
 
-##with open('data/ready4horizontalgrad.pickle', 'rb') as outfile:
-    ##[staggeredsurfaces,neighbors,lookups]=pickle.load(outfile)
+####with open('data/ready4horizontalgrad.pickle', 'rb') as outfile:
+    ####[staggeredsurfaces,neighbors,lookups]=pickle.load(outfile)
 
-##nstools.surfaceDiagnostic(staggeredsurfaces)
+###nstools.surfaceDiagnostic(staggeredsurfaces)
 #staggeredsurfaces = nstools.addHorizontalGrad(staggeredsurfaces,neighbors,lookups)
 ##nstools.surfaceDiagnostic(staggeredsurfaces)
 #staggeredsurfaces = nstools.addVerticalGrad(staggeredsurfaces)
 ##nstools.surfaceDiagnostic(staggeredsurfaces)
-##ptools.saveBathVarTermCache(staggeredsurfaces,"data/bathVar.pickle")
+#ptools.saveBathVarTermCache(staggeredsurfaces,"data/bathVar.pickle")
 #staggeredsurfaces = nstools.addK(staggeredsurfaces,"data/bathVar.pickle")
 
 
 #graph.graphSurfaces(staggeredsurfaces,"CKVB",show=False,savepath = "refpics/CKs/")
-#graph.graphSurfaces(staggeredsurfaces,"pv")
 #graph.graphSurfaces(staggeredsurfaces,"t")
 #graph.graphSurfaces(staggeredsurfaces,"s")
 
@@ -72,7 +72,7 @@ with open('data/ready4inverse.pickle', 'rb') as outfile:
 #with open('data/ready4inverse.pickle', 'wb') as outfile:
     #pickle.dump([staggeredsurfaces,neighbors,lookups], outfile)
 
-coupleinvert,columndictionary,svds = inverttools.invert("coupled",staggeredsurfaces,neighbors,lookups)
+coupleinvert,columndictionary,svds,A = inverttools.invert("coupled",staggeredsurfaces,neighbors,lookups)
 #simpleinverted = inverttools.invert("simple",staggeredsurfaces)
 #graph.graphVectorField(simpleinverted,"uabs","vabs","s")
 #complexinverted = inverttools.invert("complex",staggeredsurfaces)
@@ -105,7 +105,10 @@ coupleinvert,columndictionary,svds = inverttools.invert("coupled",staggeredsurfa
 
 coupleinvert = nstools.streamFuncToUV(coupleinvert,neighbors,lookups)
 
-inverttools.exportMat(coupleinvert,columndictionary,svds)
+#inverttools.exportMat(coupleinvert,columndictionary,svds,A)
+#graph.graphSurfaces(coupleinvert,"psisol")
+#graph.graphVectorField(coupleinvert,"usol","vsol")
+#graph.graphCartVectorField(coupleinvert,"uabs","vabs")
 graph.graphVectorField(coupleinvert,"uabs","vabs","pv")
 graph.graphVectorField(coupleinvert,"u","v","pv")
 

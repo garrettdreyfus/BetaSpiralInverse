@@ -9,6 +9,7 @@ def SVDCalc(VT,D,U,n_elements=False):
 
     B = VT.T.dot(D.T).dot(U.T)
     return B
+
 def SVDdecomp(A,n_elements=2,full=True):
     U, s, VT = svd(A,full_matrices=True)
     # reciprocals of s
@@ -120,6 +121,9 @@ def simpleInvert(surfaces,reflevel=1000,debug=False):
                 pres = surfaces[k]["data"]["pres"][found]
                 f = gsw.f(surfaces[k]["lats"][found])
                 beta = calcBeta(surfaces[k]["lats"][found])
+                pv = surfaces[k]["data"]["pv"][found]
+                dqnotdx = surfaces[k]["data"]["dqnotdx"][found]
+                dqnotdy = surfaces[k]["data"]["dqnotdy"][found]
 
                 if debug and (np.isnan(hx) or np.isnan(hy) or np.isnan(x) or np.isnan(y)):
                     print("pres is nan: ",np.isnan(pres))
@@ -130,6 +134,7 @@ def simpleInvert(surfaces,reflevel=1000,debug=False):
                     print("something here is nan")
                 if k>=1000 and not(np.isnan(hx) or np.isnan(hy) or np.isnan(x) or np.isnan(y)):
                     bvec = (hx+(beta*x)/(f*r),hy+(beta*y)/(f*r))
+                    #bvec=(dqnotdx-x*beta*pv/(f*r),dqnotdy-y*beta*pv/(f*r))
                     b.append(norm(bvec))
                     u = (surfaces[k]["data"]["u"][found] - surfaces[reflevel]["data"]["u"][index])
                     v = (surfaces[k]["data"]["v"][found] - surfaces[reflevel]["data"]["v"][index])
@@ -143,7 +148,12 @@ def simpleInvert(surfaces,reflevel=1000,debug=False):
             us = np.asarray(us)
             #j = np.linalg.inv(np.matmul(np.matrix.transpose(b),b))
             #j = SVDdecomp(b,n_elements=4)
-            j = SVDdecomp(b,n_elements=2,full=False)
+            j,[VT, D, U]  = SVDdecomp(b,n_elements=2,full=True)
+            s = np.diag(D)
+            print(b)
+            print(1.0/s)
+            print(s[-1]/s[0])
+
             prime = np.matmul(j,c)
             b = b.T
             errorbefore = []
@@ -205,6 +215,9 @@ def simplesaltInvert(surfaces,reflevel=1000,debug=False):
                 hy = surfaces[k]["data"]["hy"][found]
                 dsdx = surfaces[k]["data"]["dsdx"][found]
                 dsdy = surfaces[k]["data"]["dsdy"][found]
+                dqnotdx = surfaces[k]["data"]["dqnotdx"][found]
+                dqnotdy = surfaces[k]["data"]["dqnotdy"][found]
+                pv = surfaces[k]["data"]["pv"][found]
                 pres = surfaces[k]["data"]["pres"][found]
                 f = gsw.f(surfaces[k]["lats"][found])
                 beta = calcBeta(surfaces[k]["lats"][found])
@@ -221,6 +234,7 @@ def simplesaltInvert(surfaces,reflevel=1000,debug=False):
                     v = (surfaces[k]["data"]["v"][found] - surfaces[reflevel]["data"]["v"][index])
                     #surfaces[k]["data"]["uabs"][found]=0
                     pvvec=((hx+(beta*x)/(f*r)),(hy+(beta*y)/(f*r)))
+                    #pvvec=(dqnotdx-x*beta*pv/(f*r),dqnotdy-y*beta*pv/(f*r))
                     #pvvec=pvvec/np.linalg.norm(pvvec)
                     b.append(norm(pvvec))
                     us.append((u,v))
@@ -237,7 +251,7 @@ def simplesaltInvert(surfaces,reflevel=1000,debug=False):
             us = np.asarray(us)
             #j = np.linalg.inv(np.matmul(np.matrix.transpose(b),b))
             #j = SVDdecomp(b,n_elements=4)
-            j = SVDdecomp(b,n_elements=3)
+            j,[VT,D,U] = SVDdecomp(b,n_elements=3,full=True)
             prime = np.matmul(j,c)
             
             for i in range(len(ns)):
@@ -496,17 +510,21 @@ def applyRefLevel(surfaces,reflevel=1000):
             found = np.where(np.asarray(surfaces[reflevel]["ids"])==surfaces[k]["ids"][l])
             if len(found) != 0 and len(found[0]) != 0:
                 surfaces[k]["data"]["psiref"][l] = surfaces[k]["data"]["psi"][l] - surfaces[reflevel]["data"]["psi"][found[0][0]]
-                surfaces[k]["data"]["uref"][l] = surfaces[k]["data"]["dpsidy"][l]*(1.0/gsw.f(surfaces[k]["lats"][l]))
-                surfaces[k]["data"]["vref"][l] = surfaces[k]["data"]["dpsidx"][l]*(-1.0/gsw.f(surfaces[k]["lats"][l]))
+                surfaces[k]["data"]["uref"][l] = (surfaces[k]["data"]["u"][l]-surfaces[reflevel]["data"]["u"][found[0][0]])
+                surfaces[k]["data"]["vref"][l] = (surfaces[k]["data"]["v"][l]-surfaces[reflevel]["data"]["v"][found[0][0]])
     return surfaces
 
 def applyPrime(staggeredsurfaces,prime,coldict):
     for k in Bar("adding solutions: ").iter(staggeredsurfaces.keys()):
         staggeredsurfaces[k]["data"]["psinew"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
+        staggeredsurfaces[k]["data"]["psisol"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
+        staggeredsurfaces[k]["data"]["usol"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
+        staggeredsurfaces[k]["data"]["vsol"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         for i in range(len(staggeredsurfaces[k]["data"]["ids"])):
             eyed = staggeredsurfaces[k]["data"]["ids"][i] 
             if eyed in coldict.keys():
                 staggeredsurfaces[k]["data"]["psinew"][i] = staggeredsurfaces[k]["data"]["psiref"][i] + prime[coldict[eyed]]
+                staggeredsurfaces[k]["data"]["psisol"][i] = prime[coldict[eyed]]
                 #staggeredsurfaces[k]["data"]["psinew"][i] =  prime[coldict[eyed]]
     return staggeredsurfaces
 
@@ -527,7 +545,7 @@ def generateWhiteList(surfaces,neighbors,inversionlevel):
             whitelist.append(d)
     return whitelist
 
-def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
+def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False):
     outsurfaces = copy.deepcopy(surfaces)
     Apsi=[]
     Akvb=[]
@@ -539,17 +557,21 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
     columndictionary = {"max":-1}
     surfaces = applyRefLevel(surfaces)
     alldistances = distances 
+    selects = False    
     for k in Bar("adding to matrix: ").iter(neighbors.keys()):
         distances = alldistances[k]
         #for s in Bar('coupled invert: ').iter(neighbors[k]):
         for s in neighbors[k]:
+            if not selects:
+                selects = surfaces[k]["ids"][s[0]]
             s=np.asarray(s)
             kpv,ks = kterms(surfaces,k,s[0])
-            if kpv and ks and abs(surfaces[k]["lons"][s[0]])<30 and k>=1000: #and surfaces[k]["ids"][s[0]] in whitelist :
+            center = s[0]
+            u = surfaces[k]["data"]["uref"][center] 
+            v = surfaces[k]["data"]["vref"][center] 
+            if (not np.isnan(u) and not np.isnan(v)) and kpv and ks and -20<surfaces[k]["lons"][s[0]]<90 and 3000>k>=1000 and (not single or selects == surfaces[k]["ids"][s[0]] ): #and surfaces[k]["ids"][s[0]] in whitelist :
                 ##find/store column indexs for each neighbor
                 columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s,columndictionary)
-                center = s[0]
-                selects = surfaces[k]["ids"][s[0]]
                 #######PVROW
                 ##make rows that can fit it 
                 Apsirow = [0]*(max(columnindexs)+1)
@@ -563,29 +585,47 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
                 pv =  surfaces[k]["data"]["pv"][center] 
                 dqnotdx = surfaces[k]["data"]["dqnotdx"][center] 
                 dqnotdy = surfaces[k]["data"]["dqnotdy"][center] 
-                u = surfaces[k]["data"]["uref"][center] 
-                v = surfaces[k]["data"]["vref"][center] 
+                #dqnotdx =  -1*surfaces[k]["data"]["pv"][center] *(1/surfaces[k]["data"]["h"][center] ) *(surfaces[k]["data"]["hx"][center])
+                #dqnotdy =  -1*surfaces[k]["data"]["pv"][center] *(1/surfaces[k]["data"]["h"][center] ) *(surfaces[k]["data"]["hy"][center])
+
                 x = surfaces[k]["x"][center] 
-                y = surfaces[k]["y"][center] 
+                y = surfaces[k]["y"][center]
                 r = np.sqrt(x**2 + y**2)
                 #use mean gradient instead
-               
                 ## (-1/f)dAr/dy*dQnotdx
+                print("#######")
                 
-                values[3] = (-1/(2*f*distances[(s[2],s[3])]))*(dqnotdx-x*beta*pv/(f*r))\
-                                          + (1/(2*f*distances[(s[1],s[3])]))*(dqnotdy-y*beta*pv/(f*r))
+                print(s)
+                print(x)
+                print(selects)
+                d01 = distances[(s[0],s[1])]
+                d02 = distances[(s[0],s[2])]
+                d23 = distances[(s[2],s[3])]
+                d13 = distances[(s[1],s[3])]
+                
+                values[0] = (-1/(2*f*d02))*(dqnotdx-x*beta*pv/(f*r))\
+                                           + (1/(2*f*d01))*(dqnotdy-y*beta*pv/(f*r))
+                
+                values[1] =(-1/(2*f*d13))*(dqnotdx-x*beta*pv/(f*r))\
+                                          + (-1/(2*f*d01))*(dqnotdy-y*beta*pv/(f*r))
 
-                values[2] = (-1/(2*f*distances[(s[2],s[3])]))*(dqnotdx-x*beta*pv/(f*r))\
-                                           + (-1/(2*f*distances[(s[0],s[2])]))*(dqnotdy-y*beta*pv/(f*r))
-
+                values[2] = (1/(2*f*d02))*(dqnotdx-x*beta*pv/(f*r))\
+                                           + (1/(2*f*d23))*(dqnotdy-y*beta*pv/(f*r))
                 ## (-1/f)dAr/dx*dQnotdx
-                values[1] =(1/(2*f*distances[(s[0],s[1])]))*(dqnotdx-x*beta*pv/(f*r))\
-                                          + (1/(2*f*distances[(s[1],s[3])]))*(dqnotdy-y*beta*pv/(f*r))
+                values[3] = (1/(2*f*d13))*(dqnotdx-x*beta*pv/(f*r))\
+                                          + (-1/(2*f*d23))*(dqnotdy-y*beta*pv/(f*r))
+                print("dqnotdx: ",dqnotdx)
+                print("dqnotdy: ", dqnotdy)
+                print("x*beta*pv: ", x*beta*pv)
+                print("y*beta*pv: ", y*beta*pv)
+                print("x*beta*pv/(fr): ", x*beta*pv/(f*r))
+                print("l*beta*pv/(fr): ", y*beta*pv/(f*r))
+                    
+                print("uv",u,v)
+                print((dqnotdx-x*beta*pv/(f*r)))
+                print((dqnotdy-y*beta*pv/(f*r)))
 
-                values[0] = (1/(2*f*distances[(s[0],s[1])]))*(dqnotdx-x*beta*pv/(f*r))\
-                                           + (-1/(2*f*distances[(s[0],s[2])]))*(dqnotdy-y*beta*pv/(f*r))
-
-                n=np.linalg.norm((values[0],values[2],values[3],values[1]))#,kpv[0],kpv[1],kpv[2]))
+                n=np.linalg.norm((values[0],values[2],values[1],values[1]))#,kpv[0],kpv[1],kpv[2]))
                 Apsirow[columnindexs[0]] = values[0]/n
                 Apsirow[columnindexs[1]] = values[1]/n
                 Apsirow[columnindexs[2]] = values[2]/n
@@ -597,7 +637,7 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
                 Akvb.append(Akvbrow)
                 Akh.append(Akhrow)
                 Akvo.append([kpv[0]/n])
-                us[columnindexs[0]] = surfaces[k]["data"]["psi"][s[0]]
+                us[columnindexs[0]] = surfaces[k]["data"]["psiref"][s[0]]
                 ######PV Error row
                 c.append((-u/n)*(dqnotdx-x*beta*pv/(f*r))+(-v/n)*(dqnotdy-y*beta*pv/(f*r)))
 
@@ -612,20 +652,24 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
                 dsdy = surfaces[k]["data"]["dsdy"][center]
 
 
-                ## (1/f)dAr/dy*dsdy
-                values[3] = (-1/(2*f*distances[(s[2],s[3])]))*dsdx\
-                                          + (1/(2*f*distances[(s[1],s[3])]))*dsdy
 
-                values[2] = (-1/(2*f*distances[(s[2],s[3])]))*dsdx\
-                                           + (-1/(2*f*distances[(s[0],s[2])]))*dsdy
+                values[0] = (-1/(2*f*d02))*dsdx\
+                                           + (1/(2*f*d01))*dsdy
 
                 ## (-1/f)dAr/dx*dsdx
-                values[1] =(1/(2*f*distances[(s[0],s[1])]))*dsdx\
-                                          + (1/(2*f*distances[(s[1],s[3])]))*dsdy
+                values[1] =(-1/(2*f*d13))*dsdx\
+                                          + (-1/(2*f*d01))*dsdy
 
-                values[0] = (1/(2*f*distances[(s[0],s[1])]))*dsdx\
-                                           + (-1/(2*f*distances[(s[0],s[2])]))*dsdy
-                n=np.linalg.norm((values[0],values[2],values[3],values[1]))#,ks[0],ks[1],ks[2]))
+                values[2] = (1/(2*f*d02))*dsdx\
+                                           + (1/(2*f*d23))*dsdy
+
+                ## (1/f)dAr/dy*dsdy
+                values[3] = (1/(2*f*d13))*dsdx\
+                                          + (-1/(2*f*d23))*dsdy
+                print("dsdx: ",dsdx)
+                print("dsdy: ",dsdy)
+
+                n=np.linalg.norm((values[0],values[2],values[1],values[3]))#,ks[0],ks[1],ks[2]))
                 Apsirow[columnindexs[0]] = values[0]/n
                 Apsirow[columnindexs[1]] = values[1]/n
                 Apsirow[columnindexs[2]] = values[2]/n
@@ -660,7 +704,6 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
 
 
     A = combineAs([m,m,18,1],Apsi)#,Akvb,Akh,Akvo)
-    print(A[0:5])
     number = []
     for i in range(A.shape[1]):
         number.append(np.count_nonzero(A[:,i]))
@@ -685,20 +728,24 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
     print("#####c########")
     print(len(c))
     print("#############")
+
     c = np.matrix.transpose(np.asarray(c))
     us =  np.matrix.transpose(np.asarray(us))
-    j,[VT, D, U] = SVDdecomp(A,n_elements=A.shape[1]-3)
+    j,[VT, D, U] = SVDdecomp(A,n_elements=A.shape[1])
+    print(j)
 
     print("inverted!")
     prime = np.matmul(j,c)
+    print("singular values: ", 1/(np.diag(D)))
     #def graphError(b,us,prime):
     graphError(A,us,prime)
+    print(prime)
     print("multiplied:!")
     #parameterErrors(A,prime,c,D)
     rdivc(D)
 
     surfaces = applyPrime(surfaces,prime,columndictionary)
-    return surfaces, columndictionary, [VT,D,U]
+    return surfaces, columndictionary, [VT,D,U],A
 
 
 
@@ -706,8 +753,7 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False):
 def rdivc(D):
     d = D.diagonal()
     d = 1.0/d
-    print(d)
-    print(d[-20]/d[0])
+    print(d[:]/d[-1])
     plt.title("Singular Values")
     plt.scatter(range(len(d[:])),(d[:]))
     plt.show()
@@ -727,50 +773,53 @@ def rdivc(D):
         #errors.append(delta*(i**(1/2)))
     #plt.scatter(range(len(errors)),errors)
     #plt.show()
-def exportMat(surfaces,columndict,svds):
-    outmat={"dqnotdx":{},"dqnotdy":{},"dsdx":{},\
-        "dsdy":{},"pv":{},"VT":None,"D":None,"U":None,\
-        "A":None,"beta":{},"lats":{},"lons":{},"y":{},"x":{},\
-        "psiref":{},"dpsidx":{},"dpsidy":{}}
+def exportMat(surfaces,columndict,svds,A):
+    outmat={"dqnotdx":[],"dqnotdy":[],"dsdx":[],\
+        "dsdy":[],"pv":[],"VT":None,"D":None,"U":None,\
+        "A":None,"A-1":None,"beta":[],"lats":[],"lons":[],"y":[],"x":[],\
+        "psiref":[],"dpsidx":[],"dpsidy":[]}
     outmat["VT"] = svds[0]
     outmat["D"] = svds[1]
     outmat["U"] = svds[2]
-    outmat["A"] =SVDCalc(svds[0],svds[1],svds[2])
+    outmat["A"] =A
+    outmat["A-1"] =SVDCalc(svds[0],svds[1],svds[2])
     for k in surfaces.keys():
-        for j in outmat.keys():
-            if type(outmat[j]) == dict:
-                outmat[j][k]=[]
+        for l in outmat.keys():
+            if type(outmat[l]) == list:
+                outmat[l].append([])
     for eyed in columndict.keys():
-        for k in surfaces.keys():
+        for k in sorted(surfaces.keys()):
+            j = int(int(k-200)/200)
+            print(j)
             if eyed in surfaces[k]["ids"]:
                 found = np.where(np.asarray(surfaces[k]["ids"])==eyed)[0][0]
-                outmat["dqnotdx"][k].append(surfaces[k]["data"]["dqnotdx"][found])
-                outmat["dqnotdy"][k].append(surfaces[k]["data"]["dqnotdy"][found])
-                outmat["dsdx"][k].append(surfaces[k]["data"]["dsdx"][found])
-                outmat["dsdy"][k].append(surfaces[k]["data"]["dsdx"][found])
-                outmat["pv"][k].append(surfaces[k]["data"]["pv"][found])
-                outmat["beta"][k].append(surfaces[k]["data"]["beta"][found])
-                outmat["lats"][k].append(surfaces[k]["lats"][found])
-                outmat["lons"][k].append(surfaces[k]["lons"][found])
-                outmat["x"][k].append(surfaces[k]["x"][found])
-                outmat["y"][k].append(surfaces[k]["y"][found])
-                outmat["psiref"][k].append(surfaces[k]["data"]["psiref"][found])
-                outmat["dpsidx"][k].append(surfaces[k]["data"]["dpsidx"][found])
-                outmat["dpsidy"][k].append(surfaces[k]["data"]["dpsidy"][found])
+                outmat["dqnotdx"][j].append(surfaces[k]["data"]["dqnotdx"][found])
+                outmat["dqnotdy"][j].append(surfaces[k]["data"]["dqnotdy"][found])
+                outmat["dsdx"][j].append(surfaces[k]["data"]["dsdx"][found])
+                outmat["dsdy"][j].append(surfaces[k]["data"]["dsdx"][found])
+                outmat["pv"][j].append(surfaces[k]["data"]["pv"][found])
+                outmat["beta"][j].append(surfaces[k]["data"]["beta"][found])
+                outmat["lats"][j].append(surfaces[k]["lats"][found])
+                outmat["lons"][j].append(surfaces[k]["lons"][found])
+                outmat["x"][j].append(surfaces[k]["x"][found])
+                outmat["y"][j].append(surfaces[k]["y"][found])
+                outmat["psiref"][j].append(surfaces[k]["data"]["psiref"][found])
+                outmat["dpsidx"][j].append(surfaces[k]["data"]["dpsidx"][found])
+                outmat["dpsidy"][j].append(surfaces[k]["data"]["dpsidy"][found])
             else:
-                outmat["dqnotdx"][k].append(np.nan)
-                outmat["dqnotdy"][k].append(np.nan)
-                outmat["dsdx"][k].append(np.nan)
-                outmat["dsdy"][k].append(np.nan)
-                outmat["pv"][k].append(np.nan)
-                outmat["beta"][k].append(np.nan)
-                outmat["lats"][k].append(np.nan)
-                outmat["lons"][k].append(np.nan)
-                outmat["x"][k].append(np.nan)
-                outmat["y"][k].append(np.nan)
-                outmat["psiref"][k].append(np.nan)
-                outmat["dpsidx"][k].append(np.nan)
-                outmat["dpsidy"][k].append(np.nan)
+                outmat["dqnotdx"][j].append(np.nan)
+                outmat["dqnotdy"][j].append(np.nan)
+                outmat["dsdx"][j].append(np.nan)
+                outmat["dsdy"][j].append(np.nan)
+                outmat["pv"][j].append(np.nan)
+                outmat["beta"][j].append(np.nan)
+                outmat["lats"][j].append(np.nan)
+                outmat["lons"][j].append(np.nan)
+                outmat["x"][j].append(np.nan)
+                outmat["y"][j].append(np.nan)
+                outmat["psiref"][j].append(np.nan)
+                outmat["dpsidx"][j].append(np.nan)
+                outmat["dpsidy"][j].append(np.nan)
     scipy.io.savemat("outmats",outmat)
 
 
@@ -812,7 +861,7 @@ def invert(kind,surfaces,neighbors=None,distances=None,reflevel=1000,debug=False
     if kind == "complex":
         return complexInvert(surfaces,reflevel,debug)
     if kind == "coupled":
-        return coupledInvert(surfaces,reflevel,neighbors,distances,debug)
+        return coupledInvert(surfaces,reflevel,neighbors,distances,debug,single=False)
     else:
         print("Sorry I have no clue what inversion you are talking about")
 
