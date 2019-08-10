@@ -303,7 +303,7 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",savepath=False,show
         uthetas=[]
         lons = []
         lats = []
-        for p in range(0,len(surfaces[k]["data"]["uabs"]),8):
+        for p in range(0,len(surfaces[k]["data"]["uabs"]),4):
             u = surfaces[k]["data"][key1][p] 
             v = surfaces[k]["data"][key2][p]
             x = surfaces[k]["x"][p]

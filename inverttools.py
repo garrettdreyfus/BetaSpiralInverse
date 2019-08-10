@@ -25,6 +25,78 @@ def SVDdecomp(A,n_elements=2,full=True):
     else:
         return B
 
+def optimizeA(B,m):
+    #justkvb
+    bestscale = -100000
+    bestsum = 0
+    sings = []
+    conditions = []
+    scales = []
+    for i in np.arange(-20,10,.5):
+        print("optimize: ",i)
+        scale = 10**i
+        diags = [1]*m + [1]*m+[1]*18+[scale]
+        scalematrix = np.diag(diags)
+        A = np.matmul(B,scalematrix)
+        A = A / np.linalg.norm(A, axis=1, keepdims=True)
+        j,[VT, D, U] = SVDdecomp(A,n_elements=int(A.shape[1]))
+        D = 1.0/np.diag(D)
+        s = np.sum(D)
+        print(s)
+        conditions.append(s)
+        scales.append(scale)
+        if s >bestsum:
+            bestscale = scale
+            bestsum = s
+            sings = D
+    plt.plot(range(len(conditions)),conditions)
+    plt.show()
+    plt.plot(range(len(sings)),sings)
+    plt.show()
+    return bestscale
+
+def scaleNormSVD(A,m,scale):
+    diags = [1]*m + [scale]*m
+    scalematrix = np.diag(diags)
+    A = np.matmul(A,scalematrix)
+    A = A / np.linalg.norm(A, axis=1, keepdims=True)
+    j,[VT, D, U] = SVDdecomp(A,n_elements=int(A.shape[1]))
+    D = 1.0/np.diag(D)
+    s = D[0]/D[-1]
+    return s,D
+
+def gradAttack(A,m):
+    prevsum = np.inf
+    sings = []
+    scale = 10**5
+    sums = []
+    while True:
+        sums.append(prevsum)
+        print(scale)
+        plt.plot(range(len(sings)),sings)
+        plt.show()
+        forwardSum,forwardD = scaleNormSVD(A,m,scale*(1+10**-2))
+        backwardSum,backwardD = scaleNormSVD(A,m,scale/(1+10**-2))
+        print(prevsum,forwardSum,backwardSum)
+        if forwardSum<backwardSum<prevsum:
+            scale = scale*(1+10**-2)
+            sings = forwardD
+            prevsum=forwardSum
+        elif backwardSum<forwardSum<prevsum: 
+            scale = scale/(1+10**-2)
+            sings = backwardD
+            prevsum=backwardSum
+        else:
+            break
+    plt.plot(sums)
+    plt.show()
+    return scale
+    print("WINNER")
+
+        
+        
+
+
 def kterms(surfaces,k,found,debug=False):
     f = gsw.f(surfaces[k]["lats"][found])
     x = surfaces[k]["x"][found]
@@ -69,9 +141,11 @@ def kterms(surfaces,k,found,debug=False):
               dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
               dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
               beta,d2qdx2,d2qdy2,khpdz]
-    kvbscale = 5*(10**-5)#5*(10**-5)
-    kvoscale = 5*(10**-6)#5*(10**-6)
-    khscale = 1#500
+    kvbscale =  (1/(10**-1.09))
+#/630957)#5*(10**2)#5*(10**-5)
+    kvoscale =  (1/0.001)#5*(10**1)#5*(10**-6)
+    khscale = (1/(10**-2.4))
+# 10**12#500
 
     if (np.isnan(isitnan).any()):
         if debug:
@@ -518,10 +592,10 @@ def applyPrime(staggeredsurfaces,prime,coldict):
     return staggeredsurfaces
 
 
-def generateWhiteList(surfaces,neighbors,inversionlevel):
+def generateWhiteList(surfaces,neighbors,lowlevel,highlevel):
     idCount = {}
     for k in neighbors.keys():
-        if k > inversionlevel:
+        if lowlevel>k > highlevel:
             for s in neighbors[k]:
                 for h in s:
                     l = surfaces[k]["ids"][h]
@@ -530,7 +604,7 @@ def generateWhiteList(surfaces,neighbors,inversionlevel):
                     idCount[l] = idCount[l]+1
     whitelist = []
     for d in idCount.keys():
-        if idCount[d] > 60:
+        if idCount[d] > 30:
             whitelist.append(d)
     return whitelist
 
@@ -697,7 +771,7 @@ def coupledInvertNoMixing(surfaces,reflevel,neighbors,distances,debug=False,sing
     return surfaces, columndictionary, [VT,D,U],A
 
 
-def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False):
+def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False,normalize=False):
     outsurfaces = copy.deepcopy(surfaces)
     Apsi=[]
     Akvb=[]
@@ -710,6 +784,7 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
     surfaces = applyRefLevel(surfaces)
     alldistances = distances 
     selects = False    
+    whitelist = generateWhiteList(surfaces,neighbors,3600,1000)
     for k in Bar("adding to matrix: ").iter(neighbors.keys()):
         distances = alldistances[k]
         #for s in Bar('coupled invert: ').iter(neighbors[k]):
@@ -720,18 +795,16 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
             kpv,ks = kterms(surfaces,k,s[0])
             u = surfaces[k]["data"]["uref"][s[0]] 
             v = surfaces[k]["data"]["vref"][s[0]] 
-            if (not np.isnan(u) and not np.isnan(v)) and kpv and ks and -20<surfaces[k]["lons"][s[0]]<40 and 3600>k>=1000 and (not single or selects == surfaces[k]["ids"][s[0]] ): #and surfaces[k]["ids"][s[0]] in whitelist :
+            if (not np.isnan(u) and not np.isnan(v)) and kpv and ks and 0<surfaces[k]["lons"][s[0]]<120 and 3600>k>=1000 and (not single or selects == surfaces[k]["ids"][s[0]] ) and surfaces[k]["ids"][s[0]] in whitelist :
                 ##find/store column indexs for each neighbor
                 columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s,columndictionary)
                 ##this is a shorthad way of converting the NS to an index
                 #######PVROW
                 betarow,betavals, crow = constructBetaRow(surfaces,k,distances,s,columnindexs)
                 betavals = np.asarray(betavals)
-                n = np.linalg.norm(np.concatenate((np.asarray(betavals),kpv[0:2])))
+                n = np.linalg.norm(np.concatenate((np.asarray(betavals),kpv)))
                 #n = np.linalg.norm(betavals)
-                print("betarow: ",betarow)
-                print("kpv: ",kpv)
-                Apsi.append(betarow/n)
+                Apsi.append(np.asarray(betarow)/n)
 
                 ##make rows that can fit it 
                 Akvbrow = [0]*(columnindexs[0]+1)
@@ -744,7 +817,7 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
                 Akh.append(Akhrow)
 
 
-                Akvo.append([0])
+                Akvo.append([kpv[0]/n])
                 #Akvo.append([kpv[0]/n])
                 us[columnindexs[0]] = surfaces[k]["data"]["psiref"][s[0]]
                 c.append(crow/n)
@@ -753,9 +826,9 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
                 ##make rows that can fit it 
                 salrow, salvals, crow = constructSalRow(surfaces,k,distances,s,columnindexs)
                 salvals = np.asarray(salvals)
-                n = np.linalg.norm(np.concatenate((np.asarray(salvals),ks[0:2])))
+                n = np.linalg.norm(np.concatenate((np.asarray(salvals),ks)))
                 #n = np.linalg.norm(salvals)
-                Apsi.append(salrow/n)
+                Apsi.append(np.asarray(salrow)/n)
                 ##im a rascal and this is a shorthad way of converting the NS to an index :P
                 Akvbrow = [0]*(columnindexs[0]+1)
                 Akvbrow[columnindexs[0]]=ks[1]/n
@@ -783,9 +856,9 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
     #print(Apsi)
 
     #A = combineAs([m,m,18,1],Apsi,Akvb,Akh,Akvo)
-    A = combineAs([m,m,1],Apsi,Akvb,Akvo)
-    print(A)
+    A = combineAs([m,m,18,1],Apsi,Akvb,Akh,Akvo)
     rowCount(A)
+    #print("Scale: ",optimizeA(A,m))
 
         #print(np.matrix(A))
     print("#####A########")
@@ -801,7 +874,7 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
     print("#############")
     c = np.matrix.transpose(np.asarray(c))
     us =  np.matrix.transpose(np.asarray(us))
-    j,[VT, D, U] = SVDdecomp(A,n_elements=int(A.shape[1]))
+    j,[VT, D, U] = SVDdecomp(A,n_elements=int(A.shape[1]-250))
     prime = np.matmul(j,c)
     #graphError(A,np.concatenate((us,[0]*(len(us)+19))),prime)
     graphError(A,np.concatenate((us,[0]*(A.shape[1]-len(us)))),prime)
@@ -826,7 +899,6 @@ def rowCount(A):
 def rdivc(D):
     d = D.diagonal()
     d = 1.0/d
-    print(d[:]/d[-1])
     plt.title("Singular Values")
     plt.scatter(range(len(d[:])),(d[:]))
     plt.show()
