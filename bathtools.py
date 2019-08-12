@@ -59,6 +59,19 @@ def bathBox(bathDataset,lat,lon,length=28):
                 depths.append(float(z[j+i*ret]))
     return depths
 
+def addBathToSurface(surfaces):
+    dumbcache = {}
+    for k in surfaces.keys():
+        surfaces[k]["data"]["z"] =  np.full(len(surfaces[k]["lons"]),np.nan)
+        for l in range(len(surfaces[k]["lats"])):
+            lat = surfaces[k]["lats"][l]
+            lon = surfaces[k]["lons"][l]
+            if (lat,lon) not in dumbcache.keys():
+                dumbcache[(lat,lon)]=searchBath(lat,lon)
+            surfaces[k]["data"]["z"][l] = dumbcache[(lat,lon)]
+    return surfaces
+            
+
 
 
 d = Dataset("data/ver1_netcdf_geo.nc")

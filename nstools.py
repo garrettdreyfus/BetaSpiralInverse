@@ -383,8 +383,8 @@ def createMesh(n,xvals,yvals,custom=False):
         return np.meshgrid(np.linspace(xmin,xmax,n), np.linspace(ymin,ymax,n),indexing="xy")
 
 
-def generateMaskedMesh(x,y,radius=100):
-    xi,yi = createMesh(125,x,y)
+def generateMaskedMesh(x,y,radius=200):
+    xi,yi = createMesh(30,x,y)
     final = np.zeros(xi.shape)
     neighbors = []
     for i in range(len(x)):
@@ -395,7 +395,7 @@ def generateMaskedMesh(x,y,radius=100):
         else:
             final = final+inside
     for i in range(len(final[0])):
-        if final[0][i] > 2:
+        if final[0][i] > 4:
             final[0][i]=True
         else:
             final[0][i] = False

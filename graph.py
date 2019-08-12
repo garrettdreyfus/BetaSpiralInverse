@@ -303,7 +303,7 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",savepath=False,show
         uthetas=[]
         lons = []
         lats = []
-        for p in range(0,len(surfaces[k]["data"]["uabs"]),4):
+        for p in range(0,len(surfaces[k]["data"]["uabs"])):
             u = surfaces[k]["data"][key1][p] 
             v = surfaces[k]["data"][key2][p]
             x = surfaces[k]["x"][p]
@@ -342,7 +342,9 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",savepath=False,show
         fig.set_size_inches(16.5,12)
         a = np.where(abs(surfaces[k]["lats"]-90)>0.5)
         xpv,ypv = mapy(surfaces[k]["lons"][a],surfaces[k]["lats"][a])
-        plt.tricontourf(xpv,ypv,surfaces[k]["data"][backgroundfield][a],levels=10)
+        bgfield = surfaces[k]["data"][backgroundfield][a]
+        plt.tricontourf(xpv,ypv,bgfield,levels=10)
+        plt.clim(np.min(bgfield),np.max(bgfield))
         mapy.colorbar()
         mapy.quiver(x,y,u,v,mag,cmap="cool",width = 0.002)
         if savepath:

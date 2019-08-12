@@ -1,5 +1,6 @@
 import nstools
 import inverttools
+import bathtools
 import saloffset
 import matplotlib.pyplot as plt
 import pickle
@@ -42,7 +43,6 @@ import pdb
 
 #surfaces =nstools.addXYToSurfaces(surfaces)
 #interpolatedsurfaces,neighbors,lookups = nstools.interpolateSurfaces(surfaces)
-#graph.graphSurfaces(interpolatedsurfaces,"pv")
 #staggeredsurfaces = nstools.fillOutEmptyFields(interpolatedsurfaces)
 #staggeredsurfaces = nstools.addHeight(staggeredsurfaces)
 
@@ -60,7 +60,7 @@ import pdb
 #ptools.saveBathVarTermCache(staggeredsurfaces,"data/bathVar.pickle")
 #staggeredsurfaces = nstools.addK(staggeredsurfaces,"data/bathVar.pickle")
 
-
+#graph.graphSurfaces(staggeredsurfaces,"t")
 #graph.graphSurfaces(staggeredsurfaces,"CKVB",show=False,savepath = "refpics/CKs/")
 #graph.graphSurfaces(staggeredsurfaces,"t")
 #graph.graphSurfaces(staggeredsurfaces,"s")
@@ -68,65 +68,15 @@ import pdb
 with open('data/ready4inverse.pickle', 'rb') as outfile:
     [staggeredsurfaces,neighbors,lookups]=pickle.load(outfile)
 
-#nstools.surfaceDiagnostic(staggeredsurfaces)
+nstools.surfaceDiagnostic(staggeredsurfaces)
 #with open('data/ready4inverse.pickle', 'wb') as outfile:
     #pickle.dump([staggeredsurfaces,neighbors,lookups], outfile)
 
-coupleinvert,columndictionary,svds,A = inverttools.invert("coupled",staggeredsurfaces,neighbors,lookups)
-#simpleinverted = inverttools.invert("simple",staggeredsurfaces)
-#graph.graphVectorField(simpleinverted,"uabs","vabs","s")
-#complexinverted = inverttools.invert("complex",staggeredsurfaces)
-#graph.graphVectorField(saltinverted,"uabs","vabs","s")
-#complexinverted = inverttools.invert("complex",staggeredsurfaces)
-#graph.graphVectorField(complexinverted,"uabs","vabs","s")
-#graph.graphSurfaces(staggeredsurfaces,"dqnotdx")
-#staggeredsurfaces,prime,coldict,j,e = inverttools.invert("coupled",staggeredsurfaces,neighbors,lookups)
-
-#with open('data/coupledoutput.pickle', 'wb') as outfile:
-    #pickle.dump([staggeredsurfaces,prime,coldict,j,e], outfile)
-
-#with open('data/coupledoutput.pickle', 'rb') as outfile:
-    #[staggeredsurfaces,prime,coldict,j,e]=pickle.load(outfile)
-
-
-#psis = prime[:coldict["max"]]
-#kvbs = prime[coldict["max"]:coldict["max"]*2]
-#kvhs = prime[coldict["max"]*2:coldict["max"]*2+18]
-#kvos = prime[-1]
-#print(len(prime-19)/coldict["max"])
-#print("#####psis#######")
-#print(np.min(psis),np.max(psis),np.mean(psis),np.median(psis))
-#print("#####kvbs#######")
-#print(np.min(kvbs),np.max(kvbs),np.mean(kvbs),np.median(psis))
-#print("#####kvhs#######")
-#print(np.min(kvhs),np.max(kvhs),np.mean(kvhs),np.median(psis))
-#print("#####kvo#############")
-#print(kvos)
+coupleinvert,columndictionary,svds,A = inverttools.invert("couplednomix",staggeredsurfaces,neighbors,lookups)
 
 coupleinvert = nstools.streamFuncToUV(coupleinvert,neighbors,lookups)
+coupleinvert = bathtools.addBathToSurface(coupleinvert)
 
-#inverttools.exportMat(coupleinvert,columndictionary,svds,A)
-#graph.graphSurfaces(coupleinvert,"psisol")
-#graph.graphVectorField(coupleinvert,"usol","vsol")
-#graph.graphCartVectorField(coupleinvert,"uabs","vabs")
-graph.graphVectorField(coupleinvert,"uabs","vabs","pv")
-graph.graphVectorField(coupleinvert,"u","v","pv")
 
-#graph.graphVectorField(simpleinvert,"uabs","vabs",savepath="refpics/VersionTwo/simple/",show=False)
-#graph.graphVectorField(simplesaltinvert,"uabs","vabs",savepath="refpics/VersionTwo/simplesalt/",show=False)
-#graph.graphVectorField(complexsaltinvert,"uabs","vabs",savepath="refpics/VersionTwo/complexsalt/",show=False)
-#graph.graphVectorField(simplesaltinvert,"u","v")
-##$$$$$$$$$$$$$$$44
-#staggeredsurfaces = inverttools.invert("complexsalt",staggeredsurfaces,debug=False)
-##$$$$$$$$$$$$$$$44
-
-#with open('data/svdinverted.pickle', 'wb') as outfile:
-    #pickle.dump(staggeredsurfaces, outfile)
-
-#with open('data/svdinverted.pickle', 'rb') as outfile:
-    #staggeredsurfaces=pickle.load(outfile)
-
-#graph.graphVectorField(simpleinverted,"u","v","s")
-#graph.graphSurfaces(staggeredsurfaces,"v",show=False,savepath = "refpics/staggeredDerivatives/")
-#graph.twentyRandomSpirals(staggeredsurfaces)
-
+graph.graphVectorField(coupleinvert,"uabs","vabs","z")
+graph.graphVectorField(coupleinvert,"u","v","z")
