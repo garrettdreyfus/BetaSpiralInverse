@@ -115,6 +115,13 @@ class Profile:
             print("######n2#######")
             print(self.n2[min(above,below):max(above,below)])
         pv = (self.f/9.8)*np.mean(self.n2[min(above,below):max(above,below)])
+        if pv<0 and False:
+            p = np.where(self.n2>0)
+            m = np.where(self.n2<0)
+            print("\n########")
+            print("\nless than 0",np.mean(np.abs(self.n2[m])))
+            print("\nmore than 0",np.mean(np.abs(self.n2[p])))
+            print("\n########")
         return pv
 
     def atPres(self,pres):

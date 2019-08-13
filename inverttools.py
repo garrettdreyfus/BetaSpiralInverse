@@ -813,7 +813,7 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
                 #######PVROW
                 betarow,betavals, crow = constructBetaRow(surfaces,k,distances,s,columnindexs)
                 betavals = np.asarray(betavals)
-                n = np.linalg.norm(np.concatenate((np.asarray(betavals),kpv[:1])))
+                n = np.linalg.norm(np.concatenate((np.asarray(betavals),kpv[[True,False,False]])))
 
                 #n = np.linalg.norm(betavals)
                 Apsi.append(np.asarray(betarow)/n)
@@ -825,7 +825,7 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
                 Akvb.append(Akvbrow)
 
                 Akhrow = [0]*(int(k/200))
-                Akhrow[(int(k/200)-1)] = kpv[2]/n
+                Akhrow[int(k/200-1)] = kpv[2]/n
                 Akh.append(Akhrow)
 
 
@@ -838,7 +838,7 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
                 ##make rows that can fit it 
                 salrow, salvals, crow = constructSalRow(surfaces,k,distances,s,columnindexs)
                 salvals = np.asarray(salvals)
-                n = np.linalg.norm(np.concatenate((np.asarray(salvals),ks[:1])))
+                n = np.linalg.norm(np.concatenate((np.asarray(salvals),ks[[True,False,False]])))
                 #n = np.linalg.norm(salvals)
                 Apsi.append(np.asarray(salrow)/n)
                 ##im a rascal and this is a shorthad way of converting the NS to an index :P
@@ -846,7 +846,7 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
                 Akvbrow[columnindexs[0]]=ks[1]/n
 
                 Akhrow = [0]*(int(k/200))
-                Akhrow[(int(k/200)-1)] = ks[2]/n
+                Akhrow[int(k/200-1)] = ks[2]/n
 
                 Akvb.append(Akvbrow)
                 Akh.append(Akhrow)
@@ -889,8 +889,9 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
     print("#############")
     c = np.matrix.transpose(np.asarray(c))
     us =  np.matrix.transpose(np.asarray(us))
-    j,[VT, D, U] = SVDdecomp(A,n_elements=int(A.shape[1]-7))
+    j,[VT, D, U] = SVDdecomp(A,n_elements=int(A.shape[1]))
     prime = np.matmul(j,c)
+    print(prime[-1])
     #graphError(A,np.concatenate((us,[0]*(len(us)+19))),prime)
     graphError(A,np.concatenate((us,[0]*(A.shape[1]-len(us)))),prime)
     graphKs(prime,m)
@@ -988,17 +989,22 @@ def rectangularize(a,l):
 def concat(argv):
     out = []
     for j in range(len(argv[0])):
-        row = []
+        row = np.array([])
         for b in argv:
-            row = np.concatenate((row,np.asarray(b[j])))
-        out.append(np.asarray(row))
+            row = np.concatenate((row,b[j]))
+        out.append(row)
     return np.asarray(out)
 
 def combineAs(maxlengths,*argv):
     new = []
     for i in range(len(argv)):
-        new.append(rectangularize(argv[i],maxlengths[i]))
-    return concat(np.asarray(new))
+        x  = np.asarray(rectangularize(argv[i],maxlengths[i]))
+        print(x.shape)
+        if np.all(x == 0, axis=0).any():
+            print("removing 0 columns")
+        x = x[:,~np.all(x == 0, axis=0)]
+        new.append(x)
+    return concat(new)
 
 def graphKs(prime,m):
     kvb = prime[m:2*m]

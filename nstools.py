@@ -257,9 +257,10 @@ def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
                     t,s = p.atPres(surfaces[k]["data"]["pres"][l])
                 monthcount[p.time.month]=monthcount[p.time.month]+1
                 if pv and pv<0:
+                    pv=0
                     monthnegativecount[p.time.month]=monthnegativecount[p.time.month]+1
                     negativecount +=1 
-                if not pv:
+                if type(pv) == type(None):
                     pv = np.nan
                 if ~np.isnan(t) and ~np.isnan(s) and ~np.isnan(pv) and p and pv != np.Inf:
                     tempSurf["lons"].append(surfaces[k]["lons"][l])
@@ -565,8 +566,8 @@ def fillOutEmptyFields(surfaces):
 
 
 def vertGrad(out,data,depths,k,above,center,below,attr,outattr,factor=1):
-    dattr = data[depths[k-1]]["data"][attr][above]-data[depths[k+1]]["data"][attr][below]
-    dz = data[depths[k-1]]["data"]["pres"][above]-data[depths[k+1]]["data"]["pres"][below]
+    dattr = data[depths[k+1]]["data"][attr][below]-data[depths[k-1]]["data"][attr][above]
+    dz = data[depths[k+1]]["data"]["pres"][below]-data[depths[k-1]]["data"]["pres"][above]
     out[depths[k]]["data"][outattr][center] = factor * dattr/dz
     return out
 

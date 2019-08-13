@@ -116,13 +116,16 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
             mapy.fillcontinents(color='coral',lake_color='aqua')
             mapy.drawcoastlines()
             x,y = mapy(surfaces[i]["lons"],surfaces[i]["lats"])
+            d = np.asarray(surfaces[i]["data"][quantindex])
+            x = np.asarray(x)
+            y = np.asarray(y)
             #Plot the surface 
             if contour:
                 plt.tricontourf(x,y,np.asarray(surfaces[i]["data"][quantindex]),cmap="plasma")
             else:
-                plt.scatter(x,y,c=np.asarray(surfaces[i]["data"][quantindex]),cmap="plasma")
-                m = np.nanmedian(np.asarray(surfaces[i]["data"][quantindex]))
-                s = np.nanstd(np.asarray(surfaces[i]["data"][quantindex]))
+                plt.scatter(x,y,c=d,cmap="plasma")
+                m = np.nanmedian(d)
+                s = np.nanstd(d)
                 print("################")
                 plt.clim(m-2*s,m+2*s)
                 #plt.clim(i-400,i+400)

@@ -23,8 +23,8 @@ import pdb
 #fileObject = open("data/1500NoNorwegian.pickle",'rb')  
 #offsets,badfiles,beepestindex = pickle.load(fileObject)
 
-#profiles = nstools.filterCruises(profiles,offsets.keys())
-#profiles = saloffset.applyOffsets(profiles,offsets)
+##profiles = nstools.filterCruises(profiles,offsets.keys())
+##profiles = saloffset.applyOffsets(profiles,offsets)
 
 #####profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
 #####profilechoice = nstools.getProfileById(profiles,"286364")
@@ -57,22 +57,22 @@ import pdb
 ##nstools.surfaceDiagnostic(staggeredsurfaces)
 #staggeredsurfaces = nstools.addVerticalGrad(staggeredsurfaces)
 ##nstools.surfaceDiagnostic(staggeredsurfaces)
-#ptools.saveBathVarTermCache(staggeredsurfaces,"data/bathVar.pickle")
+##ptools.saveBathVarTermCache(staggeredsurfaces,"data/bathVar.pickle")
 #staggeredsurfaces = nstools.addK(staggeredsurfaces,"data/bathVar.pickle")
 
-#graph.graphSurfaces(staggeredsurfaces,"t")
-#graph.graphSurfaces(staggeredsurfaces,"CKVB",show=False,savepath = "refpics/CKs/")
-#graph.graphSurfaces(staggeredsurfaces,"t")
-#graph.graphSurfaces(staggeredsurfaces,"s")
+##graph.graphSurfaces(staggeredsurfaces,"t")
+##graph.graphSurfaces(staggeredsurfaces,"CKVB",show=False,savepath = "refpics/CKs/")
+##graph.graphSurfaces(staggeredsurfaces,"t")
+##graph.graphSurfaces(staggeredsurfaces,"s")
 
 with open('data/ready4inverse.pickle', 'rb') as outfile:
     [staggeredsurfaces,neighbors,lookups]=pickle.load(outfile)
 
-nstools.surfaceDiagnostic(staggeredsurfaces)
+#nstools.surfaceDiagnostic(staggeredsurfaces)
 #with open('data/ready4inverse.pickle', 'wb') as outfile:
     #pickle.dump([staggeredsurfaces,neighbors,lookups], outfile)
 
-coupleinvert,columndictionary,svds,A = inverttools.invert("couplednomix",staggeredsurfaces,neighbors,lookups)
+coupleinvert,columndictionary,svds,A = inverttools.invert("coupled",staggeredsurfaces,neighbors,lookups)
 
 coupleinvert = nstools.streamFuncToUV(coupleinvert,neighbors,lookups)
 coupleinvert = bathtools.addBathToSurface(coupleinvert)
