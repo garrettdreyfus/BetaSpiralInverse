@@ -1,4 +1,5 @@
 from nstools import *
+
 import os
 
 def graphTransects(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None):
@@ -94,7 +95,7 @@ def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=N
     print(newsurfaces.keys())
     graphSurfaces(newsurfaces,quantindex,contour,profiles,deepestindex,show,maximize,savepath)
 
-def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None):
+def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None,idlabels=False):
     quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV",\
                      "u":"relative U","v":"relative V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X",\
                     "hy":"Neutral Gradient Y","curl":"Curl","drdt":"Northward Velocity",\
@@ -117,6 +118,7 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
             mapy.drawcoastlines()
             x,y = mapy(surfaces[i]["lons"],surfaces[i]["lats"])
             d = np.asarray(surfaces[i]["data"][quantindex])
+            ids = np.asarray(surfaces[i]["ids"])
             x = np.asarray(x)
             y = np.asarray(y)
             #Plot the surface 
@@ -135,7 +137,9 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
                 x,y = mapy(profiles[deepestindex].lon,profiles[deepestindex].lat)
                 mapy.scatter(x,y,c="red")
             zoomGraph(mapy,ax)
-
+            if idlabels:
+                for j, eyed in enumerate(ids):
+                    ax.annotate(eyed,(x[j],y[j]))
             if quantindex in quanttitlehash.keys():
                 fig.suptitle(str(quanttitlehash[quantindex]) + " at NS: "+str(i))
             else:
@@ -450,4 +454,39 @@ def plotASpiral(profiles,center=None,x=None,y=None):
             #plt.tricontourf(x,y,np.asarray(surfaces[i]["data"][quantindex]),cmap="plasma")
         #else:
             #plt.scatter(x,y,c=np.asarray(surfaces[i]["data"][quantindex]),cmap="plasma")
- 
+def plotLayerTransport(surfaces):
+    transectids=[1776,1901,2026,2151,2276,2401,2526,2651]
+    inflows=[]
+    outflows=[]
+    for k in sorted(surfaces.keys())[::-1]:
+        transports = []
+        print(k)
+        go=True
+        indexs = []
+        for eyed in transectids:
+            if eyed not in surfaces[k]["ids"]:
+                go = False
+            else:
+                indexs.append(np.where(np.asarray(surfaces[k]["ids"]) == eyed)[0][0])
+
+        h = np.nanmean(surfaces[k]["data"]["h"][indexs])
+        if go and k <2200:
+            for j in range(len(transectids)-1):
+                curr = indexs[j]
+                nxt = indexs[j+1]
+                dpsi = surfaces[k]["data"]["psinew"][nxt]-surfaces[k]["data"]["psinew"][curr]
+                print("h: ",h," dpsi: ",dpsi)
+                transports.append(-dpsi*h*(10**-6)*(1/gsw.f(surfaces[k]["lats"][curr])))
+
+        if len(transports)>0:
+            transports = np.asarray(transports)
+            inflows.append(np.nansum(transports[transports>0]))
+            outflows.append(np.nansum(transports[transports<0]))
+            plt.plot(range(len(transports)),transports,label=k)
+    plt.title("Tranport across Fram Strait \n inflow: "+str(np.nansum(inflows))+ " outflow: "+str(np.nansum(outflows)))
+    plt.legend()
+    plt.show()
+
+                
+
+            

@@ -1,6 +1,7 @@
 from nstools import *
 import scipy
 import copy
+import parametertools as ptools
 
 def SVDCalc(VT,D,U,n_elements=False):
     if n_elements:
@@ -141,12 +142,10 @@ def kterms(surfaces,k,found,debug=False):
               dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
               dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
               beta,d2qdx2,d2qdy2,khpdz]
-    kvbscale = 1.0/(5*(10**-5)) #(1/(10**-1.09))
-#/630957)#5*(10**2)#5*(10**-5)
-    kvoscale = 1.0/(5*(10**-6))#(1/0.001)#5*(10**1)#5*(10**-6)
-    khscale = 1.0/500#1/(10**-2.4))
-# 10**12#500
-
+    kvoscale = 10**8#5*(10**-6)
+    kvbscale = 10**8#5*(10**-5)
+    khscale  = 500
+    #ptools.kChecker(surfaces,k,found)
     if (np.isnan(isitnan).any()):
         if debug:
             print("pres is nan: ",np.isnan(pres))
@@ -155,9 +154,9 @@ def kterms(surfaces,k,found,debug=False):
             print("x is nan: ",np.isnan(x))
             print("y is nan: ",np.isnan(y))
             print("something here is nan")
-        return None, None
+        return np.array([]), np.array([])
     if not (np.isnan(isitnan).any()):
-        pvkvb = (d2qdz2+2*(1/1000)*dqdz+(1/(1000**2))*pv)*CKVB
+        pvkvb = (d2qdz2+2*(1/200)*dqdz+(1/(200**2))*pv)*CKVB
         pvkv0 = d2qdz2
         pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv -f*khpdz
         skvo = -alpha*f*(1/pv)*(dsdz**3)*doublets
@@ -165,7 +164,9 @@ def kterms(surfaces,k,found,debug=False):
         skhpart1 = (f/pv)*dsdz*(alphat*(dtdx**2 + dtdy**2)+alphap*(dtdx*dpdx+dtdy*dpdy))
         skhpart2 = (d2sdx2+d2sdy2)-2*(dqnotdx*dsdx + dqnotdy*dsdy)/pv
         skh = skhpart1 + skhpart2
-        return (-pvkv0/kvoscale,-pvkvb/kvbscale,-pvkh/khscale),(-skvo/kvoscale,-skvb/kvbscale,-skh/khscale)
+        kvs = np.asarray([-pvkv0/kvoscale,-pvkvb/kvbscale,-pvkh/khscale])
+        ks = np.asarray([-skvo/kvoscale,-skvb/kvbscale,-skh/khscale])
+        return kvs,ks
 
 
  
@@ -616,7 +617,7 @@ def generateWhiteList(surfaces,neighbors,lowlevel,highlevel):
             whitelist.append(d)
     return whitelist
 
-def constructBetaRow(surfaces,k,distances,s,columnindexs,Arscale=1/0.05):
+def constructBetaRow(surfaces,k,distances,s,columnindexs,threepoint=True,Arscale=1):
     Apsirow = [0]*(max(columnindexs)+1)
     values = [0]*4
 
@@ -633,32 +634,49 @@ def constructBetaRow(surfaces,k,distances,s,columnindexs,Arscale=1/0.05):
     r = np.sqrt(x**2 + y**2)
     #use mean gradient instead
     ## (-1/f)dAr/dy*dQnotdx
+    if threepoint:
+        d01 = distances[(s[0],s[1])]
+        d02 = distances[(s[0],s[2])]
 
-    d01 = distances[(s[0],s[1])]
-    d02 = distances[(s[0],s[2])]
-    d23 = distances[(s[2],s[3])]
-    d13 = distances[(s[1],s[3])]
+        values[0] = (-1/(2*f*d02))*(dqnotdx-x*beta*pv/(f*r))\
+                                   + (1/(2*f*d01))*(dqnotdy-y*beta*pv/(f*r))
 
-    values[0] = (-1/(2*f*d02))*(dqnotdx-x*beta*pv/(f*r))\
-                               + (1/(2*f*d01))*(dqnotdy-y*beta*pv/(f*r))
+        values[1] = (-1/(2*f*d01))*(dqnotdy-y*beta*pv/(f*r))
+                                  
 
-    values[1] =(-1/(2*f*d13))*(dqnotdx-x*beta*pv/(f*r))\
-                              + (-1/(2*f*d01))*(dqnotdy-y*beta*pv/(f*r))
+        values[2] = (1/(2*f*d02))*(dqnotdx-x*beta*pv/(f*r))\
 
-    values[2] = (1/(2*f*d02))*(dqnotdx-x*beta*pv/(f*r))\
-                               + (1/(2*f*d23))*(dqnotdy-y*beta*pv/(f*r))
-    ## (-1/f)dAr/dx*dQnotdx
-    values[3] = (1/(2*f*d13))*(dqnotdx-x*beta*pv/(f*r))\
-                              + (-1/(2*f*d23))*(dqnotdy-y*beta*pv/(f*r))
+        ## (-1/f)dAr/dx*dQnotdx
+        Apsirow[columnindexs[0]] = values[0]/Arscale
+        Apsirow[columnindexs[1]] = values[1]/Arscale
+        Apsirow[columnindexs[2]] = values[2]/Arscale
+ 
+    else:
+        d01 = distances[(s[0],s[1])]
+        d02 = distances[(s[0],s[2])]
+        d23 = distances[(s[2],s[3])]
+        d13 = distances[(s[1],s[3])]
 
-    Apsirow[columnindexs[0]] = values[0]/Arscale
-    Apsirow[columnindexs[1]] = values[1]/Arscale
-    Apsirow[columnindexs[2]] = values[2]/Arscale
-    Apsirow[columnindexs[3]] = values[3]/Arscale
+        values[0] = (-1/(2*f*d02))*(dqnotdx-x*beta*pv/(f*r))\
+                                   + (1/(2*f*d01))*(dqnotdy-y*beta*pv/(f*r))
+
+        values[1] = (-1/(2*f*d01))*(dqnotdy-y*beta*pv/(f*r))+(-1/(2*f*d13))*(dqnotdx-x*beta*pv/(f*r))\
+                                  
+
+        values[2] = (1/(2*f*d02))*(dqnotdx-x*beta*pv/(f*r))\
+                                   + (1/(2*f*d23))*(dqnotdy-y*beta*pv/(f*r))
+        ## (-1/f)dAr/dx*dQnotdx
+        values[3] = (1/(2*f*d13))*(dqnotdx-x*beta*pv/(f*r))\
+                                  + (-1/(2*f*d23))*(dqnotdy-y*beta*pv/(f*r))
+
+        Apsirow[columnindexs[0]] = values[0]/Arscale
+        Apsirow[columnindexs[1]] = values[1]/Arscale
+        Apsirow[columnindexs[2]] = values[2]/Arscale
+        Apsirow[columnindexs[3]] = values[3]/Arscale
     crow = (-u)*(dqnotdx-x*beta*pv/(f*r))+(-v)*(dqnotdy-y*beta*pv/(f*r))
     return Apsirow,values, crow/Arscale
 
-def constructSalRow(surfaces,k,distances,s,columnindexs,Arscale=1/0.05):
+def constructSalRow(surfaces,k,distances,s,columnindexs,threepoint=True,Arscale=1):
     Apsirow = [0]*(max(columnindexs)+1)
     values = [0]*4
     dsdx = surfaces[k]["data"]["dsdx"][s[0]]
@@ -666,30 +684,45 @@ def constructSalRow(surfaces,k,distances,s,columnindexs,Arscale=1/0.05):
     f = gsw.f(surfaces[k]["lats"][s[0]])
     u = surfaces[k]["data"]["uref"][s[0]] 
     v = surfaces[k]["data"]["vref"][s[0]] 
-    d01 = distances[(s[0],s[1])]
-    d02 = distances[(s[0],s[2])]
-    d23 = distances[(s[2],s[3])]
-    d13 = distances[(s[1],s[3])]
+    if threepoint: 
+        d01 = distances[(s[0],s[1])]
+        d02 = distances[(s[0],s[2])]
+        
+        values[0] = (-1/(2*f*d02))*dsdx\
+                                   + (1/(2*f*d01))*dsdy
 
+        ## (-1/f)dAr/dx*dsdx
+        values[1] =  (-1/(2*f*d01))*dsdy
 
-    values[0] = (-1/(2*f*d02))*dsdx\
-                               + (1/(2*f*d01))*dsdy
+        values[2] = (1/(2*f*d02))*dsdx\
 
-    ## (-1/f)dAr/dx*dsdx
-    values[1] =(-1/(2*f*d13))*dsdx\
-                              + (-1/(2*f*d01))*dsdy
+        Apsirow[columnindexs[0]] = values[0]/Arscale
+        Apsirow[columnindexs[1]] = values[1]/Arscale
+        Apsirow[columnindexs[2]] = values[2]/Arscale
+    else: 
+        d01 = distances[(s[0],s[1])]
+        d02 = distances[(s[0],s[2])]
+        d23 = distances[(s[2],s[3])]
+        d13 = distances[(s[1],s[3])]
+        
+        values[0] = (-1/(2*f*d02))*dsdx\
+                                   + (1/(2*f*d01))*dsdy
 
-    values[2] = (1/(2*f*d02))*dsdx\
-                               + (1/(2*f*d23))*dsdy
+        ## (-1/f)dAr/dx*dsdx
+        values[1] =(-1/(2*f*d13))*dsdx\
+                                  + (-1/(2*f*d01))*dsdy
 
-    ## (1/f)dAr/dy*dsdy
-    values[3] = (1/(2*f*d13))*dsdx\
-                              + (-1/(2*f*d23))*dsdy
+        values[2] = (1/(2*f*d02))*dsdx\
+                                   + (1/(2*f*d23))*dsdy
 
-    Apsirow[columnindexs[0]] = values[0]/Arscale
-    Apsirow[columnindexs[1]] = values[1]/Arscale
-    Apsirow[columnindexs[2]] = values[2]/Arscale
-    Apsirow[columnindexs[3]] = values[3]/Arscale
+        ## (1/f)dAr/dy*dsdy
+        values[3] = (1/(2*f*d13))*dsdx\
+                                  + (-1/(2*f*d23))*dsdy
+
+        Apsirow[columnindexs[0]] = values[0]/Arscale
+        Apsirow[columnindexs[1]] = values[1]/Arscale
+        Apsirow[columnindexs[2]] = values[2]/Arscale
+        Apsirow[columnindexs[3]] = values[3]/Arscale
     crow = -((u)*dsdx+(v)*dsdy)/Arscale
 
     return Apsirow,values,crow
@@ -718,12 +751,12 @@ def coupledInvertNoMixing(surfaces,reflevel,neighbors,distances,debug=False,sing
             kpv,ks = kterms(surfaces,k,s[0])
             u = surfaces[k]["data"]["uref"][s[0]] 
             v = surfaces[k]["data"]["vref"][s[0]] 
-            if (not np.isnan(u) and not np.isnan(v)) and 3600>k>=1000 and kpv and ks and (not single or selects == surfaces[k]["ids"][s[0]] ): #and surfaces[k]["ids"][s[0]] in whitelist :
+            if (not np.isnan(u) and not np.isnan(v)) and 3600>k>=1000 and kpv.any() and ks.any() and (not single or selects == surfaces[k]["ids"][s[0]] ): #and surfaces[k]["ids"][s[0]] in whitelist :
                 ##find/store column indexs for each neighbor
-                columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s,columndictionary)
+                columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s[0:3],columndictionary)
                 ##this is a shorthad way of converting the NS to an index
                 #######PVROW
-                betarow,betavals, crow = constructBetaRow(surfaces,k,distances,s,columnindexs,1)
+                betarow,betavals, crow = constructBetaRow(surfaces,k,distances,s,columnindexs,True,1)
 
                 n = np.linalg.norm(betavals)
                 Apsi.append(betarow/n)
@@ -734,7 +767,7 @@ def coupledInvertNoMixing(surfaces,reflevel,neighbors,distances,debug=False,sing
 
                 #######SALROW
                 ##make rows that can fit it 
-                salrow, salvals, crow = constructSalRow(surfaces,k,distances,s,columnindexs,1)
+                salrow, salvals, crow = constructSalRow(surfaces,k,distances,s,columnindexs,True,1)
                 n = np.linalg.norm(salvals)
                 Apsi.append(salrow/n)
                 ##im a rascal and this is a shorthad way of converting the NS to an index :P
@@ -780,7 +813,7 @@ def coupledInvertNoMixing(surfaces,reflevel,neighbors,distances,debug=False,sing
     return surfaces, columndictionary, [VT,D,U],A
 
 
-def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False,normalize=False):
+def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False,normalize=False,threepoint=True):
     outsurfaces = copy.deepcopy(surfaces)
     Apsi=[]
     Akvb=[]
@@ -796,25 +829,25 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
     whitelist = generateWhiteList(surfaces,neighbors,3600,1000)
     for k in Bar("adding to matrix: ").iter(neighbors.keys()):
         distances = alldistances[k]
+        print("distance mean: ",np.mean(list(distances.values())))
+        print("distance std: ",np.std(list(distances.values())))
         #for s in Bar('coupled invert: ').iter(neighbors[k]):
         for s in neighbors[k]:
             if not selects:
                 selects = surfaces[k]["ids"][s[0]]
             s=np.asarray(s)
             kpv,ks = kterms(surfaces,k,s[0])
-            kpv = np.asarray(kpv)
-            ks = np.asarray(ks)
+            #ptools.kChecker(surfaces,k,s[0])
             u = surfaces[k]["data"]["uref"][s[0]] 
             v = surfaces[k]["data"]["vref"][s[0]] 
             if (not np.isnan(u) and not np.isnan(v)) and kpv.any() and ks.any() and 3600>k>=1000 and (not single or selects == surfaces[k]["ids"][s[0]] ) and surfaces[k]["ids"][s[0]] in whitelist :
                 ##find/store column indexs for each neighbor
-                columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s,columndictionary)
+                columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s[:3],columndictionary)
                 ##this is a shorthad way of converting the NS to an index
                 #######PVROW
-                betarow,betavals, crow = constructBetaRow(surfaces,k,distances,s,columnindexs)
+                betarow,betavals, crow = constructBetaRow(surfaces,k,distances,s,columnindexs,threepoint)
                 betavals = np.asarray(betavals)
-                n = np.linalg.norm(np.concatenate((np.asarray(betavals),kpv[[True,False,False]])))
-
+                n = np.linalg.norm(np.concatenate((np.asarray(betavals),kpv[[True,False,True]])))
                 #n = np.linalg.norm(betavals)
                 Apsi.append(np.asarray(betarow)/n)
 
@@ -836,9 +869,9 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
 
                 #######SALROW
                 ##make rows that can fit it 
-                salrow, salvals, crow = constructSalRow(surfaces,k,distances,s,columnindexs)
+                salrow, salvals, crow = constructSalRow(surfaces,k,distances,s,columnindexs,threepoint)
                 salvals = np.asarray(salvals)
-                n = np.linalg.norm(np.concatenate((np.asarray(salvals),ks[[True,False,False]])))
+                n = np.linalg.norm(np.concatenate((np.asarray(salvals),ks[[True,False,True]])))
                 #n = np.linalg.norm(salvals)
                 Apsi.append(np.asarray(salrow)/n)
                 ##im a rascal and this is a shorthad way of converting the NS to an index :P
@@ -867,10 +900,13 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
     us = us[:m]
 
     #print(Apsi)
-
+    print("mean Apsi: ", np.mean(np.abs(Apsi[Apsi!=0])))
+    print("mean Akvb: ", np.mean(np.abs(Akvb[Akvb!=0])))
+    print("mean Akh: ", np.mean(np.abs(Akh[Akh!=0])))
+    print("mean Akvo: ", np.mean(np.abs(Akvo[Akvo!=0])))
     #A = combineAs([m,m,18,1],Apsi,Akvb,Akh,Akvo)
-    #A = combineAs([m,m,18,1],Apsi,Akvb,Akh,Akvo)
-    A = combineAs([m,1],Apsi,Akvo)
+    A = combineAs([m,18,1],Apsi,Akh,Akvo)
+    #A = combineAs([m,18,1],Apsi,Akh,Akvo)
     print("column count: ",np.count_nonzero(A, axis=0))
     rowCount(A)
     #print("Scale: ",optimizeA(A,m))

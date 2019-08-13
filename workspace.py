@@ -46,24 +46,10 @@ import pdb
 #staggeredsurfaces = nstools.fillOutEmptyFields(interpolatedsurfaces)
 #staggeredsurfaces = nstools.addHeight(staggeredsurfaces)
 
-###with open('data/ready4horizontalgrad.pickle', 'wb') as outfile:
-    ###pickle.dump([staggeredsurfaces,neighbors,lookups], outfile)
-
-####with open('data/ready4horizontalgrad.pickle', 'rb') as outfile:
-    ####[staggeredsurfaces,neighbors,lookups]=pickle.load(outfile)
-
-###nstools.surfaceDiagnostic(staggeredsurfaces)
 #staggeredsurfaces = nstools.addHorizontalGrad(staggeredsurfaces,neighbors,lookups)
-##nstools.surfaceDiagnostic(staggeredsurfaces)
 #staggeredsurfaces = nstools.addVerticalGrad(staggeredsurfaces)
-##nstools.surfaceDiagnostic(staggeredsurfaces)
 ##ptools.saveBathVarTermCache(staggeredsurfaces,"data/bathVar.pickle")
 #staggeredsurfaces = nstools.addK(staggeredsurfaces,"data/bathVar.pickle")
-
-##graph.graphSurfaces(staggeredsurfaces,"t")
-##graph.graphSurfaces(staggeredsurfaces,"CKVB",show=False,savepath = "refpics/CKs/")
-##graph.graphSurfaces(staggeredsurfaces,"t")
-##graph.graphSurfaces(staggeredsurfaces,"s")
 
 with open('data/ready4inverse.pickle', 'rb') as outfile:
     [staggeredsurfaces,neighbors,lookups]=pickle.load(outfile)
@@ -72,11 +58,15 @@ with open('data/ready4inverse.pickle', 'rb') as outfile:
 #with open('data/ready4inverse.pickle', 'wb') as outfile:
     #pickle.dump([staggeredsurfaces,neighbors,lookups], outfile)
 
-coupleinvert,columndictionary,svds,A = inverttools.invert("coupled",staggeredsurfaces,neighbors,lookups)
+coupleinvert,columndictionary,svds,A = inverttools.invert("couplednomix",staggeredsurfaces,neighbors,lookups)
 
 coupleinvert = nstools.streamFuncToUV(coupleinvert,neighbors,lookups)
 coupleinvert = bathtools.addBathToSurface(coupleinvert)
-
+#graph.graphSurfaces(coupleinvert,"psi",idlabels=True)
+graph.plotLayerTransport(coupleinvert)
 
 graph.graphVectorField(coupleinvert,"uabs","vabs","z")
+graph.graphVectorField(coupleinvert,"uabs","vabs","pv")
+#graph.graphVectorField(coupleinvert,"uabs","vabs","z",show=False,savepath="refpics/nomixing/3pointbath/")
+#graph.graphVectorField(coupleinvert,"uabs","vabs","pv",show=False,savepath="refpics/nomixing/3pointpv/")
 graph.graphVectorField(coupleinvert,"u","v","z")
