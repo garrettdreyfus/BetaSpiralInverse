@@ -143,18 +143,22 @@ def kChecker(surfaces,k,found,debug=False):
         skhpart2 = (d2sdx2+d2sdy2)-2*(dqnotdx*dsdx + dqnotdy*dsdy)/pv
         skh = skhpart1 + skhpart2
         
-        kv0breakdown=True
+        kv0breakdown=False
         if kv0breakdown:
-            labels = ["d2qdz2","alpha","f","1/pv","dsdz**3","doublets"]
-            values = [d2qdz2,alpha,f,1/pv,dsdz**3,doublets]
+            labels = ["d2qdz2","alpha","f","1/pv","dsdz**3","doublets","skvo"]
+            print(dsdz)
+            values = [np.abs(d2qdz2),alpha,f,1/pv,np.abs(dsdz)**3,np.abs(doublets),np.abs(skvo)]
             plt.bar(labels,values)
             plt.yscale("log")
             plt.show()
 
-        sixpartcompare = True
+        sixpartcompare = False
         if sixpartcompare:
-            labels = ["pvkv0","pvkh","pvkvb","skv0","skh","skvb"]
-            values = [pvkv0,pvkh,pvkvb,skvo,skh,skvb]
+            labels = ["pvkv0","pvkh","pvkvb","fakebeta","skv0","skh","skvb","fakesal","pvkvo/fakebeta","skv0/fakesal"]
+            fakesal = (1/2*f)*(10**-5)*(dqnotdx-x*beta*pv/(f*r))
+            fakebeta = (1/2*f)*(10**-5)*dsdx
+            values = [pvkv0,pvkh,pvkvb,fakesal,skvo,skh,skvb,fakebeta,pvkv0/fakebeta,skvo/fakesal]
+            print(np.format_float_scientific(pvkv0/fakebeta, unique=False, precision=3),np.format_float_scientific(skvo/fakesal, unique=False, precision=3))
             plt.bar(labels,np.abs(values))
             plt.yscale("log")
             plt.show()

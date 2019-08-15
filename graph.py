@@ -349,8 +349,11 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",savepath=False,show
         fig.set_size_inches(16.5,12)
         a = np.where(abs(surfaces[k]["lats"]-90)>0.5)
         xpv,ypv = mapy(surfaces[k]["lons"][a],surfaces[k]["lats"][a])
-        bgfield = surfaces[k]["data"][backgroundfield][a]
-        plt.tricontourf(xpv,ypv,bgfield,levels=10)
+        if backgroundfield != "f/h":
+            bgfield = surfaces[k]["data"][backgroundfield][a]
+        else:
+            bgfield = gsw.f(surfaces[k]["lats"][a])/surfaces[k]["data"]["z"][a]
+        plt.tricontourf(xpv,ypv,bgfield,levels=50)
         plt.clim(np.min(bgfield),np.max(bgfield))
         mapy.colorbar()
         mapy.quiver(x,y,u,v,mag,cmap="cool",width = 0.002)
@@ -454,39 +457,139 @@ def plotASpiral(profiles,center=None,x=None,y=None):
             #plt.tricontourf(x,y,np.asarray(surfaces[i]["data"][quantindex]),cmap="plasma")
         #else:
             #plt.scatter(x,y,c=np.asarray(surfaces[i]["data"][quantindex]),cmap="plasma")
-def plotLayerTransport(surfaces):
+def framStraitTransport(surfaces):
     transectids=[1776,1901,2026,2151,2276,2401,2526,2651]
+    plotLayerTransport(transectids,surfaces)
+
+def barentsTransport(surfaces):
+    transectids=[2651,2650,2899,2896,3019,3143,3267]
+    plotLayerTransport(transectids,surfaces)
+
+def plotLayerTransport(transectids,surfaces):
     inflows=[]
     outflows=[]
     for k in sorted(surfaces.keys())[::-1]:
         transports = []
-        print(k)
         go=True
         indexs = []
         for eyed in transectids:
             if eyed not in surfaces[k]["ids"]:
                 go = False
+                print(eyed)
             else:
                 indexs.append(np.where(np.asarray(surfaces[k]["ids"]) == eyed)[0][0])
-
-        h = np.nanmean(surfaces[k]["data"]["h"][indexs])
-        if go and k <2200:
+        print(go)
+        if k==200:
+            h=200
+        else:
+            h = np.nanmean(surfaces[k]["data"]["h"][indexs])
+        if go and k<2200 and  not np.isnan(h):
             for j in range(len(transectids)-1):
                 curr = indexs[j]
                 nxt = indexs[j+1]
                 dpsi = surfaces[k]["data"]["psinew"][nxt]-surfaces[k]["data"]["psinew"][curr]
                 print("h: ",h," dpsi: ",dpsi)
                 transports.append(-dpsi*h*(10**-6)*(1/gsw.f(surfaces[k]["lats"][curr])))
-
+        print(transports)
         if len(transports)>0:
             transports = np.asarray(transports)
             inflows.append(np.nansum(transports[transports>0]))
             outflows.append(np.nansum(transports[transports<0]))
-            plt.plot(range(len(transports)),transports,label=k)
-    plt.title("Tranport across Fram Strait \n inflow: "+str(np.nansum(inflows))+ " outflow: "+str(np.nansum(outflows)))
+            plt.plot(range(len(transports)),transports,label=("ns: " + str(k)))
+            plt.xlabel("Grid points across Fram Strait E to W")
+            plt.ylabel("Transport in Sverdrups")
+    plt.title("Tranport across Fram Strait \n inflow: "+str(round(np.nansum(inflows),2))+ " outflow: "+str(round(np.nansum(outflows),2)))
     plt.legend()
     plt.show()
 
+def getLinePoints(surfaces,startid,endid,level=1000):
+    if startid in surfaces[level]["ids"] and endid in surfaces[level]["ids"]:
+        start = np.where(np.asarray(surfaces[level]["ids"]) == startid)[0][0]
+        end = np.where(np.asarray(surfaces[level]["ids"]) == endid)[0][0]
+        startcoord = (surfaces[level]["x"][start],surfaces[level]["y"][start])
+        endcoord = (surfaces[level]["x"][end],surfaces[level]["y"][end])
+        slope=(endcoord[1]-startcoord[1])/(endcoord[0]-startcoord[0])
+        res = 100
+        ids = []
+        progress = []
+        for i in range(res):
+            currx = ((endcoord[0]-startcoord[0])/res)*i+startcoord[0]
+            curry = ((endcoord[0]-startcoord[0])/res)*i*slope +startcoord[1]
+            #print("xdiff0: ",startcoord[0]-currx," ydiff0: ",startcoord[1]-curry)
+            #print("xdif1: ",endcoord[0]-currx," ydif1: ",endcoord[1]-curry)
+            smallestval =1000000000000000
+            closest = -1
+            for j in range(len(surfaces[level]["x"])):
+                dist = np.sqrt((surfaces[level]["x"][j]-currx)**2+(surfaces[level]["y"][j]-curry)**2)
+                if dist<smallestval and ~np.isnan(surfaces[level]["data"]["psinew"][j]):
+                    smallestval = dist
+                    closest = j
+            if surfaces[level]["ids"][closest] not in ids:
+                ids.append(surfaces[level]["ids"][closest])
+                progress.append(i)
+        return ids, (endcoord[0]-startcoord[0],endcoord[1]-startcoord[1]),progress
+    return None, None,None
+
+
+def refinedTransport(surfaces,startid,endid):
+    transports=[]
+    inflows =[]
+    outflows = []
+    coords = [[],[]]
+    scales = []
+    for k in surfaces.keys():
+        ps,vec,progress = getLinePoints(surfaces,startid,endid,k)
+        surfacetransports = []
+        if k<2600 and ps and vec and progress:
+            hs = []
+            for eyed in ps:
+                curr = np.where(np.asarray(surfaces[k]["ids"]) == eyed)[0][0]
+                hs.append(surfaces[k]["data"]["h"][curr])
+            h=np.nanmean(hs)
+            for i,eyed in enumerate(ps[:-1]):
+                curr = np.where(np.asarray(surfaces[k]["ids"]) == eyed)[0][0]
+                nxt = np.where(np.asarray(surfaces[k]["ids"]) == ps[i+1])[0][0]
+                dist = geodesic((surfaces[k]["lats"][curr],surfaces[k]["lons"][curr]),(surfaces[k]["lats"][nxt],surfaces[k]["lons"][nxt])).m
+                uvec = (surfaces[k]["x"][nxt]-surfaces[k]["x"][curr],surfaces[k]["y"][nxt]-surfaces[k]["y"][curr])
+                f = gsw.f(surfaces[k]["lats"][curr])
+                uvec = (-1,2)
+                vec=(10,0)
+                mag = np.sqrt(vec[0]**2 +vec[1]**2)
+                proj = ((vec[0]*uvec[0],vec[1]*uvec[1])/(mag**2))*vec
+                print("#####")
+                print("set: ",uvec,vec,proj)
+                scale = (np.sqrt(proj[0]**2 + proj[1]**2)/np.sqrt(uvec[0]**2 + uvec[1]**2))
+                print("scale: ",scale)
+                scale = 1
+                dpsi = surfaces[k]["data"]["psinew"][nxt]-surfaces[k]["data"]["psinew"][curr]
+                transport=scale*-dpsi*h*(10**-6)*(1/f)
+                surfacetransports.append(transport)
+                coords[0].append(surfaces[k]["lons"][curr])
+                coords[1].append(surfaces[k]["lats"][curr])
+                scales.append(scale)
+            plt.plot(progress[:-1],surfacetransports,label = "ns: "+str(k))
+            transports.append(surfacetransports)
+            surfacetransports= np.asarray(surfacetransports)
+            inflows.append(np.nansum(surfacetransports[surfacetransports>0]))
+            outflows.append(np.nansum(surfacetransports[surfacetransports<0]))
+ 
+            #print(np.sum(surfacetransports))
+    print("inflow: ",np.nansum(inflows))
+    print("outflow: ",np.nansum(outflows))
+    plt.legend()
+    plt.show()
+    mapy = Basemap(projection='ortho', lat_0=90,lon_0=-60)
+    mapy.drawmapboundary(fill_color='aqua')
+    mapy.fillcontinents(color='coral',lake_color='aqua')
+    mapy.drawcoastlines()
+    x,y = mapy(coords[0],coords[1])
+    plt.scatter(x,y,c=scales)
+    mapy.colorbar()
+    plt.show()
+
+            
+
+    
                 
 
             

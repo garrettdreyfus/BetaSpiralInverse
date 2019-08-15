@@ -142,9 +142,9 @@ def kterms(surfaces,k,found,debug=False):
               dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
               dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
               beta,d2qdx2,d2qdy2,khpdz]
-    kvoscale = 10**8#5*(10**-6)
-    kvbscale = 10**8#5*(10**-5)
-    khscale  = 500
+    kvoscale = 1#10**8#5*(10**-6)
+    kvbscale = 1#10**8#5*(10**-5)
+    khscale  = 1#500
     #ptools.kChecker(surfaces,k,found)
     if (np.isnan(isitnan).any()):
         if debug:
@@ -847,7 +847,13 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
                 #######PVROW
                 betarow,betavals, crow = constructBetaRow(surfaces,k,distances,s,columnindexs,threepoint)
                 betavals = np.asarray(betavals)
-                n = np.linalg.norm(np.concatenate((np.asarray(betavals),kpv[[True,False,True]])))
+                l = np.concatenate((betavals[np.nonzero(betavals)],kpv))
+                plt.bar(range(len(l)),np.abs(l))
+                plt.yscale("log")
+                plt.title("beta")
+                plt.show()
+
+                n = np.linalg.norm(np.concatenate((np.asarray(betavals),kpv[[True,False,False]])))
                 #n = np.linalg.norm(betavals)
                 Apsi.append(np.asarray(betarow)/n)
 
@@ -871,7 +877,12 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
                 ##make rows that can fit it 
                 salrow, salvals, crow = constructSalRow(surfaces,k,distances,s,columnindexs,threepoint)
                 salvals = np.asarray(salvals)
-                n = np.linalg.norm(np.concatenate((np.asarray(salvals),ks[[True,False,True]])))
+                l = np.concatenate((salvals[np.nonzero(salvals)],ks))
+                plt.bar(range(len(l)),np.abs(l))
+                plt.yscale("log")
+                plt.title("sal")
+                plt.show()
+                n = np.linalg.norm(np.concatenate((np.asarray(salvals),ks[[True,False,False]])))
                 #n = np.linalg.norm(salvals)
                 Apsi.append(np.asarray(salrow)/n)
                 ##im a rascal and this is a shorthad way of converting the NS to an index :P
@@ -905,7 +916,7 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
     print("mean Akh: ", np.mean(np.abs(Akh[Akh!=0])))
     print("mean Akvo: ", np.mean(np.abs(Akvo[Akvo!=0])))
     #A = combineAs([m,m,18,1],Apsi,Akvb,Akh,Akvo)
-    A = combineAs([m,18,1],Apsi,Akh,Akvo)
+    A = combineAs([m,1],Apsi,Akvo)
     #A = combineAs([m,18,1],Apsi,Akh,Akvo)
     print("column count: ",np.count_nonzero(A, axis=0))
     rowCount(A)
