@@ -1,5 +1,6 @@
 import nstools
 import inverttools
+import interptools
 import bathtools
 import saloffset
 import matplotlib.pyplot as plt
@@ -17,39 +18,39 @@ import parametertools as ptools
 from pprint import pprint
 import pdb
     
-#profiles,deepestindex = nstools.extractProfilesBox(["data/1500mprofiles.json"],-180,180,65,90)
-#profiles,deepestindex = nstools.removeNorwegianSea(profiles)
+profiles,deepestindex = nstools.extractProfilesBox(["data/1500mprofiles.json"],-180,180,65,90)
+profiles,deepestindex = nstools.removeNorwegianSea(profiles)
 
-#fileObject = open("data/1500NoNorwegian.pickle",'rb')  
-#offsets,badfiles,beepestindex = pickle.load(fileObject)
+fileObject = open("data/1500NoNorwegian.pickle",'rb')  
+offsets,badfiles,beepestindex = pickle.load(fileObject)
 
-#profiles = nstools.filterCruises(profiles,offsets.keys())
-#profiles = saloffset.applyOffsets(profiles,offsets)
+profiles = nstools.filterCruises(profiles,offsets.keys())
+profiles = saloffset.applyOffsets(profiles,offsets)
 
-######profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
-######profilechoice = nstools.getProfileById(profiles,"286364")
+#####profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
+#####profilechoice = nstools.getProfileById(profiles,"286364")
 
-######surfaces = nstools.runPeerSearch(profiles,deepestindex,200,4000,200,profilechoice,1000)
-######fileObject = open(str(profilechoice.eyed)+"new.pickle",'wb')  
-####### load the object from the file into var b
-######b = pickle.dump(surfaces,fileObject)  
-######fileObject.close()
+#####surfaces = nstools.runPeerSearch(profiles,deepestindex,200,4000,200,profilechoice,1000)
+#####fileObject = open(str(profilechoice.eyed)+"new.pickle",'wb')  
+###### load the object from the file into var b
+#####b = pickle.dump(surfaces,fileObject)  
+#####fileObject.close()
 
-#with open('data/286364new.pickle', 'rb') as outfile:
-    #surfaces=pickle.load(outfile)
+with open('data/286364new.pickle', 'rb') as outfile:
+    surfaces=pickle.load(outfile)
 
-#surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
-#surfaces = nstools.addStreamFunc(surfaces,profiles)
+surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
+surfaces = nstools.addStreamFunc(surfaces,profiles)
 
-#surfaces =nstools.addXYToSurfaces(surfaces)
-#interpolatedsurfaces,neighbors,lookups = nstools.interpolateSurfaces(surfaces)
-#staggeredsurfaces = nstools.fillOutEmptyFields(interpolatedsurfaces)
-#staggeredsurfaces = nstools.addHeight(staggeredsurfaces)
+surfaces =interptools.addXYToSurfaces(surfaces)
+interpolatedsurfaces,neighbors,lookups = interptools.interpolateSurfaces(surfaces)
+staggeredsurfaces = nstools.fillOutEmptyFields(interpolatedsurfaces)
+staggeredsurfaces = nstools.addHeight(staggeredsurfaces)
 
-#staggeredsurfaces = nstools.addHorizontalGrad(staggeredsurfaces,neighbors,lookups)
-#staggeredsurfaces = nstools.addVerticalGrad(staggeredsurfaces)
-#ptools.saveBathVarTermCache(staggeredsurfaces,"data/bathVar.pickle")
-#staggeredsurfaces = nstools.addK(staggeredsurfaces,"data/bathVar.pickle")
+staggeredsurfaces = nstools.addHorizontalGrad(staggeredsurfaces,neighbors,lookups)
+staggeredsurfaces = nstools.addVerticalGrad(staggeredsurfaces)
+ptools.saveBathVarTermCache(staggeredsurfaces,"data/bathVar.pickle")
+staggeredsurfaces = nstools.addK(staggeredsurfaces,"data/bathVar.pickle")
 
 with open('data/ready4inverse.pickle', 'rb') as outfile:
     [staggeredsurfaces,neighbors,lookups]=pickle.load(outfile)
