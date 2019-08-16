@@ -2,6 +2,8 @@ from nstools import *
 
 import os
 
+##Graph a given quantity over a transect given a surfaces object
+## savepath and show control whether the images should be saved and whether graphs should be displayed
 def graphTransects(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None):
     quanttitlehash = {0:"Pressure Dbar",1:"Temperature C",2:"Salinity PSU",3:"PV"}
     quantfilehash = {0:"PRES",1:"TEMP",2:"SAL",3:"PV"}
@@ -56,6 +58,8 @@ def graphTransects(surfaces,quantindex,contour=False,profiles=None,deepestindex=
         plt.show()
     plt.close()
 
+##diagnostic tool to show that the calculated nearest points for each
+## point is correct
 def graphNeighbors(surfaces,neighbors):
     for k in neighbors.keys():
         for r in neighbors[k].keys():
@@ -64,6 +68,7 @@ def graphNeighbors(surfaces,neighbors):
             plt.scatter(surfaces[k][0][r],surfaces[k][1][r],c="red")
             plt.show()
 
+## zoom given map and axis into the arctic.
 def zoomGraph(m,ax):
     lllon = -136
     urlon = 78
@@ -78,6 +83,8 @@ def zoomGraph(m,ax):
     ax.set_xlim([xmin, xmax])
     ax.set_ylim([ymin, ymax])
 
+## analagous to graphSurfaces but you can provide a second surfaces object
+## usually one which is not interpolated to test interpolation
 def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None):
     newsurfaces = {}
     for k in surfaces.keys():
@@ -95,6 +102,9 @@ def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=N
     print(newsurfaces.keys())
     graphSurfaces(newsurfaces,quantindex,contour,profiles,deepestindex,show,maximize,savepath)
 
+## given a surfaces object, a quantity index, graph quantity
+## if you really want you can supply a profiles object and a deepest index to display a point
+## controls to save, graph or maximize
 def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None,idlabels=False):
     quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV",\
                      "u":"relative U","v":"relative V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X",\
@@ -153,6 +163,7 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
                 plt.savefig(savepath+quantindex+"/ns"+str(i)+".png")
             plt.close()
 
+## plots a given cruise and its reference cruise
 def plotCruiseAndRef(cruises,refcruises,show=True):
     fig,ax = plt.subplots(1,1)
     lats, lons, depths=[],[],[]
@@ -183,6 +194,7 @@ def plotCruiseAndRef(cruises,refcruises,show=True):
     if show:
         plt.show()
 
+##plot a certain cruise
 def plotCruise(profiles,cruisename,fig=None,ax=None,show=True):
     lats, lons, depths=[],[],[]
     for p in profiles:
@@ -204,6 +216,7 @@ def plotCruise(profiles,cruisename,fig=None,ax=None,show=True):
     if show:
         plt.show()
 
+##plot profiles with an option to supply one profile which should be highlighted
 def plotProfiles(profiles,title,specialprofile=None,fig=None,ax=None,show=True):
     lats, lons, depths=[],[],[]
     for p in profiles:
@@ -228,6 +241,8 @@ def plotProfiles(profiles,title,specialprofile=None,fig=None,ax=None,show=True):
     if show:
         plt.show()
 
+##graph surfaces and then also the interpolated surfaces transect
+## for a given quantity
 def graphComparisonTransects(surfaces,interpsurfaces,profiles,quantindex,contour=False,deepestindex=None,show=True,maximize=True,savepath=None):
     quanttitlehash = {0:"Pressure Dbar",1:"Temperature C",2:"Salinity PSU",3:"PV"}
     quantfilehash = {0:"PRES",1:"TEMP",2:"SAL",3:"PV"}
@@ -271,6 +286,7 @@ def graphComparisonTransects(surfaces,interpsurfaces,profiles,quantindex,contour
             if show:
                 plt.show()
 
+##graph surface with neighbors to test calculation of nearest points
 def graphStaggeredSurface(surfaces,neighbors,debug=False):
     for k in surfaces.keys():
         surfaces[k]["data"]["uz"] = np.zeros(len(surfaces[k]["lons"]))
@@ -292,6 +308,8 @@ def graphStaggeredSurface(surfaces,neighbors,debug=False):
 
     return surfaces
 
+## graph a vector field given a surfaces object on a map
+## any quantity can be supplied as a background field
 def graphVectorField(surfaces,key1,key2,backgroundfield="pv",savepath=False,show=True):
 
     if savepath:
@@ -365,7 +383,7 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",savepath=False,show
 
 
 
-
+#graphs vectors but not on map because sometimes thats hard and you want to check
 def graphCartVectorField(surfaces,key1,key2,show=True,savepath=False):
     if savepath:
         try:
@@ -403,6 +421,7 @@ def graphCartVectorField(surfaces,key1,key2,show=True,savepath=False):
         if show:
             plt.show()
 
+##simple file to plot some beta spirals
 def twentyRandomSpirals(surfaces,reflevel=200):
     for index in np.random.choice(range(len(surfaces[reflevel]["x"])),40):
         eyed = int(surfaces[reflevel]["ids"][index])
@@ -425,6 +444,7 @@ def twentyRandomSpirals(surfaces,reflevel=200):
         ax.legend()
         plt.show()
     
+#function to plot a spiral
 def plotASpiral(profiles,center=None,x=None,y=None):
     fig,ax = plt.subplots(1,1) 
     center = getProfileById(profiles,"120389")
@@ -450,123 +470,115 @@ def plotASpiral(profiles,center=None,x=None,y=None):
     #plt.plot(us,vs,c="r")
     plt.show()
 
-#def graphAndSaveAll(surfaces,savepath):
-    #for k in surfaces[200]["data"].keys():
-        #graphSurfaces(surfaces,k,show=False,savepath=savepath)
-        #if contour:
-            #plt.tricontourf(x,y,np.asarray(surfaces[i]["data"][quantindex]),cmap="plasma")
-        #else:
-            #plt.scatter(x,y,c=np.asarray(surfaces[i]["data"][quantindex]),cmap="plasma")
-def framStraitTransport(surfaces):
-    transectids=[1776,1901,2026,2151,2276,2401,2526,2651]
-    plotLayerTransport(transectids,surfaces)
+##given two start coords find nearest surface points
+#coords of type ( lon,lat)
+def getLinePoints(surfaces,startcoord,endcoord,level):
+    startcoord = singleXY(startcoord)
+    endcoord = singleXY(endcoord)
+    slope=(endcoord[1]-startcoord[1])/(endcoord[0]-startcoord[0])
+    res = 100
+    ids = []
+    progress = []
+    for i in range(res):
+        currx = ((endcoord[0]-startcoord[0])/res)*i+startcoord[0]
+        curry = ((endcoord[0]-startcoord[0])/res)*i*slope +startcoord[1]
+        #print("xdiff0: ",startcoord[0]-currx," ydiff0: ",startcoord[1]-curry)
+        #print("xdif1: ",endcoord[0]-currx," ydif1: ",endcoord[1]-curry)
+        smallestval =1000000000000000
+        closest = -1
+        for j in range(len(surfaces[level]["x"])):
+            dist = np.sqrt((surfaces[level]["x"][j]-currx)**2+(surfaces[level]["y"][j]-curry)**2)
+            if dist<smallestval and ~np.isnan(surfaces[level]["data"]["psinew"][j]):
+                smallestval = dist
+                closest = j
+        if surfaces[level]["ids"][closest] not in ids:
+            ids.append(surfaces[level]["ids"][closest])
+            progress.append(i)
+    return ids, (endcoord[0]-startcoord[0],endcoord[1]-startcoord[1]),progress
 
-def barentsTransport(surfaces):
-    transectids=[2651,2650,2899,2896,3019,3143,3267]
-    plotLayerTransport(transectids,surfaces)
+## graph how quantity changes along a surface and along given transect
+#coords of type ( lon,lat)
+def quantityLine(surfaces,startcoord,endcoord,quant,silldepth,factor=1):
+    quants=[]
+    coords = [[],[]]
+    for k in surfaces.keys():
+        ps,vec,progress = getLinePoints(surfaces,startcoord,endcoord,k)
+        surfacequants = []
 
-def plotLayerTransport(transectids,surfaces):
-    inflows=[]
-    outflows=[]
-    for k in sorted(surfaces.keys())[::-1]:
-        transports = []
-        go=True
-        indexs = []
-        for eyed in transectids:
-            if eyed not in surfaces[k]["ids"]:
-                go = False
-                print(eyed)
-            else:
-                indexs.append(np.where(np.asarray(surfaces[k]["ids"]) == eyed)[0][0])
-        print(go)
-        if k==200:
-            h=200
-        else:
-            h = np.nanmean(surfaces[k]["data"]["h"][indexs])
-        if go and k<2200 and  not np.isnan(h):
-            for j in range(len(transectids)-1):
-                curr = indexs[j]
-                nxt = indexs[j+1]
-                dpsi = surfaces[k]["data"]["psinew"][nxt]-surfaces[k]["data"]["psinew"][curr]
-                print("h: ",h," dpsi: ",dpsi)
-                transports.append(-dpsi*h*(10**-6)*(1/gsw.f(surfaces[k]["lats"][curr])))
-        print(transports)
-        if len(transports)>0:
-            transports = np.asarray(transports)
-            inflows.append(np.nansum(transports[transports>0]))
-            outflows.append(np.nansum(transports[transports<0]))
-            plt.plot(range(len(transports)),transports,label=("ns: " + str(k)))
-            plt.xlabel("Grid points across Fram Strait E to W")
-            plt.ylabel("Transport in Sverdrups")
-    plt.title("Tranport across Fram Strait \n inflow: "+str(round(np.nansum(inflows),2))+ " outflow: "+str(round(np.nansum(outflows),2)))
+        if k<silldepth and ps and vec and progress:
+            hs = []
+            for i,eyed in enumerate(ps):
+                curr = np.where(np.asarray(surfaces[k]["ids"]) == eyed)[0][0]
+                surfacequants.append(surfaces[k]["data"][quant][curr]*factor)
+                coords[0].append(surfaces[k]["lons"][curr])
+                coords[1].append(surfaces[k]["lats"][curr])
+            plt.plot(progress,surfacequants,label = "ns: "+str(k))
+            quants.append(surfacequants)
+            surfacetransports= np.asarray(surfacequants)
+ 
+            #print(np.sum(surfacetransports))
     plt.legend()
     plt.show()
+    mapy = Basemap(projection='ortho', lat_0=90,lon_0=-60)
+    mapy.drawmapboundary(fill_color='aqua')
+    mapy.fillcontinents(color='coral',lake_color='aqua')
+    mapy.drawcoastlines()
+    x,y = mapy(coords[0],coords[1])
+    plt.scatter(x,y)
+    mapy.colorbar()
+    plt.show()
 
-def getLinePoints(surfaces,startid,endid,level=1000):
-    if startid in surfaces[level]["ids"] and endid in surfaces[level]["ids"]:
-        start = np.where(np.asarray(surfaces[level]["ids"]) == startid)[0][0]
-        end = np.where(np.asarray(surfaces[level]["ids"]) == endid)[0][0]
-        startcoord = (surfaces[level]["x"][start],surfaces[level]["y"][start])
-        endcoord = (surfaces[level]["x"][end],surfaces[level]["y"][end])
-        slope=(endcoord[1]-startcoord[1])/(endcoord[0]-startcoord[0])
-        res = 100
-        ids = []
-        progress = []
-        for i in range(res):
-            currx = ((endcoord[0]-startcoord[0])/res)*i+startcoord[0]
-            curry = ((endcoord[0]-startcoord[0])/res)*i*slope +startcoord[1]
-            #print("xdiff0: ",startcoord[0]-currx," ydiff0: ",startcoord[1]-curry)
-            #print("xdif1: ",endcoord[0]-currx," ydif1: ",endcoord[1]-curry)
-            smallestval =1000000000000000
-            closest = -1
-            for j in range(len(surfaces[level]["x"])):
-                dist = np.sqrt((surfaces[level]["x"][j]-currx)**2+(surfaces[level]["y"][j]-curry)**2)
-                if dist<smallestval and ~np.isnan(surfaces[level]["data"]["psinew"][j]):
-                    smallestval = dist
-                    closest = j
-            if surfaces[level]["ids"][closest] not in ids:
-                ids.append(surfaces[level]["ids"][closest])
-                progress.append(i)
-        return ids, (endcoord[0]-startcoord[0],endcoord[1]-startcoord[1]),progress
-    return None, None,None
-
-
-def refinedTransport(surfaces,startid,endid):
+ 
+#graph transport across a line given a surfaces object
+#coords of type ( lon,lat)
+def transportLine(surfaces,startcoord,endcoord,silldepth):
     transports=[]
     inflows =[]
     outflows = []
     coords = [[],[]]
     scales = []
     for k in surfaces.keys():
-        ps,vec,progress = getLinePoints(surfaces,startid,endid,k)
+        ps,vec,progress = getLinePoints(surfaces,startcoord,endcoord,k)
         surfacetransports = []
-        if k<2600 and ps and vec and progress:
+
+        if k<silldepth and ps and vec and progress:
             hs = []
             for eyed in ps:
                 curr = np.where(np.asarray(surfaces[k]["ids"]) == eyed)[0][0]
                 hs.append(surfaces[k]["data"]["h"][curr])
-            h=np.nanmean(hs)
-            for i,eyed in enumerate(ps[:-1]):
-                curr = np.where(np.asarray(surfaces[k]["ids"]) == eyed)[0][0]
-                nxt = np.where(np.asarray(surfaces[k]["ids"]) == ps[i+1])[0][0]
-                dist = geodesic((surfaces[k]["lats"][curr],surfaces[k]["lons"][curr]),(surfaces[k]["lats"][nxt],surfaces[k]["lons"][nxt])).m
-                uvec = (surfaces[k]["x"][nxt]-surfaces[k]["x"][curr],surfaces[k]["y"][nxt]-surfaces[k]["y"][curr])
-                f = gsw.f(surfaces[k]["lats"][curr])
-                uvec = (-1,2)
-                vec=(10,0)
-                mag = np.sqrt(vec[0]**2 +vec[1]**2)
-                proj = ((vec[0]*uvec[0],vec[1]*uvec[1])/(mag**2))*vec
-                print("#####")
-                print("set: ",uvec,vec,proj)
-                scale = (np.sqrt(proj[0]**2 + proj[1]**2)/np.sqrt(uvec[0]**2 + uvec[1]**2))
-                print("scale: ",scale)
-                scale = 1
-                dpsi = surfaces[k]["data"]["psinew"][nxt]-surfaces[k]["data"]["psinew"][curr]
-                transport=scale*-dpsi*h*(10**-6)*(1/f)
-                surfacetransports.append(transport)
-                coords[0].append(surfaces[k]["lons"][curr])
-                coords[1].append(surfaces[k]["lats"][curr])
-                scales.append(scale)
+            h = np.nanmean(hs)
+            for i,eyed in enumerate(ps):
+                uway=False
+                if uway:
+                    curr = np.where(np.asarray(surfaces[k]["ids"]) == eyed)[0][0]
+                    if i != len(ps)-1:
+                        nxt = np.where(np.asarray(surfaces[k]["ids"]) == ps[i+1])[0][0]
+                        dist = geodesic((surfaces[k]["lats"][curr],surfaces[k]["lons"][curr]),(surfaces[k]["lats"][nxt],surfaces[k]["lons"][nxt])).m
+                    uvec = (surfaces[k]["data"]["uabs"][curr],surfaces[k]["data"]["vabs"][curr])
+                    mag = np.sqrt(vec[0]**2 +vec[1]**2)
+                    proj = ((vec[0]*uvec[0],vec[1]*uvec[1])/(mag**2))*vec
+                    #print("#####")
+                    #print("set: ",uvec,vec,proj)
+                    perp = uvec-proj
+                    sign = np.sign(np.cross(vec,perp))
+                    perp = np.sqrt(perp[0]**2 + perp[1]**2)
+                    scales.append(sign)
+                    transport=sign*perp*dist*h*(10**-6)
+                    surfacetransports.append(transport)
+                    coords[0].append(surfaces[k]["lons"][curr])
+                    coords[1].append(surfaces[k]["lats"][curr])
+                else:
+                    if i != len(ps)-1:
+                        curr = np.where(np.asarray(surfaces[k]["ids"]) == eyed)[0][0]
+                        nxt = np.where(np.asarray(surfaces[k]["ids"]) == ps[i+1])[0][0]
+                        dpsi = surfaces[k]["data"]["psinew"][nxt]-surfaces[k]["data"]["psinew"][curr]
+                        f = gsw.f(surfaces[k]["lats"][curr])
+                        transport=dpsi*h*(10**-6)*(1/f)
+                        surfacetransports.append(transport)
+                        coords[0].append(surfaces[k]["lons"][curr])
+                        coords[1].append(surfaces[k]["lats"][curr])
+                        scales.append(transport)
+                    
             plt.plot(progress[:-1],surfacetransports,label = "ns: "+str(k))
             transports.append(surfacetransports)
             surfacetransports= np.asarray(surfacetransports)

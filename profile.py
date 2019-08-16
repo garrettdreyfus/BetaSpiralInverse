@@ -32,7 +32,7 @@ class Profile:
         self.idensities = []
         self.neutraldepth = {}
         self.interpolate()
-
+    #reformat date string
     def processDate(self,datestring):
         split = datestring.split("-")
         m = int(split[1])
@@ -47,7 +47,7 @@ class Profile:
             result = datetime.datetime(y,m,d)
             print(datestring,result)
         return result
-    
+    ##apply a salinty offset 
     def applyOffset(self,offset):
         self.sals =self.sals +offset
         self.ipres=[]
@@ -74,7 +74,7 @@ class Profile:
     def calculateDensity(self,s,t,p,p_ref=0):
         return gsw.rho(s,t,p)
 
-
+    #finds PV at a depth
     def potentialVorticityAt(self,index,debug=False):
         index = np.where(np.asarray(self.ipres) == index)[0]
         if index:
@@ -84,7 +84,7 @@ class Profile:
                 
             return (self.f/9.8)*np.mean(self.n2[index])
 
-
+    #finds average PV between two depths
     def potentialVorticityBetween(self,above,below,debug=False):
         above = np.where(np.asarray(self.ipres) == int(above))[0]
         below = np.where(np.asarray(self.ipres) == int(below))[0]
@@ -123,11 +123,13 @@ class Profile:
             print("\nmore than 0",np.mean(np.abs(self.n2[p])))
             print("\n########")
         return pv
-
+    
+    ##returns the t s at a pressure
     def atPres(self,pres):
         i = np.where(np.asarray(self.ipres) == int(pres))[0][0]
         return self.itemps[i], self.isals[i]
-
+    
+    ##returns t and s between two pressures
     def betweenPres(self,above,below):
         above = np.where(np.asarray(self.ipres) == int(above))[0]
         below = np.where(np.asarray(self.ipres) == int(below))[0]
@@ -144,7 +146,6 @@ class Profile:
             return
         return np.mean(self.itemps[min(above,below):max(above,below)]), np.mean(self.isals[min(above,below):max(above,below)])
 
-
     def densityAtPres(self,pres,ref=0):
         i = np.where(np.asarray(self.ipres) == int(pres))[0][0]
         return gsw.rho(self.isals[i],self.itemps[i],ref)
@@ -156,6 +157,10 @@ class Profile:
     def rhoZ(self,pres):
         return (densityAtPres(pres+1)-densityAtPres(pres-1))/3
 
+    #I think this makes sense if you read Trevor and Mcdougal
+    #essentialy find depth between on one profile at which the 
+    # at which potential density reference to the average pressure between
+    ## the two points is equal
     def neutralDepth(self,p2,depth,debug=False,searchrange=50,depthname=None):
         try:
             depth=int(depth)
@@ -205,6 +210,16 @@ class Profile:
             #print("not a single zero crossing")
             #print(self.cruise,p2.cruise)
             return None
+
+    ## this thing is a little bit wild
+    ## so in the matlab version of gsw they have a function that 
+    ## gives the geostrophic stream function on neutral surfaces
+    ## this does not exist in the python/c version of the gsw.
+    ## so I created a port of it to python, annoying part is
+    ## it requires some other functions also not in the python/c gsw
+    ## but luckily they are in the python only gsw
+    ## so I stole those functions and made a frankenstein that is like
+    ## 100000 times faster than the matlab geostrophic function thing ;)
     def geoIsopycnal(self,ns,nsdensref):
         ns = ns[::-1]
         nsdensref = nsdensref[::-1]

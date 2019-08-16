@@ -28,7 +28,7 @@ def extractProfiles(fname):
     return profiles, deepestindex
 
  
-
+##how is it interpolating?
 def graphInterpolation(ps,i):
     fig,(ax1,ax2)= plt.subplots(1,2)
     print(ps[i].sals)
@@ -42,7 +42,7 @@ def graphInterpolation(ps,i):
     ax1.invert_yaxis()
     ax2.invert_yaxis()
     plt.show()
-#graphInterpolation(profiles,2)
+##graph two profiles
 def graphProfiles(ps,i,j):
     fig,(ax1,ax2,ax3)= plt.subplots(1,3)
     ax1.plot(ps[j].itemps,ps[j].ipres)

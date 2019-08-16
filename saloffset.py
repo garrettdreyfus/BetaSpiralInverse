@@ -9,6 +9,8 @@ import glob
 from matplotlib.widgets import Button
 
 
+##this handles the offset value of the salinity chooser
+## it shifts things over and redraws them essentially
 def submit(profiles,cruisename,refprofile,fig,ax,s,text):
     val = eval(text)
     ax.clear()
@@ -34,15 +36,19 @@ def submit(profiles,cruisename,refprofile,fig,ax,s,text):
     plt.draw()
     s.answer = val
 
+##you dont want to consider this cruise
+##given the quality of the reference/its similarity
 def passCruise(s,event):
     s.answer = None
     plt.close('all')
 
+## this cruise is Trash
 def noMixingLine(s,event):
     s.answer = -999
     plt.close('all')
 
-
+#create graph to choose offsets from with two buttons 
+#and box to choose offset value
 def selectorGraph(cruiseprofiles,cruisename,refprofile):
     fig, (ax1,ax2) = plt.subplots(1,2)
     selectorGraph.answer=0
@@ -65,6 +71,7 @@ def selectorGraph(cruiseprofiles,cruisename,refprofile):
     plt.show()
     return selectorGraph.answer
     
+#What is the closest point to all the stops of your cruise
 def closestRefSearchAverage(refprofiles,profiles):
     mindistance = 100000000000000000
     minprofile = None
@@ -77,6 +84,7 @@ def closestRefSearchAverage(refprofiles,profiles):
             mindistancesum=distancesum
     return minprofile
 
+#what is the closest point to one of the stops of your cruise
 def closestRefSearch(refprofiles,profiles):
     mindistance = 100000000000000000
     minprofile = None
@@ -89,7 +97,7 @@ def closestRefSearch(refprofiles,profiles):
     return minprofile
 
 
-
+#useful for debuggging
 def singleSalinityOffsetRun(filename,cruisename,refcruisename):
     profiles,deepestindex = nstools.extractProfilesMonths(filename,range(13))
     cruiseprofiles = nstools.cruiseSearch(profiles,cruisename,1994)
@@ -98,6 +106,8 @@ def singleSalinityOffsetRun(filename,cruisename,refcruisename):
     offset = selectorGraph(cruiseprofiles,refcruisename,closestRefSearchAverage(refprofiles,cruiseprofiles))
     return offset
 
+##runs the tool and returns a dictionary of cruisenames
+## to salinity offsets,profiles,and the deepest index cause why not
 def runSalinityOffsetTool(filenames,refcruisenames,box=False,
         lonleft=False,lonright=False,latbot=False,lattop=False):
 
@@ -139,6 +149,7 @@ def runSalinityOffsetTool(filenames,refcruisenames,box=False,
 
     return offsetDict, profiles,deepestindex
 
+##apply cruise offsets to profiles
 def applyOffsets(profiles,offsetDict):
     for p in profiles:
         if p.cruise in offsetDict.keys():

@@ -9,6 +9,8 @@ import pickle
 
 
 ##Plots Bathymetry of Arctic
+## This file is more of a test of accessing
+## the bathymetry file
 
 d = Dataset("data/ver1_netcdf_geo.nc")
 z = d.variables["z"]

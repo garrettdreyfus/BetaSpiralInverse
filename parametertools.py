@@ -6,11 +6,14 @@ import pickle
 import inverttools as inv
 import matplotlib.pyplot as plt
 
+## calcute the bathymetric variability term
 def bathVarTerm(lat,lon):
     d=bathtools.bathBox(lat,lon)
     dnot = 750
     return (np.var(d)/dnot)**(0.25)
 
+## this stuff takes a long time to calculate so this
+## throws everything into a pickle for later
 def saveBathVarTermCache(surfaces,outfilename):
     bathVar = {}
     coords = []
@@ -26,7 +29,7 @@ def saveBathVarTermCache(surfaces,outfilename):
         pickle.dump(bathVar, outfile)
 
 
-
+## extracts bathVar data from pickle but only does so once
 def bathVarTermCache(lat,lon,filename):
     if not hasattr(bathVarTermCache,"p"):
         bathVarTermCache.p = pickle.load(open(filename, 'rb'))
@@ -36,7 +39,7 @@ def bathVarTermCache(lat,lon,filename):
     return bathVarTermCache.p[(lon,lat)]
 
 
-
+## calulate the Kvb bathvar coefficient
 def Kv(lat,lon,pv,pres,cachename=None):
     if cachename:
        bVT = bathVarTermCache(lat,lon,cachename) 
@@ -44,6 +47,7 @@ def Kv(lat,lon,pv,pres,cachename=None):
         bVT = bathVarTerm(lat,lon)
     return bVT*np.exp(-(abs(bathtools.searchBath(lat,lon))-abs(pres))/200)
 
+#function for exploring k mixing term values
 def kChecker(surfaces,k,found,debug=False):
     f = gsw.f(surfaces[k]["lats"][found])
     x = surfaces[k]["x"][found]

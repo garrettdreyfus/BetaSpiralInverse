@@ -27,6 +27,8 @@ import parametertools as ptools
 from prettytable import PrettyTable
 import pdb
 
+#From a list of filenames extract a bunch of profile objects
+#also returns the profile with the deepestindex because that may be useful
 def extractProfiles(fnames):
     ##Load JSON data into profile objects
     ##and return index of deepest one
@@ -47,7 +49,7 @@ def extractProfiles(fnames):
     return profiles, deepestindex
 
 
-
+##finds deepest profile from given profiels
 def deepestProfile(profiles):
     deepestindex=-1
     deepestdepth=-1
@@ -57,7 +59,7 @@ def deepestProfile(profiles):
             deepestindex=p
     return deepestindex
 
-
+##finds number of unqie cruises
 def cruiseCount(profiles):
     cruises ={"null"}
     for profile in profiles:
@@ -65,6 +67,7 @@ def cruiseCount(profiles):
             cruises.add(profile.cruise)
     return cruises
 
+##returns all profiles from a cruise
 def cruiseSearch(profiles,cruisename,year=None):
     results =[]
     for p in profiles:
@@ -76,7 +79,7 @@ def cruiseSearch(profiles,cruisename,year=None):
                 results.append(p)
     return results
 
-
+## finds all profiles in a small little slice of lat and lon
 def transArcticSearch(profiles):
     results = []
     for name in cruiseCount(profiles):
@@ -93,7 +96,7 @@ def transArcticSearch(profiles):
 
         
 
-
+##extract profiles only from certain months
 def extractProfilesMonths(fnames,months):
     ##Load JSON data into profile objects
     ##and return index of deepest one
@@ -113,6 +116,7 @@ def extractProfilesMonths(fnames,months):
                         deepestdepth=data[p]["pres"][-1]
     return profiles, deepestindex
 
+## extract profiles within a certain box
 def extractProfilesBox(fnames,lonleft,lonright,latbot,lattop):
     ##Load JSON data into profile objects
     ##and return index of deepest one
@@ -133,6 +137,8 @@ def extractProfilesBox(fnames,lonleft,lonright,latbot,lattop):
                             deepestdepth=data[p]["pres"][-1]
     return profiles, deepestindex
 
+#I don't like the norwegian sea and neither should you !!!
+## this removes profiles that lie within it
 def removeNorwegianSea(profiles):
     finalprofiles = []
     deepestindex = -1
@@ -146,6 +152,8 @@ def removeNorwegianSea(profiles):
                 deepestdepth = p.ipres[-1]
     return finalprofiles,deepestindex 
 
+##finds the closest profile from a list of profiles in which
+# a neutral surface has already been found
 def closestIdentifiedNS(profiles,queryprofile,depth,radius):
     minimumdistance = radius
     minprofile = None
@@ -158,6 +166,7 @@ def closestIdentifiedNS(profiles,queryprofile,depth,radius):
     #print(minprofile.neutraldepth)
     return minprofile
 
+## find profiles in a certain location
 def profileInBox(profiles,lonleft,lonright,latbot,lattop):
     results=[]
     for p in profiles:
@@ -165,10 +174,15 @@ def profileInBox(profiles,lonleft,lonright,latbot,lattop):
             results.append(p)
     return results
 
+##create an empty surface
 def emptySurface():
     return {"lats":[],"lons":[],"ids":[],\
         "data":{"pres":[],"t":[],"s":[],"pv":[],"n^2":[],"alpha":[],"beta":[]}}
 
+##given a seed profile, finds neutral surfaces by comparing each profile 
+## to the nearest profile with an identified neutral surface. Only quits
+## when all remaining profiles either are not close enough to a profile with a 
+## known NS or a NS is not able to be determined for them
 def peerSearch(profiles,deepestindex,depth,profilechoice,radius=500):
     surfaces = {}
     surfaces[depth]= emptySurface()
@@ -197,7 +211,7 @@ def peerSearch(profiles,deepestindex,depth,profilechoice,radius=500):
         #plotProfiles(references,"ITS SPREADING",specialprofile = profilechoice)
     return surfaces
 
-
+## runs the peer search on every neutral surface essentially
 def runPeerSearch(profiles,deepestindex,shallowlimit,deeplimit,surfacestep,profilechoice,radius):
     surfaces = {}
     for d in range(shallowlimit,deeplimit,surfacestep)[::-1]:
@@ -205,7 +219,7 @@ def runPeerSearch(profiles,deepestindex,shallowlimit,deeplimit,surfacestep,profi
         surfaces.update(peerSearch(profiles.copy(),deepestindex,d,profilechoice,1000))
     return surfaces
 
-
+## faultyway of finding neutral surfaces in the arctic
 def search(profiles,deepestindex):
     #Lets look for neutral surfaces every 200 dbar below 1000 dbar
     deeprange = range(1000,max(profiles[deepestindex].ipres),200)
@@ -225,6 +239,7 @@ def search(profiles,deepestindex):
                 surfaces[r]["data"]["pres"].append(ns)
     return surfaces
 
+##find the index of the point that lies directly above you on surface
 def findAboveIndex(surfaces,k,l):
     if k-200 in surfaces.keys() and k+200 in surfaces.keys():
         eyed = surfaces[k]["ids"][l]
@@ -237,7 +252,8 @@ def findAboveIndex(surfaces,k,l):
             return abs(above+middle)/2,abs(below+middle)/2
     return None,None
 
-
+## calculates data throughout neutral surfaces, and some that require calculation 
+## shoots that all into a new surfaces object and returns it
 def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
     tempSurfs = {}
     for k in Bar("Adding data to: ").iter(surfaces.keys()):
@@ -284,11 +300,13 @@ def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
     return tempSurfs
 
 
+##return a profile given by an id
 def getProfileById(profiles,eyed):
     for p in profiles:
         if p.eyed == eyed:
             return p
 
+##remove cruises that are not mentioned in cruisenames
 def filterCruises(profiles,cruisenames):
     finalprofiles = []
     for p in profiles:
@@ -296,6 +314,7 @@ def filterCruises(profiles,cruisenames):
             finalprofiles.append(p)
     return finalprofiles
 
+##find points within certain distance from line
 def filterSurfacesByLine(surfaces,lon,radius=20):
     print("filtering by crosssection")
     for k in surfaces.keys():
@@ -313,6 +332,7 @@ def filterSurfacesByLine(surfaces,lon,radius=20):
             surfaces[k]["ids"] = np.asarray(surfaces[k]["ids"])[distFilter]
     return surfaces
         
+##plot profile t and s
 def plotProfile(p):
     fig, (ax1,ax2) = plt.subplots(1,2)
     ax1.plot(p.itemps,p.ipres)
@@ -324,7 +344,7 @@ def plotProfile(p):
     mng.resize(*mng.window.maxsize())
     plt.show()
 
-
+#add x and y to surfaces. x and y necesarry for interpolation
 def addXYToSurfaces(surfaces,debug=True):
     if debug:
         print("converting surfaces to xyz")
@@ -335,9 +355,8 @@ def addXYToSurfaces(surfaces,debug=True):
         surfaces[k]["y"]=y
     return surfaces
 
-def deduplicateXYZ(x,y,z):
-    return zip(*set(list(zip(x,y,z))))
-
+##sometimes points are too close together and the interpolation
+## loses it so we just smooth em
 def removeDiscontinuities(surface,radius=10,debug=True):
     x=np.asarray(surface["x"])
     y=np.asarray(surface["y"])
@@ -372,7 +391,10 @@ def removeDiscontinuities(surface,radius=10,debug=True):
             surface[k] = np.asarray(surface[k])[final]
     return surface
 
-
+#create a mesh for interpolation
+## here I put in my favorite x and y coordinates for the arctic
+## they should be hardcoded because you want the grid points to 
+## align vertically throughout the water column
 def createMesh(n,xvals,yvals,custom=False):
     if custom:
         return np.meshgrid(np.linspace(np.min(xvals),np.max(xvals),n), np.linspace(np.min(yvals),np.max(yvals),n),indexing="xy")
@@ -383,7 +405,8 @@ def createMesh(n,xvals,yvals,custom=False):
         ymax=1200385
         return np.meshgrid(np.linspace(xmin,xmax,n), np.linspace(ymin,ymax,n),indexing="xy")
 
-
+#generate a mesh and remove points in that mesh 
+#which are too far away from locations with observations
 def generateMaskedMesh(x,y,radius=200):
     xi,yi = createMesh(30,x,y)
     final = np.zeros(xi.shape)
@@ -429,20 +452,10 @@ def generateMaskedMesh(x,y,radius=200):
                     finalneighbors.append(tuple(s))
     return np.asarray(finalxi),np.asarray(finalyi),finalneighbors,finalids
 
-def removeOutlierSurfaces(surfaces,stdevs=2):
-    for k in surfaces.keys():
-        m = np.median(surfaces[k]["data"]["pres"])
-        s = np.std(surfaces[k]["data"]["pres"])
-        filt = np.where(np.abs(surfaces[k]["data"]["pres"]-m)<s*stdevs)
-        for field in surfaces[k].keys():
-            if field=="data":
-                for datafield in surfaces[k][field].keys():
-                    surfaces[k][field][datafield]=surfaces[k][field][datafield][filt]
-                surfaces[k][field]=surfaces[k][field][filt]
-            else:
-                surfaces[k][field]=surfaces[k][field][filt]
-    return surfaces
-    
+##interpolate  a surface
+## create the mesh, use gam interpolation
+##also returns neighboring points for each points
+## and the distance between those points
 def interpolateSurface(surface,debug=True):
     #print("######")
     interpsurf={}
@@ -471,6 +484,8 @@ def interpolateSurface(surface,debug=True):
     interpsurf = addLatLonToSurface(interpsurf)
     return interpsurf,neighbors
 
+## interpolate all the surfaces vertically and store
+## neighbors, and distances as well
 def interpolateSurfaces(surfaces,debug=True):
     interpolatedsurfaces = {}
     neighbors={}
@@ -481,8 +496,17 @@ def interpolateSurfaces(surfaces,debug=True):
             interpolatedsurfaces[k],neighbors[k] = interpolateSurface(surfaces[k])
             lookups[k] = trueDistanceLookup(interpolatedsurfaces[k],neighbors[k])
     return interpolatedsurfaces,neighbors,lookups
-#
 
+##lat lon to x y
+def singleXY(coord):
+    theta = np.deg2rad(coord[0])
+    r = ((90-coord[1]) *111*1000)
+    x = (r*np.cos(theta))
+    y = (r*np.sin(theta))
+    return x,y
+
+
+#lat lon to x y for a bunch of lat lons
 def homemadeXY(lon,lat):
     x=[]
     y=[]
@@ -493,6 +517,8 @@ def homemadeXY(lon,lat):
         y.append(r*np.sin(theta))
     return np.asarray(x),np.asarray(y)
 
+#after interpolation everything is in x and y so we need to convert back 
+# to latitude and longitude
 def addLatLonToSurface(surface,debug = True):
     lat = 90-(np.sqrt((surface["x"]**2+surface["y"]**2))/111000.0)
     lon = np.degrees(np.arctan2(surface["y"],surface["x"]))
@@ -501,20 +527,7 @@ def addLatLonToSurface(surface,debug = True):
     surface["lats"]=lat
     return surface
      
-        
-def findNeighboringPoints(profiles,lat,lon,radius=30):
-    lats =[]
-    lons = []
-    eyeds= []
-    for p in profiles:
-        if geodesic((p.lat,p.lon),(lat,lon)).km<radius:
-            lats.append(p.lat)
-            lons.append(p.lon)
-            eyeds.append(p.eyed)
-    plt.scatter(lons,lats)
-    plt.show()
-
-
+#just prints out the percentages of each quantity that are nan along a surface 
 def surfaceDiagnostic(surfaces):
     diagnostics ={}
     t = PrettyTable(['Property', 'nan%'])
@@ -530,6 +543,7 @@ def surfaceDiagnostic(surfaces):
     print(t)
 
 
+##create a nan copy of a surface
 def nanCopySurfaces(surfaces):
     nancopy = {}
     for k in surfaces.keys():
@@ -564,13 +578,21 @@ def fillOutEmptyFields(surfaces):
                 surfaces[k]["data"][d] = np.full(len(surfaces[k]["lons"]),np.nan)
     return surfaces
 
-
+#perform a vertical gradient of a quantity of a surface
+#WITH RESPECT TO PRESSURE NOT Z
+# out is a surface you are adding to 
+#data is a surface with data
+#depths is a dictionary of indexs to depths
+## above center and below are the indexs of a point at three different levels
+## attr is the quantity being derived, outattr is where you should store the result
 def vertGrad(out,data,depths,k,above,center,below,attr,outattr,factor=1):
     dattr = data[depths[k+1]]["data"][attr][below]-data[depths[k-1]]["data"][attr][above]
     dz = data[depths[k+1]]["data"]["pres"][below]-data[depths[k-1]]["data"]["pres"][above]
     out[depths[k]]["data"][outattr][center] = factor * dattr/dz
     return out
 
+##calculate the height of each neutral surface by the difference in pressures
+## of each neutral surface
 def addHeight(surfaces):    
     minimum = int(np.min(list(surfaces.keys())))
     maximum = int(np.max(list(surfaces.keys())))
@@ -590,6 +612,7 @@ def addHeight(surfaces):
                 surfaces[depths[j]]["data"]["dbetadp"][found] = (surfaces[depths[j-1]]["data"]["beta"][foundabove] - surfaces[depths[j+1]]["data"]["beta"][foundbelow])/((tophalf + bothalf)*2)
     return surfaces
 
+#one of the mixing terms is an absolute dooozzzzzy and this calculates that
 def calculateKHP(staggered,k,index):
     dalphadtheta = staggered[k]["data"]["dalphadtheta"][index]
     dalphadp = staggered[k]["data"]["dalphadp"][index]
@@ -605,7 +628,8 @@ def calculateKHP(staggered,k,index):
     cdotp = staggered[k]["data"]["dtdx"][index]*staggered[k]["data"]["dpdx"][index]+staggered[k]["data"]["dtdy"][index]*staggered[k]["data"]["dpdy"][index]
     return alphat*magct+alphap*cdotp
 
-
+#calculates and stores all the necessary vertical gradients
+#then proceeds to calculate all the double vertical gradients
 def addVerticalGrad(surfaces): 
     minimum = int(np.min(list(surfaces.keys())))
     maximum = int(np.max(list(surfaces.keys())))
@@ -636,6 +660,9 @@ def addVerticalGrad(surfaces):
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"khp","khpdz",factor=-1)
     return surfaces
 
+## when we stagger our grid in order to have our gradients 
+## "be in the right places" if you will we need to average
+## the other quantities like position and t,s,v,h, and pres
 def averageOverNeighbors(staggered,surfaces,k,s):
     staggered[k]["lons"][s[0]] = np.mean(np.abs(surfaces[k]["lons"][s]))*np.sign(surfaces[k]["lons"][s[0]])
     staggered[k]["lats"][s[0]] = np.mean(surfaces[k]["lats"][s])
@@ -648,6 +675,7 @@ def averageOverNeighbors(staggered,surfaces,k,s):
             staggered[k]["data"][d][s[0]] = surfaces[k]["data"][d][s[0]]
     return staggered
 
+##terrible name but add the bathymetric variability coeffient of KVB
 def addK(surfaces,cachename=None):
     for k in Bar("adding CKVB: ").iter(surfaces.keys()):
         surfaces[k]["data"]["CKVB"] = np.full(len(surfaces[k]["lons"]),np.nan)
@@ -661,7 +689,7 @@ def addK(surfaces,cachename=None):
                 surfaces[k]["data"]["CKVB"][i] = ptools.Kv(lat,lon,pv,pres,cachename)
     return surfaces
             
-    
+#add all the horizontal gradients, and then the double gradients 
 def addHorizontalGrad(surfaces,neighbors,distances,debug=False):
     alldxs = []
     staggered = nanCopySurfaces(surfaces)
@@ -679,6 +707,7 @@ def addHorizontalGrad(surfaces,neighbors,distances,debug=False):
 
     return staggered
 
+##calculate gradient based on neighboring points
 def spatialGrad(surfaces,k,distances,s,attr,factorx=1,factory=1):
     dx = []
     dy = []
@@ -690,6 +719,7 @@ def spatialGrad(surfaces,k,distances,s,attr,factorx=1,factory=1):
     dy = np.mean(dy)*factory
     return dx,dy
 
+##double derivative of conservative temperature with respect to salinity
 def d2thetads2(surfaces,k,s):
     temps = surfaces[k]["data"]["t"][s[0:3]]
     salts = surfaces[k]["data"]["s"][s[0:3]]
@@ -700,12 +730,15 @@ def d2thetads2(surfaces,k,s):
     d2 = (temps[2] - temps[1])/(salts[2] - salts[1])
     return (d2-d1)/(salts[2] - salts[0])
 
+## set the horizontal gradient 
 def setSpatialGrad(out,data,k,s,distances,attr,attrx,attry,factorx=1,factory=1,mode="modify"):
     dx,dy = spatialGrad(data,k,distances,s,attr)
     out[k]["data"][attrx][s[0]] = np.mean(dx)*factorx
     out[k]["data"][attry][s[0]] = np.mean(dy)*factory
     return out
 
+#get the graient of two attributes among neighbors
+## so like dt/ds
 def attrGrad(out,data,k,s,attry,attrx,outattr):
     xs = data[k]["data"][attrx][s]
     ys = data[k]["data"][attry][s]
@@ -718,6 +751,7 @@ def attrGrad(out,data,k,s,attry,attrx,outattr):
     out[k]["data"][outattr][s[0]] = np.mean(grad)
     return out
 
+##add all non-vertical gradients
 def addGradients(staggered,surfaces,k,s,distances):
     #NS thickness slope
     staggered = setSpatialGrad(staggered,surfaces,k,s,distances,"h","hx","hy")
@@ -735,6 +769,7 @@ def addGradients(staggered,surfaces,k,s,distances):
 
     return staggered
 
+##add all non-vertical double gradients
 def addDoubleGradients(staggered,k,s,distances):
     #NS thickness slope
     d2sdx2,bop = spatialGrad(staggered,k,distances,s,"dsdx")
@@ -751,7 +786,7 @@ def addDoubleGradients(staggered,k,s,distances):
 
     return staggered
 
-
+#what is the true distance between neighbors
 def trueDistanceLookup(surface,neighbors):
     lookup = {}
     for square in Bar("distance calc: ").iter(neighbors):
@@ -761,6 +796,15 @@ def trueDistanceLookup(surface,neighbors):
                 lookup[p] = geodesic((surface["lats"][p[0]],surface["lons"][p[0]]),(surface["lats"][p[1]],surface["lons"][p[1]])).m
     return lookup
 
+## this thing is a little bit wild
+## so in the matlab version of gsw they have a function that 
+## gives the geostrophic stream function on neutral surfaces
+## this does not exist in the python/c version of the gsw.
+## so I created a port of it to python, annoying part is
+## it requires some other functions also not in the python/c gsw
+## but luckily they are in the python only gsw
+## so I stole those functions and made a frankenstein that is like
+## 100000 times faster than the matlab geostrophic function thing ;)
 def addStreamFunc(surfaces,profiles):
     ##re organize surfaces so instead of keys of surface levels
     ##keys of id. Essentially assemble list of ids and pressures where neutral
@@ -836,6 +880,7 @@ def addStreamFunc(surfaces,profiles):
     #print(results)
     return surfaces
 
+##given fields of psi adds velocity fields by taking the spatial derivative
 def streamFuncToUV(surfaces,neighbors,distances):
     for k in Bar('Adding uv: ').iter(neighbors.keys()):
         for s in neighbors[k]:
@@ -846,6 +891,8 @@ def streamFuncToUV(surfaces,neighbors,distances):
                 surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psisol","vsol","usol",(-1/gsw.f(surfaces[k]["lats"][s[0]])),(1/gsw.f(surfaces[k]["lats"][s[0]])))
     return surfaces
 
+##this is spicy. it takes a couple mat files and works out the stream function
+## on neutral surfaces from it. Just to check the frankenstein
 def addStreamFuncFromFile(surfaces,profiles,isopycnalfile,referencefile):
     psi = np.asarray(sio.loadmat(isopycnalfile)["geoisopycnal"]).transpose()
     ids = np.asarray(sio.loadmat(referencefile)["ks"])

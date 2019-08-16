@@ -3,6 +3,7 @@ import scipy
 import copy
 import parametertools as ptools
 
+##calculate inverse from composite SVD matrixes
 def SVDCalc(VT,D,U,n_elements=False):
     if n_elements:
         D = D[:, :n_elements]
@@ -11,6 +12,8 @@ def SVDCalc(VT,D,U,n_elements=False):
     B = VT.T.dot(D.T).dot(U.T)
     return B
 
+## generate psuedo inverse
+## if full True return composite matrixes
 def SVDdecomp(A,n_elements=2,full=True):
     U, s, VT = svd(A,full_matrices=True)
     # reciprocals of s
@@ -26,6 +29,7 @@ def SVDdecomp(A,n_elements=2,full=True):
     else:
         return B
 
+#experimental function to try to minize singular vlaues
 def optimizeA(B,m):
     #justkvb
     bestscale = -100000
@@ -56,6 +60,8 @@ def optimizeA(B,m):
     plt.show()
     return bestscale
 
+#normalize columns by a certain scale
+##normalize every row to unit length
 def scaleNormSVD(A,m,scale):
     diags = [1]*m + [scale]*m
     scalematrix = np.diag(diags)
@@ -97,7 +103,8 @@ def gradAttack(A,m):
         
         
 
-
+## file that generates the mixing terms of the Fq and Fs
+## given a surfaces object, a depth and an index
 def kterms(surfaces,k,found,debug=False):
     f = gsw.f(surfaces[k]["lats"][found])
     x = surfaces[k]["x"][found]
@@ -170,7 +177,7 @@ def kterms(surfaces,k,found,debug=False):
 
 
  
-
+#simple pointwise inverse only conserves pv
 def simpleInvert(surfaces,reflevel=1000,debug=False):
     outsurfaces = copy.deepcopy(surfaces)
     for k in surfaces.keys():
@@ -257,7 +264,7 @@ def calcBeta(lat):
     omega =  (7.2921 * 10**-5)
     a = 6.357 * (10**6)
     return (2*omega*np.cos(lat))/a
-
+#simpe pointwise inverse conserves pv and salt
 def simplesaltInvert(surfaces,reflevel=1000,debug=False):
     outsurfaces = copy.deepcopy(surfaces)
     for k in surfaces.keys():
@@ -335,6 +342,7 @@ def simplesaltInvert(surfaces,reflevel=1000,debug=False):
                 outsurfaces[ns[i][0]]["data"]["v"][ns[i][1]] = surfaces[ns[i][0]]["data"]["v"][ns[i][1]]-vref
     return outsurfaces
 
+#graph the error vector C before and after solution applied
 def graphError(b,us,prime):
     b = np.asarray(b)
     us = np.asarray(us)
@@ -350,9 +358,12 @@ def graphError(b,us,prime):
     plt.scatter(range(len(delta[delta>=0])),delta[delta>=0],c="blue")
     plt.show()
 
+##normalize a vector
 def norm(v):
     return v/np.linalg.norm(v)
 
+##performs a pointwise ivnerse that conserves pv and salt
+## and also includes Fs mixing terms
 def complexSaltInvert(surfaces,reflevel=1000,debug=False):
     outsurfaces = copy.deepcopy(surfaces)
     for k in surfaces.keys():
@@ -468,7 +479,8 @@ def complexSaltInvert(surfaces,reflevel=1000,debug=False):
                 outsurfaces[ns[i][0]]["data"]["v"][ns[i][1]] = surfaces[ns[i][0]]["data"]["v"][ns[i][1]]-vref
     return outsurfaces
 
-
+##performs a pointwise ivnerse that conserves pv and salt
+## and also includes Fs and Fq mixing terms
 def complexInvert(surfaces,reflevel=1000,debug=False):
     outsurfaces = copy.deepcopy(surfaces)
     for k in surfaces.keys():
@@ -547,7 +559,8 @@ def complexInvert(surfaces,reflevel=1000,debug=False):
     print(np.mean(stats[0]),np.mean(stats[1]),np.mean(stats[2]))
     return outsurfaces
 
-
+#get the column number of a parameter
+#generates new number if necessary
 def getColumnNumber(eyedict,eyed):
     #assign each eyed a column number 
     if "max" not in eyedict.keys():
@@ -557,6 +570,7 @@ def getColumnNumber(eyedict,eyed):
         eyedict["max"] = eyedict["max"]+1
     return eyedict,eyedict[eyed]
 
+#gets column numbers of point and neighbors
 def neighborsColumnNumbers(surfaces,k,s,eyedict):
     ## return the column number of each neighbor
     columnnumbers = []
@@ -565,6 +579,7 @@ def neighborsColumnNumbers(surfaces,k,s,eyedict):
         columnnumbers.append(col)
     return eyedict,columnnumbers
 
+#subtract reference level from psi and velocities
 def applyRefLevel(surfaces,reflevel=1000):
     for k in Bar("subtracting ref level: ").iter(surfaces.keys()):
         surfaces[k]["data"]["psiref"] = np.full(len(surfaces[k]["data"]["psi"]),np.nan)
@@ -578,6 +593,7 @@ def applyRefLevel(surfaces,reflevel=1000):
                 surfaces[k]["data"]["vref"][l] = (surfaces[k]["data"]["v"][l]-surfaces[reflevel]["data"]["v"][found[0][0]])
     return surfaces
 
+## apply the solution to surfaces
 def applyPrime(staggeredsurfaces,prime,coldict,mixing=False):
     for k in Bar("adding solutions: ").iter(staggeredsurfaces.keys()):
         staggeredsurfaces[k]["data"]["psinew"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
@@ -600,7 +616,7 @@ def applyPrime(staggeredsurfaces,prime,coldict,mixing=False):
                 #staggeredsurfaces[k]["data"]["psinew"][i] =  prime[coldict[eyed]]
     return staggeredsurfaces
 
-
+## return list of ids of points that are constrained by a given number of equations
 def generateWhiteList(surfaces,neighbors,lowlevel,highlevel):
     idCount = {}
     for k in neighbors.keys():
@@ -617,6 +633,8 @@ def generateWhiteList(surfaces,neighbors,lowlevel,highlevel):
             whitelist.append(d)
     return whitelist
 
+## construct row of inverse that conserves PV, threepoint determines whether a 
+## threepoint or four point grid setup will be used
 def constructBetaRow(surfaces,k,distances,s,columnindexs,threepoint=True,Arscale=1):
     Apsirow = [0]*(max(columnindexs)+1)
     values = [0]*4
@@ -676,6 +694,7 @@ def constructBetaRow(surfaces,k,distances,s,columnindexs,threepoint=True,Arscale
     crow = (-u)*(dqnotdx-x*beta*pv/(f*r))+(-v)*(dqnotdy-y*beta*pv/(f*r))
     return Apsirow,values, crow/Arscale
 
+## construct row of inverse that conserves salt
 def constructSalRow(surfaces,k,distances,s,columnindexs,threepoint=True,Arscale=1):
     Apsirow = [0]*(max(columnindexs)+1)
     values = [0]*4
@@ -727,7 +746,7 @@ def constructSalRow(surfaces,k,distances,s,columnindexs,threepoint=True,Arscale=
 
     return Apsirow,values,crow
 
-
+## coupled inverse that conserves pv and salt but has no mixing
 def coupledInvertNoMixing(surfaces,reflevel,neighbors,distances,debug=False,single=False):
     outsurfaces = copy.deepcopy(surfaces)
     Apsi=[]
@@ -812,7 +831,7 @@ def coupledInvertNoMixing(surfaces,reflevel,neighbors,distances,debug=False,sing
     surfaces = applyPrime(surfaces,prime,columndictionary)
     return surfaces, columndictionary, [VT,D,U],A
 
-
+#full coupled inverse with mixing terms
 def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False,normalize=False,threepoint=True):
     outsurfaces = copy.deepcopy(surfaces)
     Apsi=[]
@@ -950,7 +969,7 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
     return surfaces, columndictionary, [VT,D,U],A
 
 
-
+#the number of values per row
 def rowCount(A):
     number = []
     for i in range(A.shape[0]):
@@ -958,7 +977,7 @@ def rowCount(A):
     print("in each row: ",np.unique(number))
 
 
-
+## essentially calculates singular values and matrix conditions
 def rdivc(D):
     d = D.diagonal()
     d = 1.0/d
@@ -969,7 +988,7 @@ def rdivc(D):
     plt.scatter(range(len(d[:])),(d[0]/d[:]))
     plt.show()
 
-
+## export all necessary information about inverse as a mat file
 def exportMat(surfaces,columndict,svds,A):
     outmat={"dqnotdx":[],"dqnotdy":[],"dsdx":[],\
         "dsdy":[],"pv":[],"VT":None,"D":None,"U":None,\
@@ -1042,6 +1061,7 @@ def concat(argv):
         out.append(row)
     return np.asarray(out)
 
+## square off all of the matrixes and combine them
 def combineAs(maxlengths,*argv):
     new = []
     for i in range(len(argv)):
@@ -1053,6 +1073,7 @@ def combineAs(maxlengths,*argv):
         new.append(x)
     return concat(new)
 
+#graph solution of mixing terms
 def graphKs(prime,m):
     kvb = prime[m:2*m]
     kvh = prime[2*m:2*m+8]
@@ -1065,7 +1086,7 @@ def graphKs(prime,m):
     plt.show()
     print(kvo)
 
-     
+#routing command to perform inverse 
 def invert(kind,surfaces,neighbors=None,distances=None,reflevel=1000,debug=False):
     if kind == "simple":
         return simpleInvert(surfaces,reflevel,debug)

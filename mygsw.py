@@ -1,7 +1,12 @@
 import os
 import numpy as np
 
+"""""""""""""
+These functions are all from the deprecated all python version
+of gibbs sea water. They are included here for the sole purpose of being 
+able to recreate the geostrophic streamfunction along isopycnals function
 
+"""""""""""""
 
 def interp_S_T(S, T, z, znew, P=None):
     """

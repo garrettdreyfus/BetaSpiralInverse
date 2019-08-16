@@ -2,6 +2,8 @@ from netCDF4 import Dataset
 import numpy as np
 from functools import partial
 
+
+#Return depth at certain lat lon
 def searchBath(bathDataset,lat,lon):
     spacing = bathDataset.variables["spacing"][0]
     startlon = bathDataset.variables["x_range"][0]
@@ -14,6 +16,8 @@ def searchBath(bathDataset,lat,lon):
     else:
         return float(z[j+i*ret])
 
+## return the depths within a box
+##this has a lot of finagling to deal with the wrap around
 def bathBox(bathDataset,lat,lon,length=28):
     dlat = length/111.0
     dlon = length/(np.cos(np.deg2rad(lat))*111.0)
@@ -59,6 +63,7 @@ def bathBox(bathDataset,lat,lon,length=28):
                 depths.append(float(z[j+i*ret]))
     return depths
 
+## given a surfaces object add depth information to each point
 def addBathToSurface(surfaces):
     dumbcache = {}
     for k in surfaces.keys():
@@ -73,7 +78,7 @@ def addBathToSurface(surfaces):
             
 
 
-
+#simplify functions so that they already have the bathymetry file loaded
 d = Dataset("data/ver1_netcdf_geo.nc")
 searchBath =partial(searchBath,d)
 bathBox =partial(bathBox,d)
