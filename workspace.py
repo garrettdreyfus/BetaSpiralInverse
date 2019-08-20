@@ -18,52 +18,53 @@ import parametertools as ptools
 from pprint import pprint
 import pdb
     
-profiles,deepestindex = nstools.extractProfilesBox(["data/1500mprofiles.json"],-180,180,65,90)
-profiles,deepestindex = nstools.removeNorwegianSea(profiles)
+#profiles,deepestindex = nstools.extractProfilesBox(["data/1500mprofiles.json"],-180,180,65,90)
+#profiles,deepestindex = nstools.removeNorwegianSea(profiles)
 
-fileObject = open("data/1500NoNorwegian.pickle",'rb')  
-offsets,badfiles,beepestindex = pickle.load(fileObject)
+#fileObject = open("data/1500NoNorwegian.pickle",'rb')  
+#offsets,badfiles,beepestindex = pickle.load(fileObject)
 
-profiles = nstools.filterCruises(profiles,offsets.keys())
-profiles = saloffset.applyOffsets(profiles,offsets)
+#profiles = nstools.filterCruises(profiles,offsets.keys())
+#profiles = saloffset.applyOffsets(profiles,offsets)
 
-#####profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
-#####profilechoice = nstools.getProfileById(profiles,"286364")
+######profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
+######profilechoice = nstools.getProfileById(profiles,"286364")
 
-#####surfaces = nstools.runPeerSearch(profiles,deepestindex,200,4000,200,profilechoice,1000)
-#####fileObject = open(str(profilechoice.eyed)+"new.pickle",'wb')  
-###### load the object from the file into var b
-#####b = pickle.dump(surfaces,fileObject)  
-#####fileObject.close()
+######surfaces = nstools.runPeerSearch(profiles,deepestindex,200,4000,200,profilechoice,1000)
+######fileObject = open(str(profilechoice.eyed)+"new.pickle",'wb')  
+####### load the object from the file into var b
+######b = pickle.dump(surfaces,fileObject)  
+######fileObject.close()
 
-with open('data/286364new.pickle', 'rb') as outfile:
-    surfaces=pickle.load(outfile)
+#with open('data/286364new.pickle', 'rb') as outfile:
+    #surfaces=pickle.load(outfile)
 
-surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
-surfaces = nstools.addStreamFunc(surfaces,profiles)
+#surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
+#surfaces = nstools.addStreamFunc(surfaces,profiles)
 
-surfaces =interptools.addXYToSurfaces(surfaces)
-interpolatedsurfaces,neighbors,lookups = interptools.interpolateSurfaces(surfaces)
-staggeredsurfaces = nstools.fillOutEmptyFields(interpolatedsurfaces)
-staggeredsurfaces = nstools.addHeight(staggeredsurfaces)
+#surfaces =interptools.addXYToSurfaces(surfaces)
+#interpolatedsurfaces,neighbors,lookups = interptools.interpolateSurfaces(surfaces)
+#staggeredsurfaces = nstools.fillOutEmptyFields(interpolatedsurfaces)
+#staggeredsurfaces = nstools.addHeight(staggeredsurfaces)
 
-staggeredsurfaces = nstools.addHorizontalGrad(staggeredsurfaces,neighbors,lookups)
-staggeredsurfaces = nstools.addVerticalGrad(staggeredsurfaces)
-ptools.saveBathVarTermCache(staggeredsurfaces,"data/bathVar.pickle")
-staggeredsurfaces = nstools.addK(staggeredsurfaces,"data/bathVar.pickle")
+#staggeredsurfaces = nstools.addHorizontalGrad(staggeredsurfaces,neighbors,lookups)
+#staggeredsurfaces = nstools.addVerticalGrad(staggeredsurfaces)
+#ptools.saveBathVarTermCache(staggeredsurfaces,"data/bathVar.pickle")
+#staggeredsurfaces = nstools.addK(staggeredsurfaces,"data/bathVar.pickle")
 
 with open('data/ready4inverse.pickle', 'rb') as outfile:
     [staggeredsurfaces,neighbors,lookups]=pickle.load(outfile)
 
-##nstools.surfaceDiagnostic(staggeredsurfaces)
-#with open('data/ready4inverse.pickle', 'wb') as outfile:
-    #pickle.dump([staggeredsurfaces,neighbors,lookups], outfile)
+###nstools.surfaceDiagnostic(staggeredsurfaces)
+##with open('data/ready4inverse.pickle', 'wb') as outfile:
+    ##pickle.dump([staggeredsurfaces,neighbors,lookups], outfile)
 
-coupleinvert,columndictionary,svds,A = inverttools.invert("couplednomix",staggeredsurfaces,neighbors,lookups)
+coupleinvert,columndictionary,svds,A = inverttools.invert("coupled",staggeredsurfaces,neighbors,lookups)
 
 coupleinvert = nstools.streamFuncToUV(coupleinvert,neighbors,lookups)
 coupleinvert = bathtools.addBathToSurface(coupleinvert)
 
+graph.graphVectorField(coupleinvert,"uabs","vabs","z")
 #with open('data/couplednomix.pickle', 'wb') as outfile:
     #pickle.dump(coupleinvert, outfile)
 
@@ -86,7 +87,8 @@ coupleinvert = bathtools.addBathToSurface(coupleinvert)
 #graph.transportLine(coupleinvert,(143.03,79.89),(-47.91,84.04),2000)
 
 ##Fram strait
-graph.transportLine(coupleinvert,(-24.71,83.60),(27.496,80.06),2400)
+graph.transportLine(coupleinvert,(-24.71,83.60),(27.496,80.06),2400,False)
+graph.transportLine(coupleinvert,(-24.71,83.60),(27.496,80.06),2400,True)
 graph.quantityLine(coupleinvert,(-24.71,83.60),(27.496,80.06),"h",2600)
 
 ##Barents
@@ -100,7 +102,6 @@ graph.quantityLine(coupleinvert,(-24.71,83.60),(27.496,80.06),"h",2600)
 
 #graph.framStraitTransport(coupleinvert)
 
-#graph.graphVectorField(coupleinvert,"uabs","vabs","z")
 #graph.graphVectorField(coupleinvert,"uabs","vabs","pv")
 ##graph.graphVectorField(coupleinvert,"uabs","vabs","z",show=False,savepath="refpics/nomixing/3pointbath/")
 ##graph.graphVectorField(coupleinvert,"uabs","vabs","pv",show=False,savepath="refpics/nomixing/3pointpv/")

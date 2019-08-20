@@ -57,16 +57,6 @@ nstools.surfaceDiagnostic(staggeredsurfaces)
 
 #graph.graphSurfaces(staggeredsurfaces,"psi")
 staggeredsurfaces = inverttools.invert("simple",staggeredsurfaces)
-##$$$$$$$$$$$$$$$44
-#staggeredsurfaces = inverttools.invert("complexsalt",staggeredsurfaces,debug=False)
-##$$$$$$$$$$$$$$$44
-
-#with open('data/svdinverted.pickle', 'wb') as outfile:
-    #pickle.dump(staggeredsurfaces, outfile)
-
-#with open('data/svdinverted.pickle', 'rb') as outfile:
-    #staggeredsurfaces=pickle.load(outfile)
-
 #graph.graphSurfaces(staggeredsurfaces,"u",show=False,savepath = "refpics/ref1000/")
 #graph.graphSurfaces(staggeredsurfaces,"v",show=False,savepath = "refpics/ref1000/")
 #graph.graphSurfaces(staggeredsurfaces,"uabs",show=False,savepath = "refpics/ref1000/")

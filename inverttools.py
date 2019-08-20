@@ -149,9 +149,9 @@ def kterms(surfaces,k,found,debug=False):
               dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
               dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
               beta,d2qdx2,d2qdy2,khpdz]
-    kvoscale = 1#10**8#5*(10**-6)
-    kvbscale = 1#10**8#5*(10**-5)
-    khscale  = 1#500
+    kvoscale = 10**8#5*(10**-6)
+    kvbscale = 10**7#5*(10**-5)
+    khscale  = 10**4#500
     #ptools.kChecker(surfaces,k,found)
     if (np.isnan(isitnan).any()):
         if debug:
@@ -848,31 +848,31 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
     whitelist = generateWhiteList(surfaces,neighbors,3600,1000)
     for k in Bar("adding to matrix: ").iter(neighbors.keys()):
         distances = alldistances[k]
-        print("distance mean: ",np.mean(list(distances.values())))
-        print("distance std: ",np.std(list(distances.values())))
-        #for s in Bar('coupled invert: ').iter(neighbors[k]):
         for s in neighbors[k]:
             if not selects:
                 selects = surfaces[k]["ids"][s[0]]
             s=np.asarray(s)
             kpv,ks = kterms(surfaces,k,s[0])
-            #ptools.kChecker(surfaces,k,s[0])
+            ptools.kChecker(surfaces,k,s[0])
             u = surfaces[k]["data"]["uref"][s[0]] 
             v = surfaces[k]["data"]["vref"][s[0]] 
-            if (not np.isnan(u) and not np.isnan(v)) and kpv.any() and ks.any() and 3600>k>=1000 and (not single or selects == surfaces[k]["ids"][s[0]] ) and surfaces[k]["ids"][s[0]] in whitelist :
+            if (not np.isnan(u) and not np.isnan(v)) and kpv.any() and ks.any() and 3200>k>=1000 and (not single or selects == surfaces[k]["ids"][s[0]] ) and surfaces[k]["ids"][s[0]] in whitelist :
                 ##find/store column indexs for each neighbor
-                columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s[:3],columndictionary)
+                if threepoint:
+                    columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s[:3],columndictionary)
+                else:
+                    columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s,columndictionary)
                 ##this is a shorthad way of converting the NS to an index
                 #######PVROW
                 betarow,betavals, crow = constructBetaRow(surfaces,k,distances,s,columnindexs,threepoint)
                 betavals = np.asarray(betavals)
-                l = np.concatenate((betavals[np.nonzero(betavals)],kpv))
-                plt.bar(range(len(l)),np.abs(l))
-                plt.yscale("log")
-                plt.title("beta")
-                plt.show()
+                l = np.concatenate((betavals,kpv))
+                #plt.bar(range(len(l)),np.abs(l))
+                #plt.yscale("log")
+                #plt.title("beta")
+                #plt.show()
 
-                n = np.linalg.norm(np.concatenate((np.asarray(betavals),kpv[[True,False,False]])))
+                n = np.linalg.norm(np.concatenate((np.asarray(betavals),kpv[[True,False,True]])))
                 #n = np.linalg.norm(betavals)
                 Apsi.append(np.asarray(betarow)/n)
 
@@ -897,11 +897,11 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
                 salrow, salvals, crow = constructSalRow(surfaces,k,distances,s,columnindexs,threepoint)
                 salvals = np.asarray(salvals)
                 l = np.concatenate((salvals[np.nonzero(salvals)],ks))
-                plt.bar(range(len(l)),np.abs(l))
-                plt.yscale("log")
-                plt.title("sal")
-                plt.show()
-                n = np.linalg.norm(np.concatenate((np.asarray(salvals),ks[[True,False,False]])))
+                #plt.bar(range(len(l)),np.abs(l))
+                #plt.yscale("log")
+                #plt.title("sal")
+                #plt.show()
+                n = np.linalg.norm(np.concatenate((np.asarray(salvals),ks[[True,False,True]])))
                 #n = np.linalg.norm(salvals)
                 Apsi.append(np.asarray(salrow)/n)
                 ##im a rascal and this is a shorthad way of converting the NS to an index :P
@@ -935,8 +935,10 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
     print("mean Akh: ", np.mean(np.abs(Akh[Akh!=0])))
     print("mean Akvo: ", np.mean(np.abs(Akvo[Akvo!=0])))
     #A = combineAs([m,m,18,1],Apsi,Akvb,Akh,Akvo)
-    A = combineAs([m,1],Apsi,Akvo)
-    #A = combineAs([m,18,1],Apsi,Akh,Akvo)
+    #A = combineAs([m,m,18,1],Apsi,Akh,Akvo)
+    #A = combineAs([m],Apsi)
+    A = combineAs([m,18,1],Apsi,Akh,Akvo)
+    print("m: ",m)
     print("column count: ",np.count_nonzero(A, axis=0))
     rowCount(A)
     #print("Scale: ",optimizeA(A,m))
@@ -957,11 +959,10 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
     us =  np.matrix.transpose(np.asarray(us))
     j,[VT, D, U] = SVDdecomp(A,n_elements=int(A.shape[1]))
     prime = np.matmul(j,c)
-    print(prime[-1])
     #graphError(A,np.concatenate((us,[0]*(len(us)+19))),prime)
     graphError(A,np.concatenate((us,[0]*(A.shape[1]-len(us)))),prime)
-    graphKs(prime,m)
-    print("singular values: ", 1/(np.diag(D)))
+    #graphKs(prime,m)
+    #print("singular values: ", 1/(np.diag(D)))
 
     rdivc(D)
 
@@ -982,6 +983,7 @@ def rdivc(D):
     d = D.diagonal()
     d = 1.0/d
     plt.title("Singular Values")
+    print("above 0.04: ",len(d[np.where(d>0.04)]))
     plt.scatter(range(len(d[:])),(d[:]))
     plt.show()
     plt.title("Largest Singular Values Divided by Smallest")

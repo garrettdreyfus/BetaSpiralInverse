@@ -92,10 +92,10 @@ def kChecker(surfaces,k,found,debug=False):
               dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
               dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
               beta,d2qdx2,d2qdy2,khpdz]
-    kvbscale = 1.0/(5*(10**-5)) #(1/(10**-1.09))
 #/630957)#5*(10**2)#5*(10**-5)
-    kvoscale = 1.0/(5*(10**-6))#(1/0.001)#5*(10**1)#5*(10**-6)
-    khscale = 1.0/500#1/(10**-2.4))
+    kvoscale = 10**10#(1/0.001)#5*(10**1)#5*(10**-6)
+    kvbscale = 10**9 #(1/(10**-1.09))
+    khscale = 10**6#1/(10**-2.4))
 # 10**12#500
 
     if (np.isnan(isitnan).any()):
@@ -161,7 +161,7 @@ def kChecker(surfaces,k,found,debug=False):
             labels = ["pvkv0","pvkh","pvkvb","fakebeta","skv0","skh","skvb","fakesal","pvkvo/fakebeta","skv0/fakesal"]
             fakesal = (1/2*f)*(10**-5)*(dqnotdx-x*beta*pv/(f*r))
             fakebeta = (1/2*f)*(10**-5)*dsdx
-            values = [pvkv0,pvkh,pvkvb,fakesal,skvo,skh,skvb,fakebeta,pvkv0/fakebeta,skvo/fakesal]
+            values = [pvkv0/kvoscale,pvkh/khscale,pvkvb/kvbscale,fakesal,skvo/kvoscale,skh/khscale,skvb/kvbscale,fakebeta,pvkv0/fakebeta,skvo/fakesal]
             print(np.format_float_scientific(pvkv0/fakebeta, unique=False, precision=3),np.format_float_scientific(skvo/fakesal, unique=False, precision=3))
             plt.bar(labels,np.abs(values))
             plt.yscale("log")

@@ -532,7 +532,7 @@ def quantityLine(surfaces,startcoord,endcoord,quant,silldepth,factor=1):
  
 #graph transport across a line given a surfaces object
 #coords of type ( lon,lat)
-def transportLine(surfaces,startcoord,endcoord,silldepth):
+def transportLine(surfaces,startcoord,endcoord,silldepth,uway=False):
     transports=[]
     inflows =[]
     outflows = []
@@ -549,7 +549,6 @@ def transportLine(surfaces,startcoord,endcoord,silldepth):
                 hs.append(surfaces[k]["data"]["h"][curr])
             h = np.nanmean(hs)
             for i,eyed in enumerate(ps):
-                uway=False
                 if uway:
                     curr = np.where(np.asarray(surfaces[k]["ids"]) == eyed)[0][0]
                     if i != len(ps)-1:
@@ -580,7 +579,10 @@ def transportLine(surfaces,startcoord,endcoord,silldepth):
                         coords[1].append(surfaces[k]["lats"][curr])
                         scales.append(transport)
                     
-            plt.plot(progress[:-1],surfacetransports,label = "ns: "+str(k))
+            if uway:
+                plt.plot(progress[:],surfacetransports,label = "ns: "+str(k))
+            else: 
+                plt.plot(progress[:-1],surfacetransports,label = "ns: "+str(k))
             transports.append(surfacetransports)
             surfacetransports= np.asarray(surfacetransports)
             inflows.append(np.nansum(surfacetransports[surfacetransports>0]))
