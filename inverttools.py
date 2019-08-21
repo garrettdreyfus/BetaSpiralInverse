@@ -342,6 +342,14 @@ def simplesaltInvert(surfaces,reflevel=1000,debug=False):
                 outsurfaces[ns[i][0]]["data"]["v"][ns[i][1]] = surfaces[ns[i][0]]["data"]["v"][ns[i][1]]-vref
     return outsurfaces
 
+def error(b,us,prime):
+    b = np.asarray(b)
+    us = np.asarray(us)
+    prime = np.asarray(prime)
+    errorafter = np.matmul(b,us+prime)
+    errorbefore = np.matmul(b,us)
+    return errorbefore, errorafter
+ 
 #graph the error vector C before and after solution applied
 def graphError(b,us,prime):
     b = np.asarray(b)
@@ -747,7 +755,7 @@ def constructSalRow(surfaces,k,distances,s,columnindexs,threepoint=True,Arscale=
     return Apsirow,values,crow
 
 ## coupled inverse that conserves pv and salt but has no mixing
-def coupledInvertNoMixing(surfaces,reflevel,neighbors,distances,debug=False,single=False):
+def coupledInvertNoMixing(surfaces,reflevel,neighbors,distances,debug=False,single=False,lowlevel=2000,highlevel=1000):
     outsurfaces = copy.deepcopy(surfaces)
     Apsi=[]
     Akvb=[]
@@ -770,7 +778,7 @@ def coupledInvertNoMixing(surfaces,reflevel,neighbors,distances,debug=False,sing
             kpv,ks = kterms(surfaces,k,s[0])
             u = surfaces[k]["data"]["uref"][s[0]] 
             v = surfaces[k]["data"]["vref"][s[0]] 
-            if (not np.isnan(u) and not np.isnan(v)) and 3600>k>=1000 and kpv.any() and ks.any() and (not single or selects == surfaces[k]["ids"][s[0]] ): #and surfaces[k]["ids"][s[0]] in whitelist :
+            if (not np.isnan(u) and not np.isnan(v)) and lowlevel>=k>=highlevel and kpv.any() and ks.any() and (not single or selects == surfaces[k]["ids"][s[0]] ): #and surfaces[k]["ids"][s[0]] in whitelist :
                 ##find/store column indexs for each neighbor
                 columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s[0:3],columndictionary)
                 ##this is a shorthad way of converting the NS to an index
@@ -822,17 +830,17 @@ def coupledInvertNoMixing(surfaces,reflevel,neighbors,distances,debug=False,sing
     j,[VT, D, U] = SVDdecomp(A,n_elements=A.shape[1])
 
     prime = np.matmul(j,c)
-    print("singular values: ", 1/(np.diag(D)))
-    #def graphError(b,us,prime):
-    graphError(A,us,prime)
-    #parameterErrors(A,prime,c,D)
-    rdivc(D)
+    errors = error(A,us,prime)
+    if debug:
+        print("singular values: ", 1/(np.diag(D)))
+        graphError(A,us,prime)
+        rdivc(D)
 
     surfaces = applyPrime(surfaces,prime,columndictionary)
-    return surfaces, columndictionary, [VT,D,U],A
+    return surfaces, columndictionary, [VT,D,U],A,errors
 
 #full coupled inverse with mixing terms
-def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False,normalize=False,threepoint=True):
+def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False,normalize=False,threepoint=True,lowlevel=2000,highlevel=1000):
     outsurfaces = copy.deepcopy(surfaces)
     Apsi=[]
     Akvb=[]
@@ -853,10 +861,10 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
                 selects = surfaces[k]["ids"][s[0]]
             s=np.asarray(s)
             kpv,ks = kterms(surfaces,k,s[0])
-            ptools.kChecker(surfaces,k,s[0])
+            #ptools.kChecker(surfaces,k,s[0])
             u = surfaces[k]["data"]["uref"][s[0]] 
             v = surfaces[k]["data"]["vref"][s[0]] 
-            if (not np.isnan(u) and not np.isnan(v)) and kpv.any() and ks.any() and 3200>k>=1000 and (not single or selects == surfaces[k]["ids"][s[0]] ) and surfaces[k]["ids"][s[0]] in whitelist :
+            if (not np.isnan(u) and not np.isnan(v)) and kpv.any() and ks.any() and lowlevel>=k>=highlevel and (not single or selects == surfaces[k]["ids"][s[0]] ) and surfaces[k]["ids"][s[0]] in whitelist :
                 ##find/store column indexs for each neighbor
                 if threepoint:
                     columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s[:3],columndictionary)
@@ -940,7 +948,8 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
     A = combineAs([m,18,1],Apsi,Akh,Akvo)
     print("m: ",m)
     print("column count: ",np.count_nonzero(A, axis=0))
-    rowCount(A)
+    if debug:
+        rowCount(A)
     #print("Scale: ",optimizeA(A,m))
 
         #print(np.matrix(A))
@@ -959,15 +968,18 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
     us =  np.matrix.transpose(np.asarray(us))
     j,[VT, D, U] = SVDdecomp(A,n_elements=int(A.shape[1]))
     prime = np.matmul(j,c)
+    print(np.mean(prime[:m]),np.mean(prime[m:-1]),prime[-1])
     #graphError(A,np.concatenate((us,[0]*(len(us)+19))),prime)
-    graphError(A,np.concatenate((us,[0]*(A.shape[1]-len(us)))),prime)
+    if debug:
+        graphError(A,np.concatenate((us,[0]*(A.shape[1]-len(us)))),prime)
+    errors = error(A,np.concatenate((us,[0]*(A.shape[1]-len(us)))),prime)
     #graphKs(prime,m)
     #print("singular values: ", 1/(np.diag(D)))
-
-    rdivc(D)
+    if debug:
+        rdivc(D)
 
     surfaces = applyPrime(surfaces,prime,columndictionary,mixing=True)
-    return surfaces, columndictionary, [VT,D,U],A
+    return surfaces, columndictionary, [VT,D,U],A, errors
 
 
 #the number of values per row
@@ -1089,7 +1101,7 @@ def graphKs(prime,m):
     print(kvo)
 
 #routing command to perform inverse 
-def invert(kind,surfaces,neighbors=None,distances=None,reflevel=1000,debug=False):
+def invert(kind,surfaces,neighbors=None,distances=None,reflevel=1000,debug=False,lowlevel=2000,highlevel=1000):
     if kind == "simple":
         return simpleInvert(surfaces,reflevel,debug)
     if kind == "simplesalt":
@@ -1099,9 +1111,9 @@ def invert(kind,surfaces,neighbors=None,distances=None,reflevel=1000,debug=False
     if kind == "complex":
         return complexInvert(surfaces,reflevel,debug)
     if kind == "coupled":
-        return coupledInvert(surfaces,reflevel,neighbors,distances,debug,single=False)
+        return coupledInvert(surfaces,reflevel,neighbors,distances,debug,single=False,lowlevel=lowlevel,highlevel=highlevel)
     if kind == "couplednomix":
-        return coupledInvertNoMixing(surfaces,reflevel,neighbors,distances,debug,single=False)
+        return coupledInvertNoMixing(surfaces,reflevel,neighbors,distances,debug,single=False,lowlevel=lowlevel,highlevel=highlevel)
     else:
         print("Sorry I have no clue what inversion you are talking about")
 

@@ -156,7 +156,16 @@ def kChecker(surfaces,k,found,debug=False):
             plt.yscale("log")
             plt.show()
 
-        sixpartcompare = False
+        kvbbreakdown=False
+        if kvbbreakdown:
+            labels = ["d2qdz2","dqdz","pv"]
+            print(dsdz)
+            values = [np.abs(d2qdz2),2*(1/1000)*abs(dqdz),(1/(1000**2))*pv]
+            plt.bar(labels,values)
+            plt.yscale("log")
+            plt.show()
+
+        sixpartcompare = True
         if sixpartcompare:
             labels = ["pvkv0","pvkh","pvkvb","fakebeta","skv0","skh","skvb","fakesal","pvkvo/fakebeta","skv0/fakesal"]
             fakesal = (1/2*f)*(10**-5)*(dqnotdx-x*beta*pv/(f*r))

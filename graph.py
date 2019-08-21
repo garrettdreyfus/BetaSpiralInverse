@@ -602,6 +602,37 @@ def transportLine(surfaces,startcoord,endcoord,silldepth,uway=False):
     mapy.colorbar()
     plt.show()
 
+##plot ts diagrams with neutral surfaces annotated
+def tsNeutralExplore(profiles):
+    fig,ax1 = plt.subplots()
+    ns = {}
+    for k in range(200,3900,200):
+        ns[k] = [[],[]]
+    for p in profiles[:]:
+        i = p.presIndex(200)
+        ax1.scatter(p.sals[i::10],p.temps[i::10],color="blue",s=0.2)
+        for k in p.neutraldepth.keys():
+            pres = p.neutraldepth[k]
+            t,s = p.atPres(pres)
+            ns[k][0].append(s)
+            ns[k][1].append(t)
+    flip = False
+    for k in ns.keys():
+        if flip:
+            ax1.scatter(ns[k][0],ns[k][1],s=2,color="orange")
+        else:
+            ax1.scatter(ns[k][0],ns[k][1],s=2,color="red")
+        flip = not flip
+    fig.set_size_inches(16.5,12)
+    fig.suptitle("Temperature and salinty with neutral surfaces overlayed in alternating orange and red")
+    ax1.set_xlabel("Salinity (PSU)")
+    ax1.set_ylabel("Temperature (C)")
+    plt.show()
+
+
+
+        
+
             
 
     

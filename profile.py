@@ -29,6 +29,12 @@ class Profile:
         self.itemps = []
         self.isals = []
         self.ipres = []
+        theta = np.deg2rad(self.lat)
+        r = (90-self.lon) *111*1000
+        x = (r*np.cos(theta))
+        y = (r*np.sin(theta))
+        self.x = x
+        self.y = y
         self.idensities = []
         self.neutraldepth = {}
         self.interpolate()
@@ -129,6 +135,11 @@ class Profile:
         i = np.where(np.asarray(self.ipres) == int(pres))[0][0]
         return self.itemps[i], self.isals[i]
     
+    ##returns the index at pressure
+    def presIndex(self,pres):
+        i = np.argmin(np.abs(np.asarray(self.pres) - pres))#[0][0]
+        return i
+
     ##returns t and s between two pressures
     def betweenPres(self,above,below):
         above = np.where(np.asarray(self.ipres) == int(above))[0]

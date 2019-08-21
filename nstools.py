@@ -154,12 +154,15 @@ def removeNorwegianSea(profiles):
 
 ##finds the closest profile from a list of profiles in which
 # a neutral surface has already been found
-def closestIdentifiedNS(profiles,queryprofile,depth,radius):
+def closestIdentifiedNS(profiles,queryprofile,depth,radius,speedy=False):
     minimumdistance = radius
     minprofile = None
     for p in profiles:
         if depth in p.neutraldepth.keys():
-            dist = great_circle((queryprofile.lat,queryprofile.lon),(p.lat,p.lon)).km
+            if speedy:
+                dist = np.sqrt((queryprofile.x-p.x)**2 + (queryprofile.y-p.y)**2)/10000
+            else:
+                dist = great_circle((queryprofile.lat,queryprofile.lon),(p.lat,p.lon)).km
             if dist<minimumdistance:
                 minimumdistance = dist
                 minprofile = p
@@ -720,4 +723,5 @@ def addStreamFuncFromFile(surfaces,profiles,isopycnalfile,referencefile):
             else:
                 surfaces[k]["data"]["psi"].append(np.nan)
     return surfaces
+
 
