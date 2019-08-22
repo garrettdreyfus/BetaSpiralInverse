@@ -677,140 +677,52 @@ def constructSalRow(surfaces,k,distances,s,columnindexs,threepoint=True,Arscale=
 
     return Apsirow,values,crow
 
-## coupled inverse that conserves pv and salt but has no mixing
-def coupledInvertNoMixing(surfaces,reflevel,neighbors,distances,debug=False,single=False,lowlevel=2000,highlevel=1000):
-    outsurfaces = copy.deepcopy(surfaces)
-    Apsi=[]
-    Akvb=[]
-    Akh=[]
-    Akvo=[]
-    c=[]
-    us = [0]*100000
-    ##dictionary of ids to column numbers
-    columndictionary = {"max":-1}
-    surfaces = applyRefLevel(surfaces,reflevel)
-    alldistances = distances 
-    selects = False    
-    for k in Bar("adding to matrix: ").iter(neighbors.keys()):
-        distances = alldistances[k]
-        #for s in Bar('coupled invert: ').iter(neighbors[k]):
-        for s in neighbors[k]:
-            if not selects:
-                selects = surfaces[k]["ids"][s[0]]
-            s=np.asarray(s)
-            kpv,ks = ptools.kterms(surfaces,k,s[0])
-            u = surfaces[k]["data"]["uref"][s[0]] 
-            v = surfaces[k]["data"]["vref"][s[0]] 
-            if (not np.isnan(u) and not np.isnan(v)) and lowlevel>=k>=highlevel and kpv.any() and ks.any() and (not single or selects == surfaces[k]["ids"][s[0]] ): #and surfaces[k]["ids"][s[0]] in whitelist :
-                ##find/store column indexs for each neighbor
-                columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s[0:3],columndictionary)
-                ##this is a shorthad way of converting the NS to an index
-                #######PVROW
-                betarow,betavals, crow = constructBetaRow(surfaces,k,distances,s,columnindexs,True,1)
-
-                n = np.linalg.norm(betavals)
-                Apsi.append(betarow/n)
-
-                ##make rows that can fit it 
-                us[columnindexs[0]] = surfaces[k]["data"]["psiref"][s[0]]
-                c.append(crow/n)
-
-                #######SALROW
-                ##make rows that can fit it 
-                salrow, salvals, crow = constructSalRow(surfaces,k,distances,s,columnindexs,True,1)
-                n = np.linalg.norm(salvals)
-                Apsi.append(salrow/n)
-                ##im a rascal and this is a shorthad way of converting the NS to an index :P
-                 ######SAL Error row
-                c.append(crow/n)
-
-    Apsi.insert(0,[1])
-    c.insert(0,0)
-    us.insert(0,0)
-    ##We now have all the terms we need, we just need to reshape and concatenate
-    m = columndictionary["max"]+1
-    us = us[:m]
-    #print(Apsi)
-
-    A = combineAs([m,m,18,1],Apsi)#,Akvb,Akh,Akvo)
-    rowCount(A)
-
-        #print(np.matrix(A))
-    print("#####A########")
-    print(A.shape)
-    print("#####Apsi########")
-    print(len(Apsi))
-    print("#####Akh########")
-    print(len(Akh))
-    print("#####Ako########")
-    print(len(Akvo))
-    print("#####c########")
-    print(len(c))
-    print("#############")
-
-    c = np.matrix.transpose(np.asarray(c))
-    us =  np.matrix.transpose(np.asarray(us))
-    j,[VT, D, U] = SVDdecomp(A,n_elements=A.shape[1])
-
-    prime = np.matmul(j,c)
-    errors = error(A,us,prime)
-    if debug:
-        print("singular values: ", 1/(np.diag(D)))
-        graphError(A,us,prime)
-        rdivc(D)
-
-    surfaces = applyPrime(surfaces,prime,columndictionary)
-    return surfaces, columndictionary, [VT,D,U],A,errors
+def fillDefault(params):
+    params.setdefault("debug",False)
+    params.setdefault("threepoint",True)
+    params.setdefault("lowerbound",2600)
+    params.setdefault("upperbound",1000)
+    params.setdefault("reflevel",1000)
+    params.setdefault("mixs",[True,False,True])
+    params.setdefault("mixcoeffs",[10**8,10**7,10**4])
+    params.setdefault("3point",True)
+    return params
 
 #full coupled inverse with mixing terms
-def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False,normalize=False,threepoint=True,lowlevel=2000,highlevel=1000):
-    outsurfaces = copy.deepcopy(surfaces)
-    Apsi=[]
-    Akvb=[]
-    Akh=[]
-    Akvo=[]
-    c=[]
+def coupledInvert(surfaces,neighbors,distances,params={}):
+    surfaces = copy.deepcopy(surfaces)
+    Apsi,Akvb,Akh,Akvo,c=[],[],[],[],[]
     us = [0]*100000
+    params = fillDefault(params)
     ##dictionary of ids to column numbers
-    columndictionary = {"max":-1}
-    surfaces = applyRefLevel(surfaces)
-    alldistances = distances 
-    selects = False    
-    whitelist = generateWhiteList(surfaces,neighbors,3600,reflevel)
+    columndictionary = {}
+    surfaces = applyRefLevel(surfaces,params["reflevel"])
     for k in Bar("adding to matrix: ").iter(neighbors.keys()):
-        distances = alldistances[k]
         for s in neighbors[k]:
-            if not selects:
-                selects = surfaces[k]["ids"][s[0]]
+
             s=np.asarray(s)
-            kpv,ks = ptools.kterms(surfaces,k,s[0])
-            #ptools.kChecker(surfaces,k,s[0])
-            u = surfaces[k]["data"]["uref"][s[0]] 
-            v = surfaces[k]["data"]["vref"][s[0]] 
-            if (not np.isnan(u) and not np.isnan(v)) and kpv.any() and ks.any() and lowlevel>=k>=highlevel and (not single or selects == surfaces[k]["ids"][s[0]] ) and surfaces[k]["ids"][s[0]] in whitelist :
+            kpv,ks = ptools.kterms(surfaces,k,s[0],params["mixcoeffs"])
+
+            if kpv.any() and ks.any() and params["lowerbound"]>=k>=params["upperbound"] and surfaces[k]["ids"][s[0]]:
                 ##find/store column indexs for each neighbor
-                if threepoint:
+                if params["3point"]:
                     columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s[:3],columndictionary)
                 else:
                     columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s,columndictionary)
+
                 ##this is a shorthad way of converting the NS to an index
                 #######PVROW
-                betarow,betavals, crow = constructBetaRow(surfaces,k,distances,s,columnindexs,threepoint)
+                betarow,betavals, crow = constructBetaRow(surfaces,k,distances[k],s,columnindexs,params["3point"])
                 betavals = np.asarray(betavals)
                 l = np.concatenate((betavals,kpv))
-                #plt.bar(range(len(l)),np.abs(l))
-                #plt.yscale("log")
-                #plt.title("beta")
-                #plt.show()
 
-                n = np.linalg.norm(np.concatenate((np.asarray(betavals),kpv[[True,False,True]])))
+                n = np.linalg.norm(np.concatenate((np.asarray(betavals),kpv[params["mixs"]])))
                 #n = np.linalg.norm(betavals)
                 Apsi.append(np.asarray(betarow)/n)
 
                 ##make rows that can fit it 
                 Akvbrow = [0]*(columnindexs[0]+1)
                 Akvbrow[columnindexs[0]]=kpv[1]/n
-                #Akvbrow[columnindexs[0]]=0
                 Akvb.append(Akvbrow)
 
                 Akhrow = [0]*(int(k/200))
@@ -819,22 +731,18 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
 
 
                 Akvo.append([kpv[0]/n])
-                #Akvo.append([kpv[0]/n])
                 us[columnindexs[0]] = surfaces[k]["data"]["psiref"][s[0]]
                 c.append(crow/n)
 
                 #######SALROW
                 ##make rows that can fit it 
-                salrow, salvals, crow = constructSalRow(surfaces,k,distances,s,columnindexs,threepoint)
+                salrow, salvals, crow = constructSalRow(surfaces,k,distances[k],s,columnindexs,params["3point"])
                 salvals = np.asarray(salvals)
+
                 l = np.concatenate((salvals[np.nonzero(salvals)],ks))
-                #plt.bar(range(len(l)),np.abs(l))
-                #plt.yscale("log")
-                #plt.title("sal")
-                #plt.show()
-                n = np.linalg.norm(np.concatenate((np.asarray(salvals),ks[[True,False,True]])))
-                #n = np.linalg.norm(salvals)
+                n = np.linalg.norm(np.concatenate((np.asarray(salvals),ks[params["mixs"]])))
                 Apsi.append(np.asarray(salrow)/n)
+
                 ##im a rascal and this is a shorthad way of converting the NS to an index :P
                 Akvbrow = [0]*(columnindexs[0]+1)
                 Akvbrow[columnindexs[0]]=ks[1]/n
@@ -849,6 +757,7 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
 
                 ######SAL Error row
                 c.append(crow/n)
+
     if len(Apsi)<1:
         return None, None, [None,None,None],None, None
 
@@ -858,49 +767,48 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
     Akvo.insert(0,[0])
     c.insert(0,0)
     us.insert(0,0)
+
     ##We now have all the terms we need, we just need to reshape and concatenate
     m = columndictionary["max"]+1
     us = us[:m]
 
-    print("mean Apsi: ", np.mean(np.abs(Apsi[Apsi!=0])))
-    print("mean Akvb: ", np.mean(np.abs(Akvb[Akvb!=0])))
-    print("mean Akh: ", np.mean(np.abs(Akh[Akh!=0])))
-    print("mean Akvo: ", np.mean(np.abs(Akvo[Akvo!=0])))
-    #A = combineAs([m,m,18,1],Apsi,Akvb,Akh,Akvo)
-    #A = combineAs([m,m,18,1],Apsi,Akh,Akvo)
-    #A = combineAs([m],Apsi)
-    A = combineAs([m,18,1],Apsi,Akh,Akvo)
-    print("m: ",m)
-    print("column count: ",np.count_nonzero(A, axis=0))
-    if debug:
-        rowCount(A)
-    #print("Scale: ",optimizeA(A,m))
 
-        #print(np.matrix(A))
-    print("#####A########")
-    print(A.shape)
-    print("#####Apsi########")
-    print(len(Apsi))
-    print("#####Akh########")
-    print(len(Akh))
-    print("#####Ako########")
-    print(len(Akvo))
-    print("#####c########")
-    print(len(c))
-    print("#############")
+    if params["mixs"] == [True,True,True]:
+        A = combineAs([m,m,18,1],Apsi,Akvb,Akh,Akvo)
+        print("ALL ON")
+    elif params["mixs"] == [True,False,True]:
+        print("ALL KVO, Kh")
+        A = combineAs([m,18,1],Apsi,Akh,Akvo)
+    elif params["mixs"] == [True,False,False]:
+        print("ALL KVO")
+        A = combineAs([m,1],Apsi,Akvo)
+    elif params["mixs"] == [False,False,False]:
+        print("ALL OFF")
+        A = combineAs([m],Apsi)
+        
+
+    if params["debug"]:
+        rowCount(A)
+        print("m: ",m)
+        print("column count: ",np.count_nonzero(A, axis=0))
+        print("#####A########")
+        print(A.shape)
+        print("mean Apsi: ", np.mean(np.abs(Apsi[Apsi!=0])))
+        print("mean Akvb: ", np.mean(np.abs(Akvb[Akvb!=0])))
+        print("mean Akh:  ", np.mean(np.abs(Akh[Akh!=0]  )))
+        print("mean Akvo: ", np.mean(np.abs(Akvo[Akvo!=0])))
+
     c = np.matrix.transpose(np.asarray(c))
     us =  np.matrix.transpose(np.asarray(us))
     j,[VT, D, U] = SVDdecomp(A,n_elements=int(A.shape[1]))
     prime = np.matmul(j,c)
-    print(np.mean(prime[:m]),np.mean(prime[m:-1]),prime[-1])
-    #graphError(A,np.concatenate((us,[0]*(len(us)+19))),prime)
-    if debug:
+
+    if params["debug"]:
         graphError(A,np.concatenate((us,[0]*(A.shape[1]-len(us)))),prime)
-    errors = error(A,np.concatenate((us,[0]*(A.shape[1]-len(us)))),prime)
-    #graphKs(prime,m)
-    #print("singular values: ", 1/(np.diag(D)))
-    if debug:
         rdivc(D)
+
+    errors = error(A,np.concatenate((us,[0]*(A.shape[1]-len(us)))),prime)
+
 
     surfaces = applyPrime(surfaces,prime,columndictionary,mixing=True)
     return surfaces, columndictionary, [VT,D,U],A, errors
@@ -1025,7 +933,7 @@ def graphKs(prime,m):
     print(kvo)
 
 #routing command to perform inverse 
-def invert(kind,surfaces,neighbors=None,distances=None,reflevel=1000,debug=False,lowlevel=2000,highlevel=1000):
+def invert(kind,surfaces,neighbors=None,distances=None,params={},reflevel=1000,debug=False,lowlevel=2000,highlevel=1000):
     if kind == "simple":
         return simpleInvert(surfaces,reflevel,debug)
     if kind == "simplesalt":
@@ -1035,9 +943,7 @@ def invert(kind,surfaces,neighbors=None,distances=None,reflevel=1000,debug=False
     if kind == "complex":
         return complexInvert(surfaces,reflevel,debug)
     if kind == "coupled":
-        return coupledInvert(surfaces,reflevel,neighbors,distances,debug,single=False,lowlevel=lowlevel,highlevel=highlevel)
-    if kind == "couplednomix":
-        return coupledInvertNoMixing(surfaces,reflevel,neighbors,distances,debug,single=False,lowlevel=lowlevel,highlevel=highlevel)
+        return coupledInvert(surfaces,neighbors,distances,params)
     else:
         print("Sorry I have no clue what inversion you are talking about")
 

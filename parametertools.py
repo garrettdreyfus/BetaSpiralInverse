@@ -186,7 +186,7 @@ def kChecker(surfaces,k,found,debug=False):
 
 ## file that generates the mixing terms of the Fq and Fs
 ## given a surfaces object, a depth and an index
-def kterms(surfaces,k,found,debug=False):
+def kterms(surfaces,k,found,scales,debug=False):
     f = gsw.f(surfaces[k]["lats"][found])
     x = surfaces[k]["x"][found]
     y = surfaces[k]["y"][found]
@@ -230,9 +230,9 @@ def kterms(surfaces,k,found,debug=False):
               dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
               dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
               beta,d2qdx2,d2qdy2,khpdz]
-    kvoscale = 10**8#5*(10**-6)
-    kvbscale = 10**7#5*(10**-5)
-    khscale  = 10**4#500
+    kvoscale = scales[0]
+    kvbscale = scales[1]
+    khscale  = scales[2]
     #ptools.kChecker(surfaces,k,found)
     if (np.isnan(isitnan).any()):
         if debug:

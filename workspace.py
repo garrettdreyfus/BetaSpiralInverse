@@ -52,31 +52,23 @@ import random
 #staggeredsurfaces = nstools.addK(staggeredsurfaces,"data/bathVar.pickle")
 
 with open('data/ready4inverse.pickle', 'rb') as outfile:
-    [staggeredsurfaces,neighbors,lookups]=pickle.load(outfile)
+    [staggeredsurfaces,neighbors,distances]=pickle.load(outfile)
 
 ###nstools.surfaceDiagnostic(staggeredsurfaces)
 #with open('data/ready4inverse.pickle', 'wb') as outfile:
     #pickle.dump([staggeredsurfaces,neighbors,lookups], outfile)
 
 
-sensitivity.conditionErrorRefLevel("coupled",staggeredsurfaces,neighbors,lookups,savepath="refpics/reflevelsensminus/")
-#sensitivity.conditionError("coupled",staggeredsurfaces,neighbors,lookups,reflevel=800,disp=1600)
-#coupleinvert,columndictionary,svds,A,errors= inverttools.invert("coupled",staggeredsurfaces,neighbors,lookups)
+sensitivity.mixSens("coupled",staggeredsurfaces,neighbors,distances,savepath="refpics/fullmixexplore/")
+#sensitivity.conditionError("coupled",staggeredsurfaces,neighbors,distances)
+#inv,columndictionary,svds,A,errors= inverttools.invert("coupled",staggeredsurfaces,neighbors,distances)
 
-#coupleinvert = nstools.streamFuncToUV(coupleinvert,neighbors,lookups)
-#coupleinvert = bathtools.addBathToSurface(coupleinvert)
+#coupleinvert = nstools.streamFuncToUV(inv,neighbors,distances)
+#coupleinvert = bathtools.addBathToSurface(inv)
 
-#graph.graphVectorField(coupleinvert,"uabs","vabs","z")
-#with open('data/couplednomix.pickle', 'wb') as outfile:
-    #pickle.dump(coupleinvert, outfile)
-
-#with open('data/couplednomix.pickle', 'rb') as outfile:
-    #coupleinvert=pickle.load(outfile)
+#graph.graphVectorField(inv,"uabs","vabs","z")
 
 #graph.graphSurfaces(coupleinvert,"psi",idlabels=True)
-#graph.barentsTransport(coupleinvert)
-#graph.refinedTransport(coupleinvert,2633,1642)
-#graph.refinedTransport(coupleinvert,375,2903)
 
 #across basin
 #graph.quantityLine(coupleinvert,(-143.04,70.46),(62.06,82.232),"pres",4000,-1)
@@ -99,12 +91,4 @@ sensitivity.conditionErrorRefLevel("coupled",staggeredsurfaces,neighbors,lookups
 
 ##Bering
 #graph.transportLine(coupleinvert,(-157.06,71.36),(170.98,69.99),1000)
-    
 
-
-#graph.framStraitTransport(coupleinvert)
-
-#graph.graphVectorField(coupleinvert,"uabs","vabs","pv")
-##graph.graphVectorField(coupleinvert,"uabs","vabs","z",show=False,savepath="refpics/nomixing/3pointbath/")
-##graph.graphVectorField(coupleinvert,"uabs","vabs","pv",show=False,savepath="refpics/nomixing/3pointpv/")
-#graph.graphVectorField(coupleinvert,"u","v","z")

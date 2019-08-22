@@ -9,21 +9,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-def conditionError(inverse,surfaces,neighbors,lookups,disp=-1,reflevel=1000,savepath=False):
+def conditionError(inverse,surfaces,neighbors,distances,fname=False,disp=-1,params={},savepath=False,title=False,show=True):
     conditions = []
     levels = []
     errors = []
     fram = []
-
+    params.setdefault("upperbound",1000)
+    params.setdefault("reflevel",1000)
     if savepath:
         try:
             os.makedirs(savepath)
         except FileExistsError as e:
             print(e)
-
-
-    for lowlevel in range(reflevel+200,3600,200):
-        inv,columndict,svds,A,e= inverttools.invert(inverse,surfaces,neighbors,lookups,lowlevel=lowlevel,highlevel=reflevel-400,reflevel=reflevel)
+    for lowlevel in range(params["upperbound"]+200,3600,200):
+        params.update({"lowerbound":lowlevel})
+        inv,columndict,svds,A,e= inverttools.invert(inverse,surfaces,neighbors,distances,params=params)
         if inv:
             s = np.diag((1.0/svds[1]))
             condition = s[0]/s[-1]
@@ -33,7 +33,7 @@ def conditionError(inverse,surfaces,neighbors,lookups,disp=-1,reflevel=1000,save
             i,o = graph.transportLine(inv,(-24.71,83.60),(27.496,80.06),2400,False,show=False)
             fram.append(abs(abs(i)-abs(o))) 
             if lowlevel ==disp:
-                coupleinvert = nstools.streamFuncToUV(inv,neighbors,lookups)
+                coupleinvert = nstools.streamFuncToUV(inv,neighbors,distances)
                 coupleinvert = bathtools.addBathToSurface(inv)
                 #graph.transportLine(coupleinvert,(-24.71,83.60),(27.496,80.06),2400,True)
                 graph.graphVectorField(inv,"uabs","vabs","z")
@@ -44,17 +44,34 @@ def conditionError(inverse,surfaces,neighbors,lookups,disp=-1,reflevel=1000,save
     ax2.scatter(levels,conditions,color="red",label = "matrix condition")
     ax2.set_ylabel("Matrix Condition")
     ax1.set_xlabel("Lowest Neutral Surface")
-    fig.suptitle(reflevel)
+    if not title:
+        fig.suptitle(params["reflevel"])
+    else:
+        fig.suptitle(title)
     ax3.scatter(levels,fram)
     ax3.set_ylabel("Net transport through Fram Strait in Sv")
     ax3.set_xlabel("Lowest Neutral Surface")
     plt.legend()
     fig.set_size_inches(16.5,12)
-    if savepath:
-        plt.savefig(savepath+"ns"+str(reflevel)+".png")
-    plt.show()
+    if savepath and not fname:
+        plt.savefig(savepath+"ns"+str(params["reflevel"])+".png")
+    if savepath and fname:
+        plt.savefig(savepath+str(fname)+".png")
+    if show:
+        plt.show()
+    plt.close()
 
-def conditionErrorRefLevel(inverse,surfaces,neighbors,lookups,disp=-1,savepath=False):
+def conditionErrorRefLevel(inverse,surfaces,neighbors,distances,disp=-1,savepath=False,params={}):
     for reflevel in range(400,1600,200):
-        conditionError(inverse,surfaces,neighbors,lookups,disp=disp,reflevel=reflevel,savepath=savepath)
+        conditionError(inverse,surfaces,neighbors,distances,disp=disp,params=params.update({"reflevel":reflevel,"upperbound":reflevel}),savepath=savepath)
 
+def mixSens(inverse,surfaces,neighbors,distances,disp=-1,savepath=False,params={}):
+    params = {"reflevel":600,"upperbound":600,"lowerbound":1600,"mixs":[True,True,True]}
+    mixs = [10**8,10**7,10**4]
+    for i in [-4,-3.5,-3,-2.5,-2]:
+        for j,name in enumerate(["Kvo","Kvb","Kvh"]):
+            if  j== 1:
+                newmix = mixs.copy()
+                newmix[j] = newmix[j]*(10**i)
+                params["mixcoeffs"] = newmix
+                conditionError(inverse,surfaces,neighbors,distances,fname=name+str(i),disp=disp,params=params,savepath=savepath,title=name+": "+str(i),show=False)
