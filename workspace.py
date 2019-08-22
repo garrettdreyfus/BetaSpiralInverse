@@ -18,25 +18,25 @@ import random
 #profiles = nstools.filterCruises(profiles,offsets.keys())
 #profiles = saloffset.applyOffsets(profiles,offsets)
 
-#profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
-##profilechoice = nstools.getProfileById(profiles,"286364")
+##profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
+###profilechoice = nstools.getProfileById(profiles,"286364")
 
-#surfaces = nstools.runPeerSearch(profiles,deepestindex,200,4000,200,profilechoice,1000)
-#with open('data/annotatedprofiles.pickle', 'wb') as outfile:
-    #pickle.dump(profiles, outfile)
+##surfaces = nstools.runPeerSearch(profiles,deepestindex,200,4000,200,profilechoice,1000)
+##with open('data/annotatedprofiles.pickle', 'wb') as outfile:
+    ##pickle.dump(profiles, outfile)
 
-#with open('data/annotatedprofiles.pickle', 'rb') as outfile:
-    #profiles=pickle.load(outfile)
+##with open('data/annotatedprofiles.pickle', 'rb') as outfile:
+    ##profiles=pickle.load(outfile)
 
 
-#graph.tsNeutralExplore(profiles)
-######fileObject = open(str(profilechoice.eyed)+"new.pickle",'wb')  
-####### load the object from the file into var b
-######b = pickle.dump(surfaces,fileObject)  
-######fileObject.close()
+##graph.tsNeutralExplore(profiles)
+#######fileObject = open(str(profilechoice.eyed)+"new.pickle",'wb')  
+######## load the object from the file into var b
+#######b = pickle.dump(surfaces,fileObject)  
+#######fileObject.close()
 
 #with open('data/286364new.pickle', 'rb') as outfile:
-    #surfaces=pickle.load(outfile)
+  #surfaces=pickle.load(outfile)
 
 #surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
 #surfaces = nstools.addStreamFunc(surfaces,profiles)
@@ -55,9 +55,12 @@ with open('data/ready4inverse.pickle', 'rb') as outfile:
     [staggeredsurfaces,neighbors,lookups]=pickle.load(outfile)
 
 ###nstools.surfaceDiagnostic(staggeredsurfaces)
-##with open('data/ready4inverse.pickle', 'wb') as outfile:
-    ##pickle.dump([staggeredsurfaces,neighbors,lookups], outfile)
-sensitivity.mConditionVsError("coupled",staggeredsurfaces,neighbors,lookups)
+#with open('data/ready4inverse.pickle', 'wb') as outfile:
+    #pickle.dump([staggeredsurfaces,neighbors,lookups], outfile)
+
+
+sensitivity.conditionErrorRefLevel("coupled",staggeredsurfaces,neighbors,lookups,savepath="refpics/reflevelsensminus/")
+#sensitivity.conditionError("coupled",staggeredsurfaces,neighbors,lookups,reflevel=800,disp=1600)
 #coupleinvert,columndictionary,svds,A,errors= inverttools.invert("coupled",staggeredsurfaces,neighbors,lookups)
 
 #coupleinvert = nstools.streamFuncToUV(coupleinvert,neighbors,lookups)

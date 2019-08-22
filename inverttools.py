@@ -103,79 +103,6 @@ def gradAttack(A,m):
         
         
 
-## file that generates the mixing terms of the Fq and Fs
-## given a surfaces object, a depth and an index
-def kterms(surfaces,k,found,debug=False):
-    f = gsw.f(surfaces[k]["lats"][found])
-    x = surfaces[k]["x"][found]
-    y = surfaces[k]["y"][found]
-    r = np.sqrt(x**2 + y**2)
-    hx = surfaces[k]["data"]["hx"][found]
-    hy = surfaces[k]["data"]["hy"][found]
-    dsdx = surfaces[k]["data"]["dsdx"][found]
-    dsdy = surfaces[k]["data"]["dsdy"][found]
-    pres = surfaces[k]["data"]["pres"][found]
-    alpha = surfaces[k]["data"]["alpha"][found] 
-    betaTherm = surfaces[k]["data"]["beta"][found] 
-    dsdz =  surfaces[k]["data"]["dsdz"][found] 
-    d2sdx2 =  surfaces[k]["data"]["d2sdx2"][found] 
-    d2sdy2 =  surfaces[k]["data"]["d2sdy2"][found] 
-    dalphadtheta = surfaces[k]["data"]["dalphadtheta"][found] 
-    dalphads = surfaces[k]["data"]["dalphads"][found] 
-    dalphadp = surfaces[k]["data"]["dalphadp"][found] 
-    dbetadp = surfaces[k]["data"]["dbetadp"][found] 
-    dbetads = surfaces[k]["data"]["dbetads"][found] 
-    dtdx = surfaces[k]["data"]["dtdx"][found] 
-    dtdy = surfaces[k]["data"]["dtdy"][found] 
-    dqnotdx = surfaces[k]["data"]["dqnotdx"][found] 
-    dqnotdy = surfaces[k]["data"]["dqnotdy"][found] 
-    dqdz = surfaces[k]["data"]["dqdz"][found] 
-    d2qdz2 = surfaces[k]["data"]["d2qdz2"][found] 
-    dpdx = surfaces[k]["data"]["dpdx"][found] 
-    dpdy = surfaces[k]["data"]["dpdy"][found] 
-    dqdx = surfaces[k]["data"]["dqdx"][found] 
-    dqdy = surfaces[k]["data"]["dqdy"][found] 
-    d2qdx2 = surfaces[k]["data"]["d2qdx2"][found] 
-    d2qdy2 = surfaces[k]["data"]["d2qdy2"][found] 
-    khpdz = surfaces[k]["data"]["khpdz"][found] 
-    alphat = dalphadtheta+2*(alpha/betaTherm)*dalphads-(alpha**2/betaTherm**2)*dbetads
-    alphap = dalphadp -(alpha/betaTherm)*dbetadp
-    pv =  surfaces[k]["data"]["pv"][found] 
-    doublets =  surfaces[k]["data"]["d2thetads2"][found] 
-    CKVB =  surfaces[k]["data"]["CKVB"][found] 
-    f = gsw.f(surfaces[k]["lats"][found])
-    beta = calcBeta(surfaces[k]["lats"][found])
-    isitnan = [alpha,betaTherm,dsdz,hx,hy,dsdx,dsdy,pres,d2sdx2,d2sdy2,\
-              dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
-              dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
-              beta,d2qdx2,d2qdy2,khpdz]
-    kvoscale = 10**8#5*(10**-6)
-    kvbscale = 10**7#5*(10**-5)
-    khscale  = 10**4#500
-    #ptools.kChecker(surfaces,k,found)
-    if (np.isnan(isitnan).any()):
-        if debug:
-            print("pres is nan: ",np.isnan(pres))
-            print("hx is nan: ",np.isnan(hx))
-            print("hy is nan: ",np.isnan(hy))
-            print("x is nan: ",np.isnan(x))
-            print("y is nan: ",np.isnan(y))
-            print("something here is nan")
-        return np.array([]), np.array([])
-    if not (np.isnan(isitnan).any()):
-        pvkvb = (d2qdz2+2*(1/200)*dqdz+(1/(200**2))*pv)*CKVB
-        pvkv0 = d2qdz2
-        pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv -f*khpdz
-        skvo = -alpha*f*(1/pv)*(dsdz**3)*doublets
-        skvb = skvo*CKVB
-        skhpart1 = (f/pv)*dsdz*(alphat*(dtdx**2 + dtdy**2)+alphap*(dtdx*dpdx+dtdy*dpdy))
-        skhpart2 = (d2sdx2+d2sdy2)-2*(dqnotdx*dsdx + dqnotdy*dsdy)/pv
-        skh = skhpart1 + skhpart2
-        kvs = np.asarray([-pvkv0/kvoscale,-pvkvb/kvbscale,-pvkh/khscale])
-        ks = np.asarray([-skvo/kvoscale,-skvb/kvbscale,-skh/khscale])
-        return kvs,ks
-
-
  
 #simple pointwise inverse only conserves pv
 def simpleInvert(surfaces,reflevel=1000,debug=False):
@@ -205,7 +132,7 @@ def simpleInvert(surfaces,reflevel=1000,debug=False):
                 hy = surfaces[k]["data"]["hy"][found]
                 pres = surfaces[k]["data"]["pres"][found]
                 f = gsw.f(surfaces[k]["lats"][found])
-                beta = calcBeta(surfaces[k]["lats"][found])
+                beta = ptools.calcBeta(surfaces[k]["lats"][found])
                 pv = surfaces[k]["data"]["pv"][found]
                 dqnotdx = surfaces[k]["data"]["dqnotdx"][found]
                 dqnotdy = surfaces[k]["data"]["dqnotdy"][found]
@@ -260,10 +187,6 @@ def simpleInvert(surfaces,reflevel=1000,debug=False):
 
     return outsurfaces
 
-def calcBeta(lat):
-    omega =  (7.2921 * 10**-5)
-    a = 6.357 * (10**6)
-    return (2*omega*np.cos(lat))/a
 #simpe pointwise inverse conserves pv and salt
 def simplesaltInvert(surfaces,reflevel=1000,debug=False):
     outsurfaces = copy.deepcopy(surfaces)
@@ -297,7 +220,7 @@ def simplesaltInvert(surfaces,reflevel=1000,debug=False):
                 pv = surfaces[k]["data"]["pv"][found]
                 pres = surfaces[k]["data"]["pres"][found]
                 f = gsw.f(surfaces[k]["lats"][found])
-                beta = calcBeta(surfaces[k]["lats"][found])
+                beta = ptools.calcBeta(surfaces[k]["lats"][found])
 
                 if debug and (np.isnan(hx) or np.isnan(hy) or np.isnan(x) or np.isnan(y)):
                     print("pres is nan: ",np.isnan(pres))
@@ -422,7 +345,7 @@ def complexSaltInvert(surfaces,reflevel=1000,debug=False):
                 doublets =  surfaces[k]["data"]["d2thetads2"][found] 
                 CKVB =  surfaces[k]["data"]["CKVB"][found] 
                 f = gsw.f(surfaces[k]["lats"][found])
-                beta = calcBeta(surfaces[k]["lats"][found])
+                beta = ptools.calcBeta(surfaces[k]["lats"][found])
                 isitnan = [alpha,betaTherm,dsdz,hx,hy,dsdx,dsdy,pres,d2sdx2,d2sdy2,\
                           dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
                           dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
@@ -510,7 +433,7 @@ def complexInvert(surfaces,reflevel=1000,debug=False):
             ns.append((k,found))
             if len(found)!=0 and len(found[0]) != 0:
                 found = found[0][0]
-                kpv,ks = kterms(surfaces,k,found)
+                kpv,ks = ptools.kterms(surfaces,k,found)
                 if k>=1000 and kpv and ks:
                     x = surfaces[k]["x"][found]
                     y = surfaces[k]["y"][found]
@@ -520,7 +443,7 @@ def complexInvert(surfaces,reflevel=1000,debug=False):
                     dsdy = surfaces[k]["data"]["dsdy"][found]
                     hy = surfaces[k]["data"]["hy"][found]
                     f = gsw.f(surfaces[k]["lats"][found])
-                    beta = calcBeta(surfaces[k]["lats"][found])
+                    beta = ptools.calcBeta(surfaces[k]["lats"][found])
                     u = (surfaces[k]["data"]["u"][found] - surfaces[reflevel]["data"]["u"][index])
                     v = (surfaces[k]["data"]["v"][found] - surfaces[reflevel]["data"]["v"][index])
                     us.append((u,v,0,0,0))
@@ -647,7 +570,7 @@ def constructBetaRow(surfaces,k,distances,s,columnindexs,threepoint=True,Arscale
     Apsirow = [0]*(max(columnindexs)+1)
     values = [0]*4
 
-    beta = calcBeta(surfaces[k]["lats"][s[0]])
+    beta = ptools.calcBeta(surfaces[k]["lats"][s[0]])
     pv =  surfaces[k]["data"]["pv"][s[0]] 
     dqnotdx = surfaces[k]["data"]["dqnotdx"][s[0]] 
     dqnotdy = surfaces[k]["data"]["dqnotdy"][s[0]] 
@@ -765,7 +688,7 @@ def coupledInvertNoMixing(surfaces,reflevel,neighbors,distances,debug=False,sing
     us = [0]*100000
     ##dictionary of ids to column numbers
     columndictionary = {"max":-1}
-    surfaces = applyRefLevel(surfaces)
+    surfaces = applyRefLevel(surfaces,reflevel)
     alldistances = distances 
     selects = False    
     for k in Bar("adding to matrix: ").iter(neighbors.keys()):
@@ -775,7 +698,7 @@ def coupledInvertNoMixing(surfaces,reflevel,neighbors,distances,debug=False,sing
             if not selects:
                 selects = surfaces[k]["ids"][s[0]]
             s=np.asarray(s)
-            kpv,ks = kterms(surfaces,k,s[0])
+            kpv,ks = ptools.kterms(surfaces,k,s[0])
             u = surfaces[k]["data"]["uref"][s[0]] 
             v = surfaces[k]["data"]["vref"][s[0]] 
             if (not np.isnan(u) and not np.isnan(v)) and lowlevel>=k>=highlevel and kpv.any() and ks.any() and (not single or selects == surfaces[k]["ids"][s[0]] ): #and surfaces[k]["ids"][s[0]] in whitelist :
@@ -853,14 +776,14 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
     surfaces = applyRefLevel(surfaces)
     alldistances = distances 
     selects = False    
-    whitelist = generateWhiteList(surfaces,neighbors,3600,1000)
+    whitelist = generateWhiteList(surfaces,neighbors,3600,reflevel)
     for k in Bar("adding to matrix: ").iter(neighbors.keys()):
         distances = alldistances[k]
         for s in neighbors[k]:
             if not selects:
                 selects = surfaces[k]["ids"][s[0]]
             s=np.asarray(s)
-            kpv,ks = kterms(surfaces,k,s[0])
+            kpv,ks = ptools.kterms(surfaces,k,s[0])
             #ptools.kChecker(surfaces,k,s[0])
             u = surfaces[k]["data"]["uref"][s[0]] 
             v = surfaces[k]["data"]["vref"][s[0]] 
@@ -926,6 +849,8 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
 
                 ######SAL Error row
                 c.append(crow/n)
+    if len(Apsi)<1:
+        return None, None, [None,None,None],None, None
 
     Apsi.insert(0,[1])
     Akvb.insert(0,[0])
@@ -937,7 +862,6 @@ def coupledInvert(surfaces,reflevel,neighbors,distances,debug=False,single=False
     m = columndictionary["max"]+1
     us = us[:m]
 
-    #print(Apsi)
     print("mean Apsi: ", np.mean(np.abs(Apsi[Apsi!=0])))
     print("mean Akvb: ", np.mean(np.abs(Akvb[Akvb!=0])))
     print("mean Akh: ", np.mean(np.abs(Akh[Akh!=0])))

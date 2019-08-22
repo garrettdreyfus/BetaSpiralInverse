@@ -532,7 +532,7 @@ def quantityLine(surfaces,startcoord,endcoord,quant,silldepth,factor=1):
  
 #graph transport across a line given a surfaces object
 #coords of type ( lon,lat)
-def transportLine(surfaces,startcoord,endcoord,silldepth,uway=False):
+def transportLine(surfaces,startcoord,endcoord,silldepth,uway=False,show=False):
     transports=[]
     inflows =[]
     outflows = []
@@ -579,28 +579,33 @@ def transportLine(surfaces,startcoord,endcoord,silldepth,uway=False):
                         coords[1].append(surfaces[k]["lats"][curr])
                         scales.append(transport)
                     
-            if uway:
-                plt.plot(progress[:],surfacetransports,label = "ns: "+str(k))
-            else: 
-                plt.plot(progress[:-1],surfacetransports,label = "ns: "+str(k))
+            if show:
+                if uway:
+                    plt.plot(progress[:],surfacetransports,label = "ns: "+str(k))
+                else: 
+                    plt.plot(progress[:-1],surfacetransports,label = "ns: "+str(k))
             transports.append(surfacetransports)
             surfacetransports= np.asarray(surfacetransports)
             inflows.append(np.nansum(surfacetransports[surfacetransports>0]))
             outflows.append(np.nansum(surfacetransports[surfacetransports<0]))
  
             #print(np.sum(surfacetransports))
+    inflow = np.nansum(inflows)
+    outflow = np.nansum(outflows)
     print("inflow: ",np.nansum(inflows))
     print("outflow: ",np.nansum(outflows))
-    plt.legend()
-    plt.show()
-    mapy = Basemap(projection='ortho', lat_0=90,lon_0=-60)
-    mapy.drawmapboundary(fill_color='aqua')
-    mapy.fillcontinents(color='coral',lake_color='aqua')
-    mapy.drawcoastlines()
-    x,y = mapy(coords[0],coords[1])
-    plt.scatter(x,y,c=scales)
-    mapy.colorbar()
-    plt.show()
+    if show:
+        plt.legend()
+        plt.show()
+        mapy = Basemap(projection='ortho', lat_0=90,lon_0=-60)
+        mapy.drawmapboundary(fill_color='aqua')
+        mapy.fillcontinents(color='coral',lake_color='aqua')
+        mapy.drawcoastlines()
+        x,y = mapy(coords[0],coords[1])
+        plt.scatter(x,y,c=scales)
+        mapy.colorbar()
+        plt.show()
+    return inflow,outflow
 
 ##plot ts diagrams with neutral surfaces annotated
 def tsNeutralExplore(profiles):

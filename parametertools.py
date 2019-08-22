@@ -6,6 +6,11 @@ import pickle
 import inverttools as inv
 import matplotlib.pyplot as plt
 
+def calcBeta(lat):
+    omega =  (7.2921 * 10**-5)
+    a = 6.357 * (10**6)
+    return (2*omega*np.cos(lat))/a
+
 ## calcute the bathymetric variability term
 def bathVarTerm(lat,lon):
     d=bathtools.bathBox(lat,lon)
@@ -45,7 +50,7 @@ def Kv(lat,lon,pv,pres,cachename=None):
        bVT = bathVarTermCache(lat,lon,cachename) 
     else:
         bVT = bathVarTerm(lat,lon)
-    return bVT*np.exp(-(abs(bathtools.searchBath(lat,lon))-abs(pres))/200)
+    return bVT*np.exp(-(abs(bathtools.searchBath(lat,lon))-abs(pres))/500)
 
 #function for exploring k mixing term values
 def kChecker(surfaces,k,found,debug=False):
@@ -177,5 +182,78 @@ def kChecker(surfaces,k,found,debug=False):
             plt.show()
             
         return np.asarray([-pvkv0/kvoscale,-pvkvb/kvbscale,-pvkh/khscale]),np.asarray([-skvo/kvoscale,-skvb/kvbscale,-skh/khscale])
+
+
+## file that generates the mixing terms of the Fq and Fs
+## given a surfaces object, a depth and an index
+def kterms(surfaces,k,found,debug=False):
+    f = gsw.f(surfaces[k]["lats"][found])
+    x = surfaces[k]["x"][found]
+    y = surfaces[k]["y"][found]
+    r = np.sqrt(x**2 + y**2)
+    hx = surfaces[k]["data"]["hx"][found]
+    hy = surfaces[k]["data"]["hy"][found]
+    dsdx = surfaces[k]["data"]["dsdx"][found]
+    dsdy = surfaces[k]["data"]["dsdy"][found]
+    pres = surfaces[k]["data"]["pres"][found]
+    alpha = surfaces[k]["data"]["alpha"][found] 
+    betaTherm = surfaces[k]["data"]["beta"][found] 
+    dsdz =  surfaces[k]["data"]["dsdz"][found] 
+    d2sdx2 =  surfaces[k]["data"]["d2sdx2"][found] 
+    d2sdy2 =  surfaces[k]["data"]["d2sdy2"][found] 
+    dalphadtheta = surfaces[k]["data"]["dalphadtheta"][found] 
+    dalphads = surfaces[k]["data"]["dalphads"][found] 
+    dalphadp = surfaces[k]["data"]["dalphadp"][found] 
+    dbetadp = surfaces[k]["data"]["dbetadp"][found] 
+    dbetads = surfaces[k]["data"]["dbetads"][found] 
+    dtdx = surfaces[k]["data"]["dtdx"][found] 
+    dtdy = surfaces[k]["data"]["dtdy"][found] 
+    dqnotdx = surfaces[k]["data"]["dqnotdx"][found] 
+    dqnotdy = surfaces[k]["data"]["dqnotdy"][found] 
+    dqdz = surfaces[k]["data"]["dqdz"][found] 
+    d2qdz2 = surfaces[k]["data"]["d2qdz2"][found] 
+    dpdx = surfaces[k]["data"]["dpdx"][found] 
+    dpdy = surfaces[k]["data"]["dpdy"][found] 
+    dqdx = surfaces[k]["data"]["dqdx"][found] 
+    dqdy = surfaces[k]["data"]["dqdy"][found] 
+    d2qdx2 = surfaces[k]["data"]["d2qdx2"][found] 
+    d2qdy2 = surfaces[k]["data"]["d2qdy2"][found] 
+    khpdz = surfaces[k]["data"]["khpdz"][found] 
+    alphat = dalphadtheta+2*(alpha/betaTherm)*dalphads-(alpha**2/betaTherm**2)*dbetads
+    alphap = dalphadp -(alpha/betaTherm)*dbetadp
+    pv =  surfaces[k]["data"]["pv"][found] 
+    doublets =  surfaces[k]["data"]["d2thetads2"][found] 
+    CKVB =  surfaces[k]["data"]["CKVB"][found] 
+    f = gsw.f(surfaces[k]["lats"][found])
+    beta = calcBeta(surfaces[k]["lats"][found])
+    isitnan = [alpha,betaTherm,dsdz,hx,hy,dsdx,dsdy,pres,d2sdx2,d2sdy2,\
+              dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
+              dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
+              beta,d2qdx2,d2qdy2,khpdz]
+    kvoscale = 10**8#5*(10**-6)
+    kvbscale = 10**7#5*(10**-5)
+    khscale  = 10**4#500
+    #ptools.kChecker(surfaces,k,found)
+    if (np.isnan(isitnan).any()):
+        if debug:
+            print("pres is nan: ",np.isnan(pres))
+            print("hx is nan: ",np.isnan(hx))
+            print("hy is nan: ",np.isnan(hy))
+            print("x is nan: ",np.isnan(x))
+            print("y is nan: ",np.isnan(y))
+            print("something here is nan")
+        return np.array([]), np.array([])
+    if not (np.isnan(isitnan).any()):
+        pvkvb = (d2qdz2+2*(1/200)*dqdz+(1/(200**2))*pv)*CKVB
+        pvkv0 = d2qdz2
+        pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv -f*khpdz
+        skvo = -alpha*f*(1/pv)*(dsdz**3)*doublets
+        skvb = skvo*CKVB
+        skhpart1 = (f/pv)*dsdz*(alphat*(dtdx**2 + dtdy**2)+alphap*(dtdx*dpdx+dtdy*dpdy))
+        skhpart2 = (d2sdx2+d2sdy2)-2*(dqnotdx*dsdx + dqnotdy*dsdy)/pv
+        skh = skhpart1 + skhpart2
+        kvs = np.asarray([-pvkv0/kvoscale,-pvkvb/kvbscale,-pvkh/khscale])
+        ks = np.asarray([-skvo/kvoscale,-skvb/kvbscale,-skh/khscale])
+        return kvs,ks
 
 
