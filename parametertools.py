@@ -53,7 +53,7 @@ def Kv(lat,lon,pv,pres,cachename=None):
     return bVT*np.exp(-(abs(bathtools.searchBath(lat,lon))-abs(pres))/500)
 
 #function for exploring k mixing term values
-def kChecker(surfaces,k,found,debug=False):
+def kChecker(surfaces,k,found,scales,debug=False):
     f = gsw.f(surfaces[k]["lats"][found])
     x = surfaces[k]["x"][found]
     y = surfaces[k]["y"][found]
@@ -92,16 +92,14 @@ def kChecker(surfaces,k,found,debug=False):
     doublets =  surfaces[k]["data"]["d2thetads2"][found] 
     CKVB =  surfaces[k]["data"]["CKVB"][found] 
     f = gsw.f(surfaces[k]["lats"][found])
-    beta = inv.calcBeta(surfaces[k]["lats"][found])
+    beta = calcBeta(surfaces[k]["lats"][found])
     isitnan = [alpha,betaTherm,dsdz,hx,hy,dsdx,dsdy,pres,d2sdx2,d2sdy2,\
               dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
               dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
               beta,d2qdx2,d2qdy2,khpdz]
-#/630957)#5*(10**2)#5*(10**-5)
-    kvoscale = 10**10#(1/0.001)#5*(10**1)#5*(10**-6)
-    kvbscale = 10**9 #(1/(10**-1.09))
-    khscale = 10**6#1/(10**-2.4))
-# 10**12#500
+    kvoscale = scales[1]
+    kvbscale = scales[2]
+    khscale  = scales[3]
 
     if (np.isnan(isitnan).any()):
         if debug:
@@ -161,6 +159,16 @@ def kChecker(surfaces,k,found,debug=False):
             plt.yscale("log")
             plt.show()
 
+        kvhbreakdown=True
+        if kvhbreakdown:
+            #(d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv -f*khpdz
+            labels = ["d2qdx2+d2qdy2","2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv","f*khpdz","f","khpdz"]
+            print(dsdz)
+            values = [np.abs(d2qdx2+d2qdy2),np.abs(2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv),np.abs(f*khpdz),f,abs(khpdz)]
+            plt.bar(labels,values)
+            plt.yscale("log")
+            plt.show()
+
         kvbbreakdown=False
         if kvbbreakdown:
             labels = ["d2qdz2","dqdz","pv"]
@@ -172,10 +180,10 @@ def kChecker(surfaces,k,found,debug=False):
 
         sixpartcompare = True
         if sixpartcompare:
-            labels = ["pvkv0","pvkh","pvkvb","fakebeta","skv0","skh","skvb","fakesal","pvkvo/fakebeta","skv0/fakesal"]
+            labels = ["pvkv0","pvkh","pvkvb","fakebeta","skv0","skh","skvb"]
             fakesal = (1/2*f)*(10**-5)*(dqnotdx-x*beta*pv/(f*r))
             fakebeta = (1/2*f)*(10**-5)*dsdx
-            values = [pvkv0/kvoscale,pvkh/khscale,pvkvb/kvbscale,fakesal,skvo/kvoscale,skh/khscale,skvb/kvbscale,fakebeta,pvkv0/fakebeta,skvo/fakesal]
+            values = [pvkv0*kvoscale,pvkh*khscale,pvkvb*kvbscale,fakesal,skvo*kvoscale,skh*khscale,skvb*kvbscale]
             print(np.format_float_scientific(pvkv0/fakebeta, unique=False, precision=3),np.format_float_scientific(skvo/fakesal, unique=False, precision=3))
             plt.bar(labels,np.abs(values))
             plt.yscale("log")
@@ -230,10 +238,10 @@ def kterms(surfaces,k,found,scales,debug=False):
               dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
               dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
               beta,d2qdx2,d2qdy2,khpdz]
-    kvoscale = scales[0]
-    kvbscale = scales[1]
-    khscale  = scales[2]
-    #ptools.kChecker(surfaces,k,found)
+    kvoscale = scales[1]
+    kvbscale = scales[2]
+    khscale  = scales[3]
+    #kChecker(surfaces,k,found,scales)
     if (np.isnan(isitnan).any()):
         if debug:
             print("pres is nan: ",np.isnan(pres))
@@ -252,8 +260,8 @@ def kterms(surfaces,k,found,scales,debug=False):
         skhpart1 = (f/pv)*dsdz*(alphat*(dtdx**2 + dtdy**2)+alphap*(dtdx*dpdx+dtdy*dpdy))
         skhpart2 = (d2sdx2+d2sdy2)-2*(dqnotdx*dsdx + dqnotdy*dsdy)/pv
         skh = skhpart1 + skhpart2
-        kvs = np.asarray([-pvkv0/kvoscale,-pvkvb/kvbscale,-pvkh/khscale])
-        ks = np.asarray([-skvo/kvoscale,-skvb/kvbscale,-skh/khscale])
+        kvs = np.asarray([-pvkv0*kvoscale,-pvkvb*kvbscale,-pvkh*khscale])
+        ks = np.asarray([-skvo*kvoscale,-skvb*kvbscale,-skh*khscale])
         return kvs,ks
 
 

@@ -14,6 +14,7 @@ def conditionError(inverse,surfaces,neighbors,distances,fname=False,disp=-1,para
     levels = []
     errors = []
     fram = []
+    print(params)
     params.setdefault("upperbound",1000)
     params.setdefault("reflevel",1000)
     if savepath:
@@ -21,7 +22,7 @@ def conditionError(inverse,surfaces,neighbors,distances,fname=False,disp=-1,para
             os.makedirs(savepath)
         except FileExistsError as e:
             print(e)
-    for lowlevel in range(params["upperbound"]+200,3600,200):
+    for lowlevel in range(params["upperbound"]+400,3600,200):
         params.update({"lowerbound":lowlevel})
         inv,columndict,svds,A,e= inverttools.invert(inverse,surfaces,neighbors,distances,params=params)
         if inv:
@@ -63,12 +64,14 @@ def conditionError(inverse,surfaces,neighbors,distances,fname=False,disp=-1,para
 
 def conditionErrorRefLevel(inverse,surfaces,neighbors,distances,disp=-1,savepath=False,params={}):
     for reflevel in range(400,1600,200):
-        conditionError(inverse,surfaces,neighbors,distances,disp=disp,params=params.update({"reflevel":reflevel,"upperbound":reflevel}),savepath=savepath)
+        print(params)
+        params.update({"mixs":[True,False,True],"reflevel":reflevel,"upperbound":reflevel})
+        print(params)
+        conditionError(inverse,surfaces,neighbors,distances,disp=disp,params=params,savepath=savepath)
 
 def mixSens(inverse,surfaces,neighbors,distances,disp=-1,savepath=False,params={}):
     params = {"reflevel":600,"upperbound":600,"lowerbound":1600,"mixs":[True,True,True]}
-    mixs = [10**8,10**7,10**4]
-    for i in [-4,-3.5,-3,-2.5,-2]:
+    for i in np.arange(-5,-4,0.1):
         for j,name in enumerate(["Kvo","Kvb","Kvh"]):
             if  j== 1:
                 newmix = mixs.copy()

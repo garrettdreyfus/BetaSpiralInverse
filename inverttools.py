@@ -278,7 +278,7 @@ def graphError(b,us,prime):
     b = np.asarray(b)
     us = np.asarray(us)
     prime = np.asarray(prime)
-    errorbefore = np.matmul(b,us+prime)
+    errorbefore = np.matmul(b,us+prime/0.05)
     errorafter = np.matmul(b,us)
     plt.scatter(range(len(errorafter)),errorafter,label="after")
     plt.scatter(range(len(errorbefore)),errorbefore,label="before")
@@ -525,7 +525,8 @@ def applyRefLevel(surfaces,reflevel=1000):
     return surfaces
 
 ## apply the solution to surfaces
-def applyPrime(staggeredsurfaces,prime,coldict,mixing=False):
+def applyPrime(staggeredsurfaces,prime,coldict,params,widths,mixing=False):
+    scales = params["scalecoeffs"]
     for k in Bar("adding solutions: ").iter(staggeredsurfaces.keys()):
         staggeredsurfaces[k]["data"]["psinew"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         staggeredsurfaces[k]["data"]["psisol"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
@@ -536,15 +537,12 @@ def applyPrime(staggeredsurfaces,prime,coldict,mixing=False):
         for i in range(len(staggeredsurfaces[k]["data"]["ids"])):
             eyed = staggeredsurfaces[k]["data"]["ids"][i] 
             if eyed in coldict.keys():
-                staggeredsurfaces[k]["data"]["psinew"][i] = staggeredsurfaces[k]["data"]["psiref"][i] + prime[coldict[eyed]]
-                staggeredsurfaces[k]["data"]["psisol"][i] = prime[coldict[eyed]]
-                if mixing and False:
-                    m = coldict["max"]
-                    print(len(prime))
-                    print(m)
-                    staggeredsurfaces[k]["data"]["kvb"][i] = prime[m+coldict[eyed]]
-                    staggeredsurfaces[k]["data"]["kvo"][i] = prime[(2*m)+int(k/200.0)]
-                #staggeredsurfaces[k]["data"]["psinew"][i] =  prime[coldict[eyed]]
+                staggeredsurfaces[k]["data"]["psinew"][i] = staggeredsurfaces[k]["data"]["psiref"][i] + prime[coldict[eyed]]*scales[0]
+                staggeredsurfaces[k]["data"]["psisol"][i] = prime[coldict[eyed]]*scales[0]
+                #if params["mixs"] == [True,True,True]:
+                    #staggeredsurfaces[k]["data"]["kvb"][i] = prime[widths[0]+coldict[eyed]]
+                    #staggeredsurfaces[k]["data"]["kvh"][i] = prime[widths[0]+widths[1]+]
+                    #staggeredsurfaces[k]["data"]["kvo"][i] = prime[widths[0]+widths[1](2*m)+int(k/200.0)]
     return staggeredsurfaces
 
 ## return list of ids of points that are constrained by a given number of equations
@@ -566,9 +564,9 @@ def generateWhiteList(surfaces,neighbors,lowlevel,highlevel):
 
 ## construct row of inverse that conserves PV, threepoint determines whether a 
 ## threepoint or four point grid setup will be used
-def constructBetaRow(surfaces,k,distances,s,columnindexs,threepoint=True,Arscale=1):
+def constructBetaRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True):
+    Arscale = scales[0]
     Apsirow = [0]*(max(columnindexs)+1)
-    values = [0]*4
 
     beta = ptools.calcBeta(surfaces[k]["lats"][s[0]])
     pv =  surfaces[k]["data"]["pv"][s[0]] 
@@ -584,6 +582,7 @@ def constructBetaRow(surfaces,k,distances,s,columnindexs,threepoint=True,Arscale
     #use mean gradient instead
     ## (-1/f)dAr/dy*dQnotdx
     if threepoint:
+        values = [0]*3
         d01 = distances[(s[0],s[1])]
         d02 = distances[(s[0],s[2])]
 
@@ -596,11 +595,12 @@ def constructBetaRow(surfaces,k,distances,s,columnindexs,threepoint=True,Arscale
         values[2] = (1/(2*f*d02))*(dqnotdx-x*beta*pv/(f*r))\
 
         ## (-1/f)dAr/dx*dQnotdx
-        Apsirow[columnindexs[0]] = values[0]/Arscale
-        Apsirow[columnindexs[1]] = values[1]/Arscale
-        Apsirow[columnindexs[2]] = values[2]/Arscale
+        Apsirow[columnindexs[0]] = values[0]
+        Apsirow[columnindexs[1]] = values[1]
+        Apsirow[columnindexs[2]] = values[2]
  
     else:
+        values = [0]*4
         d01 = distances[(s[0],s[1])]
         d02 = distances[(s[0],s[2])]
         d23 = distances[(s[2],s[3])]
@@ -618,23 +618,24 @@ def constructBetaRow(surfaces,k,distances,s,columnindexs,threepoint=True,Arscale
         values[3] = (1/(2*f*d13))*(dqnotdx-x*beta*pv/(f*r))\
                                   + (-1/(2*f*d23))*(dqnotdy-y*beta*pv/(f*r))
 
-        Apsirow[columnindexs[0]] = values[0]/Arscale
-        Apsirow[columnindexs[1]] = values[1]/Arscale
-        Apsirow[columnindexs[2]] = values[2]/Arscale
-        Apsirow[columnindexs[3]] = values[3]/Arscale
+        Apsirow[columnindexs[0]] = values[0]
+        Apsirow[columnindexs[1]] = values[1]
+        Apsirow[columnindexs[2]] = values[2]
+        Apsirow[columnindexs[3]] = values[3]
     crow = (-u)*(dqnotdx-x*beta*pv/(f*r))+(-v)*(dqnotdy-y*beta*pv/(f*r))
-    return Apsirow,values, crow/Arscale
+    return np.asarray(Apsirow)*Arscale,np.asarray(values)*Arscale,np.asarray(crow)*Arscale
 
 ## construct row of inverse that conserves salt
-def constructSalRow(surfaces,k,distances,s,columnindexs,threepoint=True,Arscale=1):
+def constructSalRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True):
+    Arscale = scales[0]
     Apsirow = [0]*(max(columnindexs)+1)
-    values = [0]*4
     dsdx = surfaces[k]["data"]["dsdx"][s[0]]
     dsdy = surfaces[k]["data"]["dsdy"][s[0]]
     f = gsw.f(surfaces[k]["lats"][s[0]])
     u = surfaces[k]["data"]["uref"][s[0]] 
     v = surfaces[k]["data"]["vref"][s[0]] 
     if threepoint: 
+        values = [0]*3
         d01 = distances[(s[0],s[1])]
         d02 = distances[(s[0],s[2])]
         
@@ -646,10 +647,11 @@ def constructSalRow(surfaces,k,distances,s,columnindexs,threepoint=True,Arscale=
 
         values[2] = (1/(2*f*d02))*dsdx\
 
-        Apsirow[columnindexs[0]] = values[0]/Arscale
-        Apsirow[columnindexs[1]] = values[1]/Arscale
-        Apsirow[columnindexs[2]] = values[2]/Arscale
+        Apsirow[columnindexs[0]] = values[0]
+        Apsirow[columnindexs[1]] = values[1]
+        Apsirow[columnindexs[2]] = values[2]
     else: 
+        values = [0]*4
         d01 = distances[(s[0],s[1])]
         d02 = distances[(s[0],s[2])]
         d23 = distances[(s[2],s[3])]
@@ -669,13 +671,12 @@ def constructSalRow(surfaces,k,distances,s,columnindexs,threepoint=True,Arscale=
         values[3] = (1/(2*f*d13))*dsdx\
                                   + (-1/(2*f*d23))*dsdy
 
-        Apsirow[columnindexs[0]] = values[0]/Arscale
-        Apsirow[columnindexs[1]] = values[1]/Arscale
-        Apsirow[columnindexs[2]] = values[2]/Arscale
-        Apsirow[columnindexs[3]] = values[3]/Arscale
-    crow = -((u)*dsdx+(v)*dsdy)/Arscale
-
-    return Apsirow,values,crow
+        Apsirow[columnindexs[0]] = values[0]
+        Apsirow[columnindexs[1]] = values[1]
+        Apsirow[columnindexs[2]] = values[2]
+        Apsirow[columnindexs[3]] = values[3]
+    crow = -((u)*dsdx+(v)*dsdy)
+    return np.asarray(Apsirow)*Arscale,np.asarray(values)*Arscale,np.asarray(crow)*Arscale
 
 def fillDefault(params):
     params.setdefault("debug",False)
@@ -684,7 +685,7 @@ def fillDefault(params):
     params.setdefault("upperbound",1000)
     params.setdefault("reflevel",1000)
     params.setdefault("mixs",[True,False,True])
-    params.setdefault("mixcoeffs",[10**8,10**7,10**4])
+    params.setdefault("scalecoeffs",[0.05,5*10**-6,5*10**-5,500])
     params.setdefault("3point",True)
     return params
 
@@ -701,7 +702,7 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
         for s in neighbors[k]:
 
             s=np.asarray(s)
-            kpv,ks = ptools.kterms(surfaces,k,s[0],params["mixcoeffs"])
+            kpv,ks = ptools.kterms(surfaces,k,s[0],params["scalecoeffs"])
 
             if kpv.any() and ks.any() and params["lowerbound"]>=k>=params["upperbound"] and surfaces[k]["ids"][s[0]]:
                 ##find/store column indexs for each neighbor
@@ -712,12 +713,15 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
 
                 ##this is a shorthad way of converting the NS to an index
                 #######PVROW
-                betarow,betavals, crow = constructBetaRow(surfaces,k,distances[k],s,columnindexs,params["3point"])
+                betarow,betavals, crow = constructBetaRow(surfaces,k,distances[k],s,columnindexs,params["scalecoeffs"],threepoint=params["3point"])
                 betavals = np.asarray(betavals)
-                l = np.concatenate((betavals,kpv))
 
                 n = np.linalg.norm(np.concatenate((np.asarray(betavals),kpv[params["mixs"]])))
-                #n = np.linalg.norm(betavals)
+                l = np.concatenate((betavals/n,kpv[params["mixs"]]/n))
+                plt.bar(range(len(l)),np.abs(l))
+                #plt.yscale("log")
+                plt.title("beta: "+str(np.sum(np.power(l,2))))
+                plt.show()
                 Apsi.append(np.asarray(betarow)/n)
 
                 ##make rows that can fit it 
@@ -736,11 +740,14 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
 
                 #######SALROW
                 ##make rows that can fit it 
-                salrow, salvals, crow = constructSalRow(surfaces,k,distances[k],s,columnindexs,params["3point"])
+                salrow, salvals, crow = constructSalRow(surfaces,k,distances[k],s,columnindexs,params["scalecoeffs"],threepoint=params["3point"])
                 salvals = np.asarray(salvals)
-
-                l = np.concatenate((salvals[np.nonzero(salvals)],ks))
                 n = np.linalg.norm(np.concatenate((np.asarray(salvals),ks[params["mixs"]])))
+                l = np.concatenate((salvals/n,ks[params["mixs"]]/n))
+                plt.bar(range(len(l)),np.abs(l))
+                #plt.yscale("log")
+                plt.title("sal: "+str(np.sum(np.power(l,2))))
+                plt.show()
                 Apsi.append(np.asarray(salrow)/n)
 
                 ##im a rascal and this is a shorthad way of converting the NS to an index :P
@@ -772,19 +779,18 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
     m = columndictionary["max"]+1
     us = us[:m]
 
-
     if params["mixs"] == [True,True,True]:
-        A = combineAs([m,m,18,1],Apsi,Akvb,Akh,Akvo)
+        A,widths = combineAs([m,m,18,1],Apsi,Akvb,Akh,Akvo)
         print("ALL ON")
     elif params["mixs"] == [True,False,True]:
         print("ALL KVO, Kh")
-        A = combineAs([m,18,1],Apsi,Akh,Akvo)
+        A,widths = combineAs([m,18,1],Apsi,Akh,Akvo)
     elif params["mixs"] == [True,False,False]:
         print("ALL KVO")
-        A = combineAs([m,1],Apsi,Akvo)
+        A,widths = combineAs([m,1],Apsi,Akvo)
     elif params["mixs"] == [False,False,False]:
         print("ALL OFF")
-        A = combineAs([m],Apsi)
+        A,widths = combineAs([m],Apsi)
         
 
     if params["debug"]:
@@ -808,10 +814,31 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
         rdivc(D)
 
     errors = error(A,np.concatenate((us,[0]*(A.shape[1]-len(us)))),prime)
+    calculatediapycnalv(surfaces,prime,params,widths)
 
-
-    surfaces = applyPrime(surfaces,prime,columndictionary,mixing=True)
+    surfaces = applyPrime(surfaces,prime,columndictionary,params,widths,mixing=True)
     return surfaces, columndictionary, [VT,D,U],A, errors
+
+def calculatediapycnalv(surfaces,prime,params,widths):
+    return None
+    #if params["mixs"] == [True,True,True]:
+        #print("this is definitely very possible but like kvb isnt great rn so I dont really want to")
+        #return [0]
+    #if params["mixs"] == [True,False,True]:
+        #print(len(prime))
+        #print(widths[0]+widths[1])
+        #kvhs = prime[widths[0]:widths[0]+widths[1]]
+        #print(kvhs)
+    #for k in surfaces.keys():
+        #surfaces[k]["data"]["e"] = np.full(len(surfaces[k]["data"]["psi"]),np.nan)
+        #kvhindex = (k-params["upperbound"])/200
+        #if kvhindex > 0 and kvhindex<len(kvhs):
+            #for point in range(len(surfaces[k]["data"]["e"])):
+                #rhonot = 1025.0
+                #kvh = kvhs[int(kvhindex)]/params["scalecoeffs"][3]
+                #e = rhonot*kvh*surfaces[k]["data"]["khp"][point]
+                #surfaces[k]["data"]["e"][point]=e
+
 
 
 #the number of values per row
@@ -910,14 +937,16 @@ def concat(argv):
 ## square off all of the matrixes and combine them
 def combineAs(maxlengths,*argv):
     new = []
+    widths = []
     for i in range(len(argv)):
         x  = np.asarray(rectangularize(argv[i],maxlengths[i]))
         print(x.shape)
         if np.all(x == 0, axis=0).any():
             print("removing 0 columns")
         x = x[:,~np.all(x == 0, axis=0)]
+        widths.append(x.shape[1])
         new.append(x)
-    return concat(new)
+    return concat(new),widths
 
 #graph solution of mixing terms
 def graphKs(prime,m):

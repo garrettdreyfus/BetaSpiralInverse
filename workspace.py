@@ -52,23 +52,28 @@ import random
 #staggeredsurfaces = nstools.addK(staggeredsurfaces,"data/bathVar.pickle")
 
 with open('data/ready4inverse.pickle', 'rb') as outfile:
-    [staggeredsurfaces,neighbors,distances]=pickle.load(outfile)
+    [surfaces,neighbors,distances]=pickle.load(outfile)
 
 ###nstools.surfaceDiagnostic(staggeredsurfaces)
 #with open('data/ready4inverse.pickle', 'wb') as outfile:
     #pickle.dump([staggeredsurfaces,neighbors,lookups], outfile)
+#for q in surfaces[1000]["data"].keys():
+    #graph.graphSurfaces(surfaces,q,savepath="refpics/allquants/",show=False)
 
 
-sensitivity.mixSens("coupled",staggeredsurfaces,neighbors,distances,savepath="refpics/fullmixexplore/")
+#sensitivity.mixSens("coupled",staggeredsurfaces,neighbors,distances,savepath="refpics/fullmixexplore/")
+sensitivity.conditionErrorRefLevel("coupled",surfaces,neighbors,distances)
 #sensitivity.conditionError("coupled",staggeredsurfaces,neighbors,distances)
-#inv,columndictionary,svds,A,errors= inverttools.invert("coupled",staggeredsurfaces,neighbors,distances)
+#params = {"reflevel":600,"upperbound":600,"lowerbound":1400,"mixs":[True,False,True]}
+
+#inv,columndictionary,svds,A,errors= inverttools.invert("coupled",surfaces,neighbors,distances)
 
 #coupleinvert = nstools.streamFuncToUV(inv,neighbors,distances)
 #coupleinvert = bathtools.addBathToSurface(inv)
 
+##graph.graphSurfaces(inv,"e")
 #graph.graphVectorField(inv,"uabs","vabs","z")
 
-#graph.graphSurfaces(coupleinvert,"psi",idlabels=True)
 
 #across basin
 #graph.quantityLine(coupleinvert,(-143.04,70.46),(62.06,82.232),"pres",4000,-1)

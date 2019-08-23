@@ -439,12 +439,11 @@ def calculateKHP(staggered,k,index):
     dalphads = staggered[k]["data"]["dalphads"][index]
     dbetads = staggered[k]["data"]["dbetads"][index]
     alpha = staggered[k]["data"]["alpha"][index]
-    beta = staggered[k]["data"]["beta"][index]
     dbetadp = staggered[k]["data"]["dbetadp"][index]
-    betaTherm = staggered[k]["data"]["dbetadp"][index]
+    betaTherm = staggered[k]["data"]["beta"][index]
     alphat = dalphadtheta+2*(alpha/betaTherm)*dalphads-(alpha**2/betaTherm**2)*dbetads
     alphap = dalphadp -(alpha/betaTherm)*dbetadp
-    magct = staggered[k]["data"]["dtdx"][index]**2 + staggered[k]["data"]["dtdx"][index]**2
+    magct = staggered[k]["data"]["dtdx"][index]**2 + staggered[k]["data"]["dtdy"][index]**2
     cdotp = staggered[k]["data"]["dtdx"][index]*staggered[k]["data"]["dpdx"][index]+staggered[k]["data"]["dtdy"][index]*staggered[k]["data"]["dpdy"][index]
     return alphat*magct+alphap*cdotp
 
