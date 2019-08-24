@@ -718,10 +718,12 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
 
                 n = np.linalg.norm(np.concatenate((np.asarray(betavals),kpv[params["mixs"]])))
                 l = np.concatenate((betavals/n,kpv[params["mixs"]]/n))
-                plt.bar(range(len(l)),np.abs(l))
-                #plt.yscale("log")
-                plt.title("beta: "+str(np.sum(np.power(l,2))))
-                plt.show()
+                #plt.bar(range(len(l)),np.abs(l))
+                ##plt.yscale("log")
+                #plt.title("beta: "+str(np.sum(np.power(l,2))))
+                #plt.show()
+                #ptools.kChecker(surfaces,k,s[0],params["scalecoeffs"])
+                print("kvb: ",kpv[1])
                 Apsi.append(np.asarray(betarow)/n)
 
                 ##make rows that can fit it 
@@ -744,10 +746,10 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
                 salvals = np.asarray(salvals)
                 n = np.linalg.norm(np.concatenate((np.asarray(salvals),ks[params["mixs"]])))
                 l = np.concatenate((salvals/n,ks[params["mixs"]]/n))
-                plt.bar(range(len(l)),np.abs(l))
-                #plt.yscale("log")
-                plt.title("sal: "+str(np.sum(np.power(l,2))))
-                plt.show()
+                #plt.bar(range(len(l)),np.abs(l))
+                ##plt.yscale("log")
+                #plt.title("sal: "+str(np.sum(np.power(l,2))))
+                #plt.show()
                 Apsi.append(np.asarray(salrow)/n)
 
                 ##im a rascal and this is a shorthad way of converting the NS to an index :P
@@ -814,30 +816,36 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
         rdivc(D)
 
     errors = error(A,np.concatenate((us,[0]*(A.shape[1]-len(us)))),prime)
-    calculatediapycnalv(surfaces,prime,params,widths)
+    calculatediapycnalv(surfaces,prime,params,widths,columndictionary)
 
     surfaces = applyPrime(surfaces,prime,columndictionary,params,widths,mixing=True)
     return surfaces, columndictionary, [VT,D,U],A, errors
 
-def calculatediapycnalv(surfaces,prime,params,widths):
-    return None
-    #if params["mixs"] == [True,True,True]:
-        #print("this is definitely very possible but like kvb isnt great rn so I dont really want to")
-        #return [0]
-    #if params["mixs"] == [True,False,True]:
-        #print(len(prime))
-        #print(widths[0]+widths[1])
-        #kvhs = prime[widths[0]:widths[0]+widths[1]]
-        #print(kvhs)
-    #for k in surfaces.keys():
-        #surfaces[k]["data"]["e"] = np.full(len(surfaces[k]["data"]["psi"]),np.nan)
-        #kvhindex = (k-params["upperbound"])/200
-        #if kvhindex > 0 and kvhindex<len(kvhs):
-            #for point in range(len(surfaces[k]["data"]["e"])):
-                #rhonot = 1025.0
-                #kvh = kvhs[int(kvhindex)]/params["scalecoeffs"][3]
-                #e = rhonot*kvh*surfaces[k]["data"]["khp"][point]
-                #surfaces[k]["data"]["e"][point]=e
+def calculatediapycnalv(surfaces,prime,params,widths,coldict):
+    kvbs=np.asarray([])
+    kvhs =np.asarray([])
+    if params["mixs"] == [True,True,True]:
+        kvbs = prime[widths[0]:widths[0]+widths[1]]
+        kvhs = prime[widths[0]+widths[1]:widths[0]+widths[1]+widths[2]]
+    if params["mixs"] == [True,False,True]:
+        kvhs = prime[widths[0]:widths[0]+widths[1]]
+    for k in surfaces.keys():
+        surfaces[k]["data"]["e"] = np.full(len(surfaces[k]["data"]["psi"]),np.nan)
+        if params["lowerbound"] >= k >= params["upperbound"]:
+            print("bo")
+            for point in range(len(surfaces[k]["data"]["e"])):
+                kpvs,ks = ptools.kterms(surfaces,k,point,[1]*4)
+                if kpvs.any():
+                    rhonot = 1025.0
+                    e=0
+                    if kvhs.any():
+                        kvhindex = (k-params["upperbound"])/200
+                        kvh = kvhs[int(kvhindex)]*params["scalecoeffs"][3]
+                        e+=kvh*kpvs[2]
+                    if kvbs.any():
+                        kvb = kvbs[coldict[surfaces[k]["ids"][point]]]
+                        e+=kvh*kpvs[1]
+                    surfaces[k]["data"]["e"][point]=e
 
 
 

@@ -17,6 +17,22 @@ def bathVarTerm(lat,lon):
     dnot = 750
     return (np.var(d)/dnot)**(0.25)
 
+#one of the mixing terms is a mess and this calculates that
+def calculateKHP(staggered,k,index):
+    dalphadtheta = staggered[k]["data"]["dalphadtheta"][index]
+    dalphadp = staggered[k]["data"]["dalphadp"][index]
+    dalphads = staggered[k]["data"]["dalphads"][index]
+    dbetads = staggered[k]["data"]["dbetads"][index]
+    alpha = staggered[k]["data"]["alpha"][index]
+    dbetadp = staggered[k]["data"]["dbetadp"][index]
+    betaTherm = staggered[k]["data"]["beta"][index]
+    alphat = dalphadtheta+2*(alpha/betaTherm)*dalphads-(alpha**2/betaTherm**2)*dbetads
+    alphap = dalphadp -(alpha/betaTherm)*dbetadp
+    magct = staggered[k]["data"]["dtdx"][index]**2 + staggered[k]["data"]["dtdy"][index]**2
+    cdotp = staggered[k]["data"]["dtdx"][index]*staggered[k]["data"]["dpdx"][index]+staggered[k]["data"]["dtdy"][index]*staggered[k]["data"]["dpdy"][index]
+    return alphat*magct+alphap*cdotp
+
+
 ## this stuff takes a long time to calculate so this
 ## throws everything into a pickle for later
 def saveBathVarTermCache(surfaces,outfilename):
@@ -159,7 +175,7 @@ def kChecker(surfaces,k,found,scales,debug=False):
             plt.yscale("log")
             plt.show()
 
-        kvhbreakdown=True
+        kvhbreakdown=False
         if kvhbreakdown:
             #(d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv -f*khpdz
             labels = ["d2qdx2+d2qdy2","2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv","f*khpdz","f","khpdz"]
@@ -169,7 +185,7 @@ def kChecker(surfaces,k,found,scales,debug=False):
             plt.yscale("log")
             plt.show()
 
-        kvbbreakdown=False
+        kvbbreakdown=True
         if kvbbreakdown:
             labels = ["d2qdz2","dqdz","pv"]
             print(dsdz)
@@ -178,7 +194,7 @@ def kChecker(surfaces,k,found,scales,debug=False):
             plt.yscale("log")
             plt.show()
 
-        sixpartcompare = True
+        sixpartcompare = False
         if sixpartcompare:
             labels = ["pvkv0","pvkh","pvkvb","fakebeta","skv0","skh","skvb"]
             fakesal = (1/2*f)*(10**-5)*(dqnotdx-x*beta*pv/(f*r))
@@ -241,7 +257,6 @@ def kterms(surfaces,k,found,scales,debug=False):
     kvoscale = scales[1]
     kvbscale = scales[2]
     khscale  = scales[3]
-    #kChecker(surfaces,k,found,scales)
     if (np.isnan(isitnan).any()):
         if debug:
             print("pres is nan: ",np.isnan(pres))

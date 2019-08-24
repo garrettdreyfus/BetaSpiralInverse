@@ -431,22 +431,6 @@ def addHeight(surfaces):
                 surfaces[depths[j]]["data"]["h"][found] = tophalf + bothalf
                 surfaces[depths[j]]["data"]["dbetadp"][found] = (surfaces[depths[j-1]]["data"]["beta"][foundabove] - surfaces[depths[j+1]]["data"]["beta"][foundbelow])/((tophalf + bothalf)*2)
     return surfaces
-
-#one of the mixing terms is an absolute dooozzzzzy and this calculates that
-def calculateKHP(staggered,k,index):
-    dalphadtheta = staggered[k]["data"]["dalphadtheta"][index]
-    dalphadp = staggered[k]["data"]["dalphadp"][index]
-    dalphads = staggered[k]["data"]["dalphads"][index]
-    dbetads = staggered[k]["data"]["dbetads"][index]
-    alpha = staggered[k]["data"]["alpha"][index]
-    dbetadp = staggered[k]["data"]["dbetadp"][index]
-    betaTherm = staggered[k]["data"]["beta"][index]
-    alphat = dalphadtheta+2*(alpha/betaTherm)*dalphads-(alpha**2/betaTherm**2)*dbetads
-    alphap = dalphadp -(alpha/betaTherm)*dbetadp
-    magct = staggered[k]["data"]["dtdx"][index]**2 + staggered[k]["data"]["dtdy"][index]**2
-    cdotp = staggered[k]["data"]["dtdx"][index]*staggered[k]["data"]["dpdx"][index]+staggered[k]["data"]["dtdy"][index]*staggered[k]["data"]["dpdy"][index]
-    return alphat*magct+alphap*cdotp
-
 #calculates and stores all the necessary vertical gradients
 #then proceeds to calculate all the double vertical gradients
 def addVerticalGrad(surfaces): 
@@ -466,7 +450,7 @@ def addVerticalGrad(surfaces):
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"pv","dqdz",factor=-1)
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"alpha","dalphadp")
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"beta","dbetadp")
-                surfaces[depths[j]]["data"]["khp"][found] = calculateKHP(surfaces,depths[j],found)
+                surfaces[depths[j]]["data"]["khp"][found] = ptools.calculateKHP(surfaces,depths[j],found)
                 
     for j in Bar('Adding Vertical Double Gradients:   ').iter(range(len(depths))[1:-1]):
         for index in range(len(surfaces[depths[j]]["x"])):

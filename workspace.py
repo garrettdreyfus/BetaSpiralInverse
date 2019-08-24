@@ -62,17 +62,18 @@ with open('data/ready4inverse.pickle', 'rb') as outfile:
 
 
 #sensitivity.mixSens("coupled",staggeredsurfaces,neighbors,distances,savepath="refpics/fullmixexplore/")
-sensitivity.conditionErrorRefLevel("coupled",surfaces,neighbors,distances)
+#sensitivity.conditionErrorRefLevel("coupled",surfaces,neighbors,distances)
 #sensitivity.conditionError("coupled",staggeredsurfaces,neighbors,distances)
-#params = {"reflevel":600,"upperbound":600,"lowerbound":1400,"mixs":[True,False,True]}
 
-#inv,columndictionary,svds,A,errors= inverttools.invert("coupled",surfaces,neighbors,distances)
+params = {"reflevel":1200,"upperbound":800,"lowerbound":2000,"mixs":[True,True,True],"debug":True}
 
-#coupleinvert = nstools.streamFuncToUV(inv,neighbors,distances)
-#coupleinvert = bathtools.addBathToSurface(inv)
+inv,columndictionary,svds,A,errors= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
 
-##graph.graphSurfaces(inv,"e")
-#graph.graphVectorField(inv,"uabs","vabs","z")
+coupleinvert = nstools.streamFuncToUV(inv,neighbors,distances)
+coupleinvert = bathtools.addBathToSurface(inv)
+
+#graph.graphSurfaces(inv,"e")
+graph.graphVectorField(inv,"uabs","vabs","e")
 
 
 #across basin
