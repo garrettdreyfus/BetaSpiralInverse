@@ -635,6 +635,73 @@ def tsNeutralExplore(profiles):
     plt.show()
 
 
+## graph a vector field given a surfaces object on a map
+## any quantity can be supplied as a background field
+def graphProfilesVectorField(profiles,depths=range(200,4000,200),savepath=False,show=True):
+
+    if savepath:
+        try:
+            os.makedirs(savepath+"eccouv")
+        except FileExistsError as e:
+            print(e)
+
+    for k in depths[::-1]:
+        fig,ax = plt.subplots(1,1)
+        mapy = Basemap(projection='ortho', lat_0=90,lon_0=-60)
+        mapy.drawmapboundary(fill_color='aqua')
+        mapy.fillcontinents(color='coral',lake_color='aqua')
+        mapy.drawcoastlines()
+        urs=[]
+        uthetas=[]
+        lons = []
+        lats = []
+        bgfield = []
+        for p in profiles[::2]:
+            if k in p.neutraldepth.keys() and 1000 in p.neutraldepth.keys():
+                i = p.ipresIndex(p.neutraldepth[k])
+                urs.append(p.knownv[i]-p.knownv[p.ipresIndex(1000)])
+                uthetas.append(p.knownu[i]-p.knownu[p.ipresIndex(1000)])
+                #urs.append(1)
+                #uthetas.append(1)
+                lons.append(p.lon)
+                lats.append(p.lat)
+                bgfield.append(p.atPres(p.ipres[i])[1])
+
+        urs.append(0.1)
+        uthetas.append(0)
+        lons.append(89)
+        lats.append(89)
+        bgfield.append(np.nan)
+
+        urs.append(0)
+        uthetas.append(0.1)
+        lons.append(89)
+        lats.append(89)
+        bgfield.append(np.nan)
+
+        fig.suptitle("knownu,knownv NS: "+str(k))
+        urs = np.asarray(urs)
+        uthetas = np.asarray(uthetas)
+        lons = np.asarray(lons)
+        lats = np.asarray(lats)
+        u,v,x,y = mapy.rotate_vector(uthetas,urs,lons,lats,returnxy=True)
+        mag = np.sqrt(urs**2+uthetas**2)
+        zoomGraph(mapy,ax)
+        fig.set_size_inches(16.5,12)
+
+        xpv,ypv = mapy(lons,lats)
+
+        #plt.scatter(xpv,ypv,bgfield)
+        #plt.clim(np.min(bgfield),np.max(bgfield))
+        #mapy.colorbar()
+        mapy.quiver(x,y,u,v,mag,cmap="plasma",width = 0.002)
+        if savepath:
+            plt.savefig(savepath+"eccouv"+"/ns"+str(k)+".png")
+        if show:
+            plt.show()
+        plt.close()
+
+
 
         
 

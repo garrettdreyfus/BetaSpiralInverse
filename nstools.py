@@ -274,10 +274,10 @@ def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
                 else:
                     pv = p.potentialVorticityAt(surfaces[k]["data"]["pres"][l])
                     t,s = p.atPres(surfaces[k]["data"]["pres"][l])
-                monthcount[p.time.month]=monthcount[p.time.month]+1
+                #monthcount[p.time.month]=monthcount[p.time.month]+1
                 if pv and pv<0:
                     pv=0
-                    monthnegativecount[p.time.month]=monthnegativecount[p.time.month]+1
+                    #monthnegativecount[p.time.month]=monthnegativecount[p.time.month]+1
                     negativecount +=1 
                 if type(pv) == type(None):
                     pv = np.nan
@@ -379,7 +379,7 @@ def nanCopySurfaces(surfaces):
                     "dqnotdx","dqnotdy","d2thetads2","dalphadtheta",\
                     "alpha","beta","dalphads","dbetads","dalphadp",\
                     "dbetadp","psi","psinew","dqdz","dqdx","dqdy",\
-                    "d2qdz2","d2qdx2","d2qdy2","khp","khpdz"]
+                    "d2qdz2","d2qdx2","d2qdy2","khp","khpdz","toph","both"]
         for d in datafields:
             nancopy[k]["data"][d] = np.full(len(surfaces[k]["lons"]),np.nan)
     return nancopy
@@ -391,7 +391,7 @@ def fillOutEmptyFields(surfaces):
                     "d2sdx2","d2sdy2","dtdx","dtdy","dpdx","dpdy","n^2",\
                     "dqnotdx","dqnotdy","d2thetads2","dalphadtheta",\
                     "alpha","beta","dalphads","dbetads","dalphadp",\
-                    "dbetadp","psi","dqdz","dqdx","dqdy",\
+                    "dbetadp","psi","dqdz","dqdx","dqdy","toph","both",\
                     "d2qdz2","d2qdx2","d2qdy2","khp","khpdz","dpsidx","dpsidy"]
         for d in datafields:
             if d not in surfaces[k]["data"].keys():
@@ -429,6 +429,8 @@ def addHeight(surfaces):
                 tophalf = abs(surfaces[depths[j-1]]["data"]["pres"][foundabove]-surfaces[depths[j]]["data"]["pres"][found])/2.0
                 bothalf = abs(surfaces[depths[j]]["data"]["pres"][found]-surfaces[depths[j+1]]["data"]["pres"][foundbelow])/2.0
                 surfaces[depths[j]]["data"]["h"][found] = tophalf + bothalf
+                surfaces[depths[j]]["data"]["toph"][found] = tophalf
+                surfaces[depths[j]]["data"]["both"][found] = bothalf
                 surfaces[depths[j]]["data"]["dbetadp"][found] = (surfaces[depths[j-1]]["data"]["beta"][foundabove] - surfaces[depths[j+1]]["data"]["beta"][foundbelow])/((tophalf + bothalf)*2)
     return surfaces
 #calculates and stores all the necessary vertical gradients
@@ -661,7 +663,8 @@ def addStreamFunc(surfaces,profiles):
         for depth in range(len(nslabels)):
             #print(psi)
             #print(surfaces[nslabels[depth]]["ids"])
-            targets = np.where(np.asarray(surfaces[nslabels[depth]]["ids"]) ==str(k) )
+            #print(np.asarray(surfaces[nslabels[depth]]["ids"]),int(k))
+            targets = np.where(np.asarray(surfaces[nslabels[depth]]["ids"]) ==int(k) )
             #print(targets)
             surfaces[nslabels[depth]]["data"]["psi"][targets] = psi[depth]
         p_ref.append([0]*len(p.ipres))

@@ -217,6 +217,8 @@ def kterms(surfaces,k,found,scales,debug=False):
     r = np.sqrt(x**2 + y**2)
     hx = surfaces[k]["data"]["hx"][found]
     hy = surfaces[k]["data"]["hy"][found]
+    toph = surfaces[k]["data"]["toph"][found] 
+    both = surfaces[k]["data"]["both"][found] 
     dsdx = surfaces[k]["data"]["dsdx"][found]
     dsdy = surfaces[k]["data"]["dsdy"][found]
     pres = surfaces[k]["data"]["pres"][found]
@@ -242,7 +244,8 @@ def kterms(surfaces,k,found,scales,debug=False):
     dqdy = surfaces[k]["data"]["dqdy"][found] 
     d2qdx2 = surfaces[k]["data"]["d2qdx2"][found] 
     d2qdy2 = surfaces[k]["data"]["d2qdy2"][found] 
-    khpdz = surfaces[k]["data"]["khpdz"][found] 
+    khp = surfaces[k]["data"]["khp"][found] 
+    dkhpdz = surfaces[k]["data"]["khpdz"][found] 
     alphat = dalphadtheta+2*(alpha/betaTherm)*dalphads-(alpha**2/betaTherm**2)*dbetads
     alphap = dalphadp -(alpha/betaTherm)*dbetadp
     pv =  surfaces[k]["data"]["pv"][found] 
@@ -253,7 +256,7 @@ def kterms(surfaces,k,found,scales,debug=False):
     isitnan = [alpha,betaTherm,dsdz,hx,hy,dsdx,dsdy,pres,d2sdx2,d2sdy2,\
               dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
               dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
-              beta,d2qdx2,d2qdy2,khpdz]
+              beta,dkhpdz,d2qdx2,d2qdy2,khp,toph,both]
     kvoscale = scales[1]
     kvbscale = scales[2]
     khscale  = scales[3]
@@ -267,9 +270,9 @@ def kterms(surfaces,k,found,scales,debug=False):
             print("something here is nan")
         return np.array([]), np.array([])
     if not (np.isnan(isitnan).any()):
-        pvkvb = (d2qdz2+2*(1/200)*dqdz+(1/(200**2))*pv)*CKVB
+        pvkvb = (d2qdz2+2*(1/200.0)*dqdz+(1/(200.0**2))*pv)*CKVB
         pvkv0 = d2qdz2
-        pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv -f*khpdz
+        pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv -((1.0/both-1.0/toph)*f*khp)
         skvo = -alpha*f*(1/pv)*(dsdz**3)*doublets
         skvb = skvo*CKVB
         skhpart1 = (f/pv)*dsdz*(alphat*(dtdx**2 + dtdy**2)+alphap*(dtdx*dpdx+dtdy*dpdy))

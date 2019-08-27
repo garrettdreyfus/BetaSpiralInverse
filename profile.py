@@ -15,8 +15,18 @@ class Profile:
         self.f = gsw.f(self.lat)
         self.gamma = (9.8)/(self.f*1025.0)
         self.lon = data["lon"]
-        self.time = self.processDate(data["time"])
-        self.cruise = data["cruise"]#+str(self.time.year)
+        if "time" in data.keys():
+            self.time = self.processDate(data["time"])
+        if "cruise" in data.keys():
+            self.cruise = data["cruise"]#+str(self.time.year)
+        if "knownu" in data.keys():
+            self.knownu = np.asarray(data["knownu"])
+        else:
+            self.knownu = np.array()
+        if "knownv" in data.keys():
+            self.knownv = np.asarray(data["knownv"])
+        else:
+            self.knownv =np.array
         #Temerature Salinity and Pressure
         self.temps = np.asarray(data["temp"])
         self.sals = np.asarray(data["sal"])
@@ -24,6 +34,7 @@ class Profile:
         s = np.argsort(self.pres)
         self.temps = self.temps[s]
         self.sals = self.sals[s]
+        self.pres = self.pres[s]
         self.temps = gsw.CT_from_t(self.sals,self.temps,np.abs(self.pres))
         ##Interpolated Temperature, Salinity, and Pressure
         self.itemps = []
@@ -69,6 +80,9 @@ class Profile:
             tck = interpolate.splrep(self.pres,self.sals)
             self.isals = interpolate.splev(self.ipres,tck)
             self.itemps = np.interp(self.ipres,self.pres,self.temps)
+            if self.knownu.any() and self.knownv.any():
+                self.knownu = np.interp(self.ipres,self.pres,self.knownu)
+                self.knownv = np.interp(self.ipres,self.pres,self.knownv)
             #self.irhos = gsw.rho(self.isals,self.itemps,self.ipres)
             #self.n2 = (9.8/1025.0)*np.gradient(self.irhos,-np.asarray(self.ipres))
 
@@ -81,8 +95,8 @@ class Profile:
         return gsw.rho(s,t,p)
 
     #finds PV at a depth
-    def potentialVorticityAt(self,index,debug=False):
-        index = np.where(np.asarray(self.ipres) == index)[0]
+    def potentialVorticityAt(self,depth,debug=False):
+        index = np.where(np.asarray(self.ipres) == depth)[0]
         if index:
             index = index[0]
             #if self.n2[index] < 0 and debug :
@@ -138,6 +152,11 @@ class Profile:
     ##returns the index at pressure
     def presIndex(self,pres):
         i = np.argmin(np.abs(np.asarray(self.pres) - pres))#[0][0]
+        return i
+
+    ##returns the index at pressure
+    def ipresIndex(self,pres):
+        i = np.argmin(np.abs(np.asarray(self.ipres) - pres))#[0][0]
         return i
 
     ##returns t and s between two pressures

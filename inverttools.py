@@ -1,4 +1,5 @@
 from nstools import *
+import pdb
 import scipy
 import copy
 import parametertools as ptools
@@ -623,7 +624,7 @@ def constructBetaRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True)
         Apsirow[columnindexs[2]] = values[2]
         Apsirow[columnindexs[3]] = values[3]
     crow = (-u)*(dqnotdx-x*beta*pv/(f*r))+(-v)*(dqnotdy-y*beta*pv/(f*r))
-    return np.asarray(Apsirow)*Arscale,np.asarray(values)*Arscale,np.asarray(crow)*Arscale
+    return np.asarray(Apsirow)*Arscale,np.asarray(values)*Arscale,np.asarray(crow)
 
 ## construct row of inverse that conserves salt
 def constructSalRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True):
@@ -676,7 +677,7 @@ def constructSalRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True):
         Apsirow[columnindexs[2]] = values[2]
         Apsirow[columnindexs[3]] = values[3]
     crow = -((u)*dsdx+(v)*dsdy)
-    return np.asarray(Apsirow)*Arscale,np.asarray(values)*Arscale,np.asarray(crow)*Arscale
+    return np.asarray(Apsirow)*Arscale,np.asarray(values)*Arscale,np.asarray(crow)
 
 def fillDefault(params):
     params.setdefault("debug",False)
@@ -698,7 +699,7 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
     ##dictionary of ids to column numbers
     columndictionary = {}
     surfaces = applyRefLevel(surfaces,params["reflevel"])
-    for k in Bar("adding to matrix: ").iter(neighbors.keys()):
+    for k in Bar("adding to matrix: ").iter(sorted(neighbors.keys())[::-1]):
         for s in neighbors[k]:
 
             s=np.asarray(s)
@@ -782,17 +783,17 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
     us = us[:m]
 
     if params["mixs"] == [True,True,True]:
-        A,widths = combineAs([m,m,18,1],Apsi,Akvb,Akh,Akvo)
+        A,widths = combineAs([m,m,18,1],[1,2],Apsi,Akvb,Akh,Akvo)
         print("ALL ON")
     elif params["mixs"] == [True,False,True]:
         print("ALL KVO, Kh")
-        A,widths = combineAs([m,18,1],Apsi,Akh,Akvo)
+        A,widths = combineAs([m,18,1],[1],Apsi,Akh,Akvo)
     elif params["mixs"] == [True,False,False]:
         print("ALL KVO")
-        A,widths = combineAs([m,1],Apsi,Akvo)
+        A,widths = combineAs([m,1],[],Apsi,Akvo)
     elif params["mixs"] == [False,False,False]:
         print("ALL OFF")
-        A,widths = combineAs([m],Apsi)
+        A,widths = combineAs([m],[0],Apsi)
         
 
     if params["debug"]:
@@ -816,7 +817,7 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
         rdivc(D)
 
     errors = error(A,np.concatenate((us,[0]*(A.shape[1]-len(us)))),prime)
-    calculatediapycnalv(surfaces,prime,params,widths,columndictionary)
+    #calculatediapycnalv(surfaces,prime,params,widths,columndictionary)
 
     surfaces = applyPrime(surfaces,prime,columndictionary,params,widths,mixing=True)
     return surfaces, columndictionary, [VT,D,U],A, errors
@@ -838,13 +839,15 @@ def calculatediapycnalv(surfaces,prime,params,widths,coldict):
                 if kpvs.any():
                     rhonot = 1025.0
                     e=0
-                    if kvhs.any():
-                        kvhindex = (k-params["upperbound"])/200
+                    kvhindex = (k-params["upperbound"])/200
+                    if kvhs.any() and kvhindex<len(kvhs) :
+                        print("params scale: ",params["scalecoeffs"][3])
                         kvh = kvhs[int(kvhindex)]*params["scalecoeffs"][3]
                         e+=kvh*kpvs[2]
                     if kvbs.any():
                         kvb = kvbs[coldict[surfaces[k]["ids"][point]]]
-                        e+=kvh*kpvs[1]
+                        e+=kvb*kpvs[1]
+                    print(e)
                     surfaces[k]["data"]["e"][point]=e
 
 
@@ -943,7 +946,7 @@ def concat(argv):
     return np.asarray(out)
 
 ## square off all of the matrixes and combine them
-def combineAs(maxlengths,*argv):
+def combineAs(maxlengths,totrim,*argv):
     new = []
     widths = []
     for i in range(len(argv)):
@@ -951,7 +954,8 @@ def combineAs(maxlengths,*argv):
         print(x.shape)
         if np.all(x == 0, axis=0).any():
             print("removing 0 columns")
-        x = x[:,~np.all(x == 0, axis=0)]
+        if i in totrim:
+            x = x[:,~np.all(x == 0, axis=0)]
         widths.append(x.shape[1])
         new.append(x)
     return concat(new),widths

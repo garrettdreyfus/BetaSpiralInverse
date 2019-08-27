@@ -65,7 +65,7 @@ def conditionError(inverse,surfaces,neighbors,distances,fname=False,disp=-1,para
 def conditionErrorRefLevel(inverse,surfaces,neighbors,distances,disp=-1,savepath=False,params={}):
     for reflevel in range(400,1600,200):
         print(params)
-        params.update({"mixs":[True,True,True],"reflevel":reflevel,"upperbound":reflevel})
+        params.update({"mixs":[False,False,False],"reflevel":reflevel,"upperbound":reflevel})
         print(params)
         conditionError(inverse,surfaces,neighbors,distances,disp=disp,params=params,savepath=savepath)
 
