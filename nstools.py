@@ -180,7 +180,7 @@ def profileInBox(profiles,lonleft,lonright,latbot,lattop):
 ##create an empty surface
 def emptySurface():
     return {"lats":[],"lons":[],"ids":[],\
-        "data":{"pres":[],"t":[],"s":[],"pv":[],"n^2":[],"alpha":[],"beta":[]}}
+            "data":{"pres":[],"t":[],"s":[],"pv":[],"n^2":[],"alpha":[],"beta":[]}}
 
 ##given a seed profile, finds neutral surfaces by comparing each profile 
 ## to the nearest profile with an identified neutral surface. Only quits
@@ -292,6 +292,13 @@ def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
                     tempSurf["data"]["n^2"].append(pv*(9.8/gsw.f(p.lat)))
                     tempSurf["data"]["alpha"].append(gsw.alpha(s,t,surfaces[k]["data"]["pres"][l]))
                     tempSurf["data"]["beta"].append(gsw.beta(s,t,surfaces[k]["data"]["pres"][l]))
+                    if p.knownv.any():
+                        if 1000 in p.neutraldepth:
+                            tempSurf["data"]["knownv"].append(p.knownv[p.ipresIndex(surfaces[k]["data"]["pres"][l])])
+                            tempSurf["data"]["knownu"].append(p.knownu[p.ipresIndex(surfaces[k]["data"]["pres"][l])])
+                        else:
+                            tempSurf["data"]["knownv"].append(np.nan)
+                            tempSurf["data"]["knownu"].append(np.nan)
         if len(tempSurf["lats"])>5:
             tempSurfs[k] = tempSurf
         print("\n###########"+str(k)+"#################")
@@ -379,7 +386,7 @@ def nanCopySurfaces(surfaces):
                     "dqnotdx","dqnotdy","d2thetads2","dalphadtheta",\
                     "alpha","beta","dalphads","dbetads","dalphadp",\
                     "dbetadp","psi","psinew","dqdz","dqdx","dqdy",\
-                    "d2qdz2","d2qdx2","d2qdy2","khp","khpdz","toph","both"]
+                    "d2qdz2","d2qdx2","d2qdy2","khp","khpdz","toph","both","knownu","knownv"]
         for d in datafields:
             nancopy[k]["data"][d] = np.full(len(surfaces[k]["lons"]),np.nan)
     return nancopy
@@ -474,7 +481,7 @@ def averageOverNeighbors(staggered,surfaces,k,s):
     staggered[k]["x"][s[0]] = np.mean(surfaces[k]["x"][s])
     staggered[k]["y"][s[0]] = np.mean(surfaces[k]["y"][s])
     for d in surfaces[k]["data"].keys():
-        if d in ["t","s","pv","h","pres"]:
+        if d in ["t","s","pv","h","pres","knownu","knownv"]:
             staggered[k]["data"][d][s[0]] = np.mean(surfaces[k]["data"][d][s])
         else:
             staggered[k]["data"][d][s[0]] = surfaces[k]["data"][d][s[0]]
@@ -664,7 +671,12 @@ def addStreamFunc(surfaces,profiles):
             #print(psi)
             #print(surfaces[nslabels[depth]]["ids"])
             #print(np.asarray(surfaces[nslabels[depth]]["ids"]),int(k))
-            targets = np.where(np.asarray(surfaces[nslabels[depth]]["ids"]) ==int(k) )
+            if type(surfaces[nslabels[depth]]["ids"][0]) == type(1):
+                targets = np.where(np.asarray(surfaces[nslabels[depth]]["ids"]) ==int(k) )
+            elif type(surfaces[nslabels[depth]]["ids"][0]) == type("str"):
+                targets = np.where(np.asarray(surfaces[nslabels[depth]]["ids"]) ==str(k) )
+            else:
+                print("What is the type of the ids dude")
             #print(targets)
             surfaces[nslabels[depth]]["data"]["psi"][targets] = psi[depth]
         p_ref.append([0]*len(p.ipres))

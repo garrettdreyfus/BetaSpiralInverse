@@ -724,7 +724,6 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
                 #plt.title("beta: "+str(np.sum(np.power(l,2))))
                 #plt.show()
                 #ptools.kChecker(surfaces,k,s[0],params["scalecoeffs"])
-                print("kvb: ",kpv[1])
                 Apsi.append(np.asarray(betarow)/n)
 
                 ##make rows that can fit it 
@@ -818,9 +817,11 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
 
     errors = error(A,np.concatenate((us,[0]*(A.shape[1]-len(us)))),prime)
     #calculatediapycnalv(surfaces,prime,params,widths,columndictionary)
-
-    surfaces = applyPrime(surfaces,prime,columndictionary,params,widths,mixing=True)
-    return surfaces, columndictionary, [VT,D,U],A, errors
+    metadata = copy.copy(params)
+    metadata["condition"] = condition(D)
+    metadata["error"] = np.sum(np.abs(errors[1]))
+    surfacer = applyPrime(surfaces,prime,columndictionary,params,widths,mixing=True)
+    return surfaces, columndictionary, [VT,D,U],A, errors,metadata
 
 def calculatediapycnalv(surfaces,prime,params,widths,coldict):
     kvbs=np.asarray([])
@@ -859,6 +860,10 @@ def rowCount(A):
         number.append(np.count_nonzero(A[i]))
     print("in each row: ",np.unique(number))
 
+def condition(D):
+    d = D.diagonal()
+    d = 1.0/d
+    return d[0]/d[-1]
 
 ## essentially calculates singular values and matrix conditions
 def rdivc(D):
@@ -945,19 +950,24 @@ def concat(argv):
         out.append(row)
     return np.asarray(out)
 
-## square off all of the matrixes and combine them
-def combineAs(maxlengths,totrim,*argv):
+def rectAndWidths(maxlengths,totrim,arrays):
     new = []
     widths = []
-    for i in range(len(argv)):
-        x  = np.asarray(rectangularize(argv[i],maxlengths[i]))
+    for i in range(len(arrays)):
+        x  = np.asarray(rectangularize(arrays[i],maxlengths[i]))
         print(x.shape)
         if np.all(x == 0, axis=0).any():
             print("removing 0 columns")
         if i in totrim:
             x = x[:,~np.all(x == 0, axis=0)]
+        print(x.shape)
         widths.append(x.shape[1])
         new.append(x)
+    return new,widths
+
+## square off all of the matrixes and combine them
+def combineAs(maxlengths,totrim,*argv):
+    new,widths = rectAndWidths(maxlengths,totrim,argv)
     return concat(new),widths
 
 #graph solution of mixing terms

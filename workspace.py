@@ -15,19 +15,25 @@ import random
 #fileObject = open("data/1500NoNorwegian.pickle",'rb')  
 #offsets,badfiles,beepestindex = pickle.load(fileObject)
 
-#profiles = nstools.filterCruises(profiles,offsets.keys())
-#profiles = saloffset.applyOffsets(profiles,offsets)
+##profiles = nstools.filterCruises(profiles,offsets.keys())
+##profiles = saloffset.applyOffsets(profiles,offsets)
 
-##profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
-###profilechoice = nstools.getProfileById(profiles,"286364")
+###profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
+#profilechoice = nstools.getProfileById(profiles,"286364")
 
-##surfaces = nstools.runPeerSearch(profiles,deepestindex,200,4000,200,profilechoice,1000)
-##with open('data/annotatedprofiles.pickle', 'wb') as outfile:
-    ##pickle.dump(profiles, outfile)
+#surfaces = nstools.runPeerSearch(profiles,deepestindex,200,4000,200,profilechoice,1000)
 
-##with open('data/annotatedprofiles.pickle', 'rb') as outfile:
-    ##profiles=pickle.load(outfile)
+#with open('data/annotatedprofiles.pickle', 'wb') as outfile:
+    #pickle.dump(profiles, outfile)
 
+#with open('data/newsurfaces.pickle', 'wb') as outfile:
+    #pickle.dump(surfaces, outfile)
+
+#with open('data/annotatedprofiles.pickle', 'rb') as outfile:
+    #profiles=pickle.load(outfile)
+
+#with open('data/newsurfaces.pickle', 'rb') as outfile:
+    #surfaces=pickle.load(outfile)
 
 ##graph.tsNeutralExplore(profiles)
 #######fileObject = open(str(profilechoice.eyed)+"new.pickle",'wb')  
@@ -58,22 +64,20 @@ with open('data/ready4inverse.pickle', 'rb') as outfile:
 #with open('data/ready4inverse.pickle', 'wb') as outfile:
     #pickle.dump([surfaces,neighbors,distances], outfile)
 #for q in surfaces[1000]["data"].keys():
-    #graph.graphSurfaces(surfaces,q,savepath="refpics/allquants/",show=False)
-
-
+    #graph.graphSurfaces(surfaces,q,savepath="refpics/allquants1000/",show=False)
+nstools.surfaceDiagnostic(surfaces)
 #sensitivity.mixSens("coupled",staggeredsurfaces,neighbors,distances,savepath="refpics/fullmixexplore/")
-sensitivity.conditionErrorRefLevel("coupled",surfaces,neighbors,distances)
+#sensitivity.conditionErrorRefLevel("coupled",surfaces,neighbors,distances)
 #sensitivity.conditionError("coupled",staggeredsurfaces,neighbors,distances)
+graph.graphSurfaces(surfaces,"khp")
+params = {"reflevel":1000,"upperbound":1000,"lowerbound":2000,"mixs":[True,True,True],"debug":True}
+inv,columndictionary,svds,A,errors,metadata= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
 
-#params = {"reflevel":800,"upperbound":800,"lowerbound":1600,"mixs":[True,True,True],"debug":True}
-
-#inv,columndictionary,svds,A,errors= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
-
-#coupleinvert = nstools.streamFuncToUV(inv,neighbors,distances)
-#coupleinvert = bathtools.addBathToSurface(inv)
+coupleinvert = nstools.streamFuncToUV(inv,neighbors,distances)
+coupleinvert = bathtools.addBathToSurface(inv)
 
 #graph.graphSurfaces(inv,"e")
-#graph.graphVectorField(inv,"uabs","vabs","z")
+graph.graphVectorField(inv,"uabs","vabs","z",metadata=metadata,savepath="refpics/vectorfields/1000-2000withKvb/",show=False)
 
 
 #across basin

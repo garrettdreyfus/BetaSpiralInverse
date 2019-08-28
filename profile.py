@@ -22,11 +22,11 @@ class Profile:
         if "knownu" in data.keys():
             self.knownu = np.asarray(data["knownu"])
         else:
-            self.knownu = np.array()
+            self.knownu = np.array([])
         if "knownv" in data.keys():
             self.knownv = np.asarray(data["knownv"])
         else:
-            self.knownv =np.array
+            self.knownv =np.array([])
         #Temerature Salinity and Pressure
         self.temps = np.asarray(data["temp"])
         self.sals = np.asarray(data["sal"])

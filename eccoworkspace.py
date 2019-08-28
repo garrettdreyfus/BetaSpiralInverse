@@ -33,13 +33,11 @@ import random
 #with open('data/eccoannotatedprofiles.pickle', 'wb') as outfile:
     #pickle.dump(profiles, outfile)
 
-with open('data/eccoannotatedprofiles.pickle', 'rb') as outfile:
-    profiles=pickle.load(outfile)
+#with open('data/eccoannotatedprofiles.pickle', 'rb') as outfile:
+    #profiles=pickle.load(outfile)
 
-with open('data/eccosurfaces.pickle', 'rb') as outfile:
-    surfaces=pickle.load(outfile)
-#graph.graphProfilesVectorField(profiles,savepath="refpics/eccouv/",show=False)
-#graph.graphSurfaces(surfaces,"pres")
+#with open('data/eccosurfaces.pickle', 'rb') as outfile:
+    #surfaces=pickle.load(outfile)
 
 #graph.tsNeutralExplore(profiles)
 #######fileObject = open(str(profilechoice.eyed)+"new.pickle",'wb')  
@@ -62,14 +60,22 @@ with open('data/eccosurfaces.pickle', 'rb') as outfile:
 #surfaces = nstools.addHorizontalGrad(surfaces,neighbors,distances)
 #surfaces = nstools.addVerticalGrad(surfaces)
 #ptools.saveBathVarTermCache(surfaces,"data/bathVarecco.pickle")
-#staggeredsurfaces = nstools.addK(surfaces,"data/bathVarecco.pickle")
+#surfaces = nstools.addK(surfaces,"data/bathVarecco.pickle")
 
-with open('data/ready4inverseecco.pickle', 'rb') as outfile:
-    [surfaces,neighbors,distances]=pickle.load(outfile)
+#with open('data/surfacesWithData.pickle', 'wb') as outfile:
+    #pickle.dump(surfaces, outfile)
+
+with open('data/surfacesWithData.pickle', 'rb') as outfile:
+    surfaces=pickle.load(outfile)
+
+graph.graphVectorField(surfaces,"knownu","knownv",backgroundfield = "pv",savepath="refpics/eccoNoRef/",show=False,transform=False)
+#with open('data/ready4inverseecco.pickle', 'rb') as outfile:
+    #[surfaces,neighbors,distances]=pickle.load(outfile)
 
 #nstools.surfaceDiagnostic(surfaces)
-#with open('data/ready4inverseecco.pickle', 'wb') as outfile:
-    #pickle.dump([surfaces,neighbors,distances], outfile)
+with open('data/ready4inverseecco.pickle', 'wb') as outfile:
+    pickle.dump([surfaces,neighbors,distances], outfile)
+#graph.graphVectorField(surfaces,"knownu","knownv",backgroundfield="pv",transform=False,savepath="refpics/eccointerp/")
 #for q in surfaces[1000]["data"].keys():
     #graph.graphSurfaces(surfaces,q,savepath="refpics/eccoallquants/",show=False)
 
@@ -78,14 +84,13 @@ with open('data/ready4inverseecco.pickle', 'rb') as outfile:
 #sensitivity.conditionErrorRefLevel("coupled",surfaces,neighbors,distances)
 #sensitivity.conditionError("coupled",staggeredsurfaces,neighbors,distances)
 
-params = {"reflevel":1000,"upperbound":1000,"lowerbound":2000,"mixs":[True,False,True],"debug":True}
+params = {"reflevel":800,"upperbound":600,"lowerbound":2000,"mixs":[True,False,True],"debug":True}
 
 inv,columndictionary,svds,A,errors= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
 
 coupleinvert = nstools.streamFuncToUV(inv,neighbors,distances)
 coupleinvert = bathtools.addBathToSurface(inv)
 
-#graph.graphSurfaces(inv,"e")
 graph.graphVectorField(inv,"uabs","vabs","z",savepath="refpics/eccoInvNoKvb/",show=False)
 
 

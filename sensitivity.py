@@ -9,6 +9,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
+def distanceFromKnown(surfaces):
+    s =  []
+    for k in surfaces.keys():
+        for j in range(len(surfaces[k]["data"]["knownu"])):
+            if ~np.isnan(surfaces[k]["data"]["knownu"][j]) and ~np.isnan(surfaces[k]["data"]["uabs"][j]) :
+                s.append(abs(surfaces[k]["data"]["knownu"][j]-surfaces[k]["data"]["uabs"][j]))
+                s.append(abs(surfaces[k]["data"]["knownv"][j]-surfaces[k]["data"]["vabs"][j]))
+    return np.sum(s)
 def conditionError(inverse,surfaces,neighbors,distances,fname=False,disp=-1,params={},savepath=False,title=False,show=True):
     conditions = []
     levels = []
@@ -32,7 +40,9 @@ def conditionError(inverse,surfaces,neighbors,distances,fname=False,disp=-1,para
             errors.append(np.sum(np.abs(e[1])))
             levels.append(lowlevel)
             i,o = graph.transportLine(inv,(-24.71,83.60),(27.496,80.06),2400,False,show=False)
-            fram.append(abs(abs(i)-abs(o))) 
+            #fram.append(abs(abs(i)-abs(o))) 
+            inv = nstools.streamFuncToUV(inv,neighbors,distances)
+            fram.append(abs(distanceFromKnown(inv))) 
             if lowlevel ==disp:
                 coupleinvert = nstools.streamFuncToUV(inv,neighbors,distances)
                 coupleinvert = bathtools.addBathToSurface(inv)
@@ -65,7 +75,7 @@ def conditionError(inverse,surfaces,neighbors,distances,fname=False,disp=-1,para
 def conditionErrorRefLevel(inverse,surfaces,neighbors,distances,disp=-1,savepath=False,params={}):
     for reflevel in range(400,1600,200):
         print(params)
-        params.update({"mixs":[False,False,False],"reflevel":reflevel,"upperbound":reflevel})
+        params.update({"mixs":[True,False,True],"reflevel":reflevel,"upperbound":reflevel})
         print(params)
         conditionError(inverse,surfaces,neighbors,distances,disp=disp,params=params,savepath=savepath)
 
