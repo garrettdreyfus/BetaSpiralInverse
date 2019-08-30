@@ -333,7 +333,7 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",transform=True,save
         uthetas=[]
         lons = []
         lats = []
-        for p in range(0,len(surfaces[k]["data"]["uabs"])):
+        for p in range(0,len(surfaces[k]["data"][key1])):
             u = surfaces[k]["data"][key1][p] 
             v = surfaces[k]["data"][key2][p]
             x = surfaces[k]["x"][p]
@@ -374,22 +374,23 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",transform=True,save
         mag = np.sqrt(u**2+v**2)
         zoomGraph(mapy,ax)
         fig.set_size_inches(16.5,12)
-        a = np.where(abs(surfaces[k]["lats"]-90)>0.5)
-        xpv,ypv = mapy(surfaces[k]["lons"][a],surfaces[k]["lats"][a])
-        if backgroundfield != "f/h":
-            bgfield = surfaces[k]["data"][backgroundfield][a]
-        else:
-            bgfield = gsw.f(surfaces[k]["lats"][a])/surfaces[k]["data"]["z"][a]
-        plt.tricontourf(xpv,ypv,bgfield,levels=50)
-        plt.clim(np.min(bgfield),np.max(bgfield))
-        mapy.colorbar()
-        mapy.quiver(x,y,u,v,mag,cmap="cool",width = 0.002)
-        if savepath:
-            plt.savefig(savepath+key1+key2+"/ns"+str(k)+".png")
+        a = tuple([(abs(surfaces[k]["lats"]-90)>0.5) & (~np.isnan(surfaces[k]["data"][backgroundfield]))])
+        if np.count_nonzero(a)>4:
+            xpv,ypv = mapy(surfaces[k]["lons"][a],surfaces[k]["lats"][a])
+            if backgroundfield != "f/h":
+                bgfield = surfaces[k]["data"][backgroundfield][a]
+            else:
+                bgfield = gsw.f(surfaces[k]["lats"][a])/surfaces[k]["data"]["z"][a]
+            plt.tricontourf(xpv,ypv,bgfield,levels=50)
+            plt.clim(np.min(bgfield),np.max(bgfield))
+            mapy.colorbar()
+            mapy.quiver(x,y,u,v,mag,cmap="cool",width = 0.002)
+            if savepath:
+                plt.savefig(savepath+key1+key2+"/ns"+str(k)+".png")
 
-        if show:
-            plt.show()
-        plt.close()
+            if show:
+                plt.show()
+            plt.close()
 
 
 

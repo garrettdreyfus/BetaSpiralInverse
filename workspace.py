@@ -20,7 +20,7 @@ import random
 
 ###profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
 #profilechoice = nstools.getProfileById(profiles,"286364")
-
+#graph.plotProfiles(profiles,"UDASH DATA",nstools.getProfileById(profiles,"286364"))
 #surfaces = nstools.runPeerSearch(profiles,deepestindex,200,4000,200,profilechoice,1000)
 
 #with open('data/annotatedprofiles.pickle', 'wb') as outfile:
@@ -29,11 +29,11 @@ import random
 #with open('data/newsurfaces.pickle', 'wb') as outfile:
     #pickle.dump(surfaces, outfile)
 
-#with open('data/annotatedprofiles.pickle', 'rb') as outfile:
-    #profiles=pickle.load(outfile)
+with open('data/annotatedprofiles.pickle', 'rb') as outfile:
+    profiles=pickle.load(outfile)
 
-#with open('data/newsurfaces.pickle', 'rb') as outfile:
-    #surfaces=pickle.load(outfile)
+with open('data/newsurfaces.pickle', 'rb') as outfile:
+    surfaces=pickle.load(outfile)
 
 ##graph.tsNeutralExplore(profiles)
 #######fileObject = open(str(profilechoice.eyed)+"new.pickle",'wb')  
@@ -49,13 +49,14 @@ import random
 
 #surfaces =interptools.addXYToSurfaces(surfaces)
 #surfaces,neighbors,distances = interptools.interpolateSurfaces(surfaces)
+#surfaces = nstools.addBathAndMask(surfaces)
 #surfaces = nstools.fillOutEmptyFields(surfaces)
 #surfaces = nstools.addHeight(surfaces)
 
 #surfaces = nstools.addHorizontalGrad(surfaces,neighbors,distances)
 #surfaces = nstools.addVerticalGrad(surfaces)
 #ptools.saveBathVarTermCache(surfaces,"data/bathVar.pickle")
-#staggeredsurfaces = nstools.addK(surfaces,"data/bathVar.pickle")
+#surfaces = nstools.addK(surfaces,"data/bathVar.pickle")
 
 with open('data/ready4inverse.pickle', 'rb') as outfile:
     [surfaces,neighbors,distances]=pickle.load(outfile)
@@ -69,15 +70,14 @@ nstools.surfaceDiagnostic(surfaces)
 #sensitivity.mixSens("coupled",staggeredsurfaces,neighbors,distances,savepath="refpics/fullmixexplore/")
 #sensitivity.conditionErrorRefLevel("coupled",surfaces,neighbors,distances)
 #sensitivity.conditionError("coupled",staggeredsurfaces,neighbors,distances)
-graph.graphSurfaces(surfaces,"khp")
-params = {"reflevel":1000,"upperbound":1000,"lowerbound":2000,"mixs":[True,True,True],"debug":True}
+#graph.graphSurfaces(surfaces,"khp")
+params = {"reflevel":1000,"upperbound":1000,"lowerbound":2000,"mixs":[True,False,True],"debug":True}
 inv,columndictionary,svds,A,errors,metadata= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
 
 coupleinvert = nstools.streamFuncToUV(inv,neighbors,distances)
-coupleinvert = bathtools.addBathToSurface(inv)
 
 #graph.graphSurfaces(inv,"e")
-graph.graphVectorField(inv,"uabs","vabs","z",metadata=metadata,savepath="refpics/vectorfields/1000-2000withKvb/",show=False)
+graph.graphVectorField(inv,"uabs","vabs","z",metadata=metadata)
 
 
 #across basin

@@ -207,56 +207,63 @@ def kChecker(surfaces,k,found,scales,debug=False):
             
         return np.asarray([-pvkv0/kvoscale,-pvkvb/kvbscale,-pvkh/khscale]),np.asarray([-skvo/kvoscale,-skvb/kvbscale,-skh/khscale])
 
-
+def fetchWithFallback(surfaces,k,q,found,fallback=None):
+    r = surfaces[k]["data"][q][found]
+    if np.isnan(r) and fallback:
+        return surfaces[k]["data"][q][fallback]
+    else:
+        return r
 ## file that generates the mixing terms of the Fq and Fs
 ## given a surfaces object, a depth and an index
-def kterms(surfaces,k,found,scales,debug=False):
+def kterms(surfaces,k,found,scales,debug=False,fallback=None):
     f = gsw.f(surfaces[k]["lats"][found])
     x = surfaces[k]["x"][found]
     y = surfaces[k]["y"][found]
     r = np.sqrt(x**2 + y**2)
-    hx = surfaces[k]["data"]["hx"][found]
-    hy = surfaces[k]["data"]["hy"][found]
-    toph = surfaces[k]["data"]["toph"][found] 
-    both = surfaces[k]["data"]["both"][found] 
-    dsdx = surfaces[k]["data"]["dsdx"][found]
-    dsdy = surfaces[k]["data"]["dsdy"][found]
-    pres = surfaces[k]["data"]["pres"][found]
-    alpha = surfaces[k]["data"]["alpha"][found] 
-    betaTherm = surfaces[k]["data"]["beta"][found] 
-    dsdz =  surfaces[k]["data"]["dsdz"][found] 
-    d2sdx2 =  surfaces[k]["data"]["d2sdx2"][found] 
-    d2sdy2 =  surfaces[k]["data"]["d2sdy2"][found] 
-    dalphadtheta = surfaces[k]["data"]["dalphadtheta"][found] 
-    dalphads = surfaces[k]["data"]["dalphads"][found] 
-    dalphadp = surfaces[k]["data"]["dalphadp"][found] 
-    dbetadp = surfaces[k]["data"]["dbetadp"][found] 
-    dbetads = surfaces[k]["data"]["dbetads"][found] 
-    dtdx = surfaces[k]["data"]["dtdx"][found] 
-    dtdy = surfaces[k]["data"]["dtdy"][found] 
-    dqnotdx = surfaces[k]["data"]["dqnotdx"][found] 
-    dqnotdy = surfaces[k]["data"]["dqnotdy"][found] 
-    dqdz = surfaces[k]["data"]["dqdz"][found] 
-    d2qdz2 = surfaces[k]["data"]["d2qdz2"][found] 
-    dpdx = surfaces[k]["data"]["dpdx"][found] 
-    dpdy = surfaces[k]["data"]["dpdy"][found] 
-    dqdx = surfaces[k]["data"]["dqdx"][found] 
-    dqdy = surfaces[k]["data"]["dqdy"][found] 
-    d2qdx2 = surfaces[k]["data"]["d2qdx2"][found] 
-    d2qdy2 = surfaces[k]["data"]["d2qdy2"][found] 
-    khp = surfaces[k]["data"]["khp"][found] 
-    dkhpdz = surfaces[k]["data"]["khpdz"][found] 
+    hx = fetchWithFallback(surfaces,k,"hx",found,fallback)
+    hy = fetchWithFallback(surfaces,k,"hy",found,fallback)
+    toph = fetchWithFallback(surfaces,k,"toph",found,fallback)
+    both = fetchWithFallback(surfaces,k,"both",found,fallback)
+    dsdx = fetchWithFallback(surfaces,k,"dsdx",found,fallback)
+    dsdy = fetchWithFallback(surfaces,k,"dsdy",found,fallback)
+    pres = fetchWithFallback(surfaces,k,"pres",found,fallback)
+    alpha = fetchWithFallback(surfaces,k,"alpha",found,fallback)
+    betaTherm = fetchWithFallback(surfaces,k,"beta",found,fallback)
+    dsdz =  fetchWithFallback(surfaces,k,"dsdz",found,fallback)
+    d2sdx2 =  fetchWithFallback(surfaces,k,"d2sdx2",found,fallback)
+    d2sdy2 =  fetchWithFallback(surfaces,k,"d2sdy2",found,fallback)
+    dalphadtheta = fetchWithFallback(surfaces,k,"dalphadtheta",found,fallback)
+    dalphads = fetchWithFallback(surfaces,k,"dalphads",found,fallback)
+    dalphadp = fetchWithFallback(surfaces,k,"dalphadp",found,fallback)
+    dbetadp = fetchWithFallback(surfaces,k,"dbetadp",found,fallback)
+    dbetads = fetchWithFallback(surfaces,k,"dbetads",found,fallback)
+    dtdx = fetchWithFallback(surfaces,k,"dtdx",found,fallback)
+    dtdy = fetchWithFallback(surfaces,k,"dtdy",found,fallback)
+    dqnotdx = fetchWithFallback(surfaces,k,"dqnotdx",found,fallback)
+    dqnotdy = fetchWithFallback(surfaces,k,"dqnotdy",found,fallback)
+    dqdz = fetchWithFallback(surfaces,k,"dqdz",found,fallback)
+    d2qdz2 = fetchWithFallback(surfaces,k,"d2qdz2",found,fallback)
+    dpdx = fetchWithFallback(surfaces,k,"dpdx",found,fallback)
+    dpdy = fetchWithFallback(surfaces,k,"dpdy",found,fallback)
+    dqdx = fetchWithFallback(surfaces,k,"dqdx",found,fallback)
+    dqdy = fetchWithFallback(surfaces,k,"dqdy",found,fallback)
+    d2qdx2 = fetchWithFallback(surfaces,k,"d2qdx2",found,fallback)
+    d2qdy2 = fetchWithFallback(surfaces,k,"d2qdy2",found,fallback)
+    khp = fetchWithFallback(surfaces,k,"khp",found,fallback)
+    dkhpdz = fetchWithFallback(surfaces,k,"khpdz",found,fallback)
     alphat = dalphadtheta+2*(alpha/betaTherm)*dalphads-(alpha**2/betaTherm**2)*dbetads
     alphap = dalphadp -(alpha/betaTherm)*dbetadp
-    pv =  surfaces[k]["data"]["pv"][found] 
-    doublets =  surfaces[k]["data"]["d2thetads2"][found] 
-    CKVB =  surfaces[k]["data"]["CKVB"][found] 
+    pv = fetchWithFallback(surfaces,k,"pv",found,fallback)
+    doublets = fetchWithFallback(surfaces,k,"d2thetads2",found,fallback)
+    CKVB = fetchWithFallback(surfaces,k,"CKVB",found,fallback)
+    uref = fetchWithFallback(surfaces,k,"uref",found,fallback)
+    vref = fetchWithFallback(surfaces,k,"vref",found,fallback)
     f = gsw.f(surfaces[k]["lats"][found])
     beta = calcBeta(surfaces[k]["lats"][found])
     isitnan = [alpha,betaTherm,dsdz,hx,hy,dsdx,dsdy,pres,d2sdx2,d2sdy2,\
               dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
               dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
-              beta,dkhpdz,d2qdx2,d2qdy2,khp,toph,both]
+              beta,dkhpdz,d2qdx2,d2qdy2,khp,toph,both,uref,vref]
     kvoscale = scales[1]
     kvbscale = scales[2]
     khscale  = scales[3]

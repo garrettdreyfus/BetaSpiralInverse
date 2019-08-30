@@ -292,13 +292,6 @@ def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
                     tempSurf["data"]["n^2"].append(pv*(9.8/gsw.f(p.lat)))
                     tempSurf["data"]["alpha"].append(gsw.alpha(s,t,surfaces[k]["data"]["pres"][l]))
                     tempSurf["data"]["beta"].append(gsw.beta(s,t,surfaces[k]["data"]["pres"][l]))
-                    if p.knownv.any():
-                        if 1000 in p.neutraldepth:
-                            tempSurf["data"]["knownv"].append(p.knownv[p.ipresIndex(surfaces[k]["data"]["pres"][l])])
-                            tempSurf["data"]["knownu"].append(p.knownu[p.ipresIndex(surfaces[k]["data"]["pres"][l])])
-                        else:
-                            tempSurf["data"]["knownv"].append(np.nan)
-                            tempSurf["data"]["knownu"].append(np.nan)
         if len(tempSurf["lats"])>5:
             tempSurfs[k] = tempSurf
         print("\n###########"+str(k)+"#################")
@@ -386,7 +379,7 @@ def nanCopySurfaces(surfaces):
                     "dqnotdx","dqnotdy","d2thetads2","dalphadtheta",\
                     "alpha","beta","dalphads","dbetads","dalphadp",\
                     "dbetadp","psi","psinew","dqdz","dqdx","dqdy",\
-                    "d2qdz2","d2qdx2","d2qdy2","khp","khpdz","toph","both","knownu","knownv"]
+                    "d2qdz2","d2qdx2","d2qdy2","khp","khpdz","toph","both"]
         for d in datafields:
             nancopy[k]["data"][d] = np.full(len(surfaces[k]["lons"]),np.nan)
     return nancopy
@@ -696,9 +689,21 @@ def streamFuncToUV(surfaces,neighbors,distances):
             s=np.asarray(s)
             if not np.isnan(s).any():
                 surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psinew","vabs","uabs",(-1/gsw.f(surfaces[k]["lats"][s[0]])),(1/gsw.f(surfaces[k]["lats"][s[0]])))
-                surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psiref","v","u",(-1/gsw.f(surfaces[k]["lats"][s[0]])),(1/gsw.f(surfaces[k]["lats"][s[0]])))
+                surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psiref","vref","uref",(-1/gsw.f(surfaces[k]["lats"][s[0]])),(1/gsw.f(surfaces[k]["lats"][s[0]])))
                 surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psisol","vsol","usol",(-1/gsw.f(surfaces[k]["lats"][s[0]])),(1/gsw.f(surfaces[k]["lats"][s[0]])))
     return surfaces
+
+##Add bathymetry and remove points below
+def addBathAndMask(surfaces):
+    surfaces = bathtools.addBathToSurface(surfaces)
+    for k in Bar("Bath Masking").iter(surfaces.keys()):
+        for l in range(len(surfaces[k]["lats"])):
+            if abs(surfaces[k]["data"]["pres"][l]) > abs(surfaces[k]["data"]["z"][l]):
+                for d in surfaces[k]["data"].keys():
+                    if d != "ids":
+                        surfaces[k]["data"][d][l] = np.nan
+    return surfaces
+
 
 ##this is spicy. it takes a couple mat files and works out the stream function
 ## on neutral surfaces from it. Just to check the frankenstein

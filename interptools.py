@@ -1,4 +1,5 @@
 from nstools import *
+import bathtools
 
 #add x and y to surfaces. x and y necesarry for interpolation
 def addXYToSurfaces(surfaces,debug=True):
@@ -64,7 +65,7 @@ def createMesh(n,xvals,yvals,custom=False):
 #generate a mesh and remove points in that mesh 
 #which are too far away from locations with observations
 def generateMaskedMesh(x,y,radius=200):
-    xi,yi = createMesh(30,x,y)
+    xi,yi = createMesh(40,x,y)
     final = np.zeros(xi.shape)
     neighbors = []
     for i in range(len(x)):

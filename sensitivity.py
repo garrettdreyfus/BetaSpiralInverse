@@ -30,9 +30,9 @@ def conditionError(inverse,surfaces,neighbors,distances,fname=False,disp=-1,para
             os.makedirs(savepath)
         except FileExistsError as e:
             print(e)
-    for lowlevel in range(params["upperbound"]+600,3600,200):
+    for lowlevel in range(params["upperbound"]+1000,2600,200):
         params.update({"lowerbound":lowlevel})
-        inv,columndict,svds,A,e= inverttools.invert(inverse,surfaces,neighbors,distances,params=params)
+        inv,columndict,svds,A,e,meta= inverttools.invert(inverse,surfaces,neighbors,distances,params=params)
         if inv:
             s = np.diag((1.0/svds[1]))
             condition = s[0]/s[-1]
@@ -73,7 +73,7 @@ def conditionError(inverse,surfaces,neighbors,distances,fname=False,disp=-1,para
     plt.close()
 
 def conditionErrorRefLevel(inverse,surfaces,neighbors,distances,disp=-1,savepath=False,params={}):
-    for reflevel in range(400,1600,200):
+    for reflevel in range(600,1600,200):
         print(params)
         params.update({"mixs":[True,False,True],"reflevel":reflevel,"upperbound":reflevel})
         print(params)

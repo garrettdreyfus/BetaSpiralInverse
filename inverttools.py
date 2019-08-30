@@ -30,81 +30,15 @@ def SVDdecomp(A,n_elements=2,full=True):
     else:
         return B
 
-#experimental function to try to minize singular vlaues
-def optimizeA(B,m):
-    #justkvb
-    bestscale = -100000
-    bestsum = 0
-    sings = []
-    conditions = []
-    scales = []
-    for i in np.arange(-20,10,.5):
-        print("optimize: ",i)
-        scale = 10**i
-        diags = [1]*m + [1]*m+[1]*18+[scale]
-        scalematrix = np.diag(diags)
-        A = np.matmul(B,scalematrix)
-        A = A / np.linalg.norm(A, axis=1, keepdims=True)
-        j,[VT, D, U] = SVDdecomp(A,n_elements=int(A.shape[1]))
-        D = 1.0/np.diag(D)
-        s = np.sum(D)
-        print(s)
-        conditions.append(s)
-        scales.append(scale)
-        if s >bestsum:
-            bestscale = scale
-            bestsum = s
-            sings = D
-    plt.plot(range(len(conditions)),conditions)
-    plt.show()
-    plt.plot(range(len(sings)),sings)
-    plt.show()
-    return bestscale
+def generateMixingRows(columnindexs,mixing,k,n,i=0):
+    Akvbrow = [0]*(columnindexs[i]+1)
+    Akvbrow[columnindexs[i]]=mixing[1]/n
+    Akhrow = [0]*(int(k/200))
+    Akhrow[int(k/200-1)] = mixing[2]/n
+    Akvorow = [mixing[0]/n]
+    return Akvbrow,Akhrow,Akvorow
 
-#normalize columns by a certain scale
-##normalize every row to unit length
-def scaleNormSVD(A,m,scale):
-    diags = [1]*m + [scale]*m
-    scalematrix = np.diag(diags)
-    A = np.matmul(A,scalematrix)
-    A = A / np.linalg.norm(A, axis=1, keepdims=True)
-    j,[VT, D, U] = SVDdecomp(A,n_elements=int(A.shape[1]))
-    D = 1.0/np.diag(D)
-    s = D[0]/D[-1]
-    return s,D
 
-def gradAttack(A,m):
-    prevsum = np.inf
-    sings = []
-    scale = 10**5
-    sums = []
-    while True:
-        sums.append(prevsum)
-        print(scale)
-        plt.plot(range(len(sings)),sings)
-        plt.show()
-        forwardSum,forwardD = scaleNormSVD(A,m,scale*(1+10**-2))
-        backwardSum,backwardD = scaleNormSVD(A,m,scale/(1+10**-2))
-        print(prevsum,forwardSum,backwardSum)
-        if forwardSum<backwardSum<prevsum:
-            scale = scale*(1+10**-2)
-            sings = forwardD
-            prevsum=forwardSum
-        elif backwardSum<forwardSum<prevsum: 
-            scale = scale/(1+10**-2)
-            sings = backwardD
-            prevsum=backwardSum
-        else:
-            break
-    plt.plot(sums)
-    plt.show()
-    return scale
-    print("WINNER")
-
-        
-        
-
- 
 #simple pointwise inverse only conserves pv
 def simpleInvert(surfaces,reflevel=1000,debug=False):
     outsurfaces = copy.deepcopy(surfaces)
@@ -690,8 +624,39 @@ def fillDefault(params):
     params.setdefault("3point",True)
     return params
 
+def normOfRows(*argv):
+    return np.linalg.norm(np.concatenate(argv))
+
+#generate a list of profiles which are never the center
+#at a neutral surface
+def genOutliers(surfaces,neighbors):
+    outliers={}
+    for k in neighbors.keys():
+        centerpoints = set()
+        points = set()
+        for s in neighbors[k]:
+            kpv,ks = ptools.kterms(surfaces,k,s[0],[1,1,1,1])
+            if kpv.any() and ks.any():
+                centerpoints.add(surfaces[k]["ids"][s[0]])
+            for l in s[:3]:
+                points.add(surfaces[k]["ids"][l])
+        outliers[k] = points.difference(centerpoints)
+    return outliers
+    
+def recenterRow(row,columnindexs,newcenter):
+    centerval = row[columnindexs[0]]
+    xval = row[columnindexs[1]]
+    yval = row[columnindexs[2]]
+    newrow = copy.copy(row)
+    newrow[columnindexs[newcenter]] = centerval
+    if newcenter == 1:
+        newrow[columnindexs[0]] = xval
+    if newcenter == 2:
+        newrow[columnindexs[0]] = yval
+    return row
+
 #full coupled inverse with mixing terms
-def coupledInvert(surfaces,neighbors,distances,params={}):
+def coupledInvert(surfaces,neighbors,distances,params={},edgeguard=True):
     surfaces = copy.deepcopy(surfaces)
     Apsi,Akvb,Akh,Akvo,c=[],[],[],[],[]
     us = [0]*100000
@@ -699,12 +664,12 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
     ##dictionary of ids to column numbers
     columndictionary = {}
     surfaces = applyRefLevel(surfaces,params["reflevel"])
+    outliers = genOutliers(surfaces,neighbors)
+    totalcount = set()
     for k in Bar("adding to matrix: ").iter(sorted(neighbors.keys())[::-1]):
         for s in neighbors[k]:
-
             s=np.asarray(s)
             kpv,ks = ptools.kterms(surfaces,k,s[0],params["scalecoeffs"])
-
             if kpv.any() and ks.any() and params["lowerbound"]>=k>=params["upperbound"] and surfaces[k]["ids"][s[0]]:
                 ##find/store column indexs for each neighbor
                 if params["3point"]:
@@ -715,10 +680,8 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
                 ##this is a shorthad way of converting the NS to an index
                 #######PVROW
                 betarow,betavals, crow = constructBetaRow(surfaces,k,distances[k],s,columnindexs,params["scalecoeffs"],threepoint=params["3point"])
-                betavals = np.asarray(betavals)
-
-                n = np.linalg.norm(np.concatenate((np.asarray(betavals),kpv[params["mixs"]])))
-                l = np.concatenate((betavals/n,kpv[params["mixs"]]/n))
+                n = normOfRows(np.asarray(betavals),kpv[params["mixs"]])
+                #l = np.concatenate((betavals/n,kpv[params["mixs"]]/n))
                 #plt.bar(range(len(l)),np.abs(l))
                 ##plt.yscale("log")
                 #plt.title("beta: "+str(np.sum(np.power(l,2))))
@@ -727,25 +690,33 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
                 Apsi.append(np.asarray(betarow)/n)
 
                 ##make rows that can fit it 
-                Akvbrow = [0]*(columnindexs[0]+1)
-                Akvbrow[columnindexs[0]]=kpv[1]/n
+                Akvbrow, Akhrow, Akvorow = generateMixingRows(columnindexs,kpv,k,n)
                 Akvb.append(Akvbrow)
-
-                Akhrow = [0]*(int(k/200))
-                Akhrow[int(k/200-1)] = kpv[2]/n
                 Akh.append(Akhrow)
-
-
-                Akvo.append([kpv[0]/n])
+                Akvo.append(Akvorow)
                 us[columnindexs[0]] = surfaces[k]["data"]["psiref"][s[0]]
                 c.append(crow/n)
+
+                for i in [1,2]:
+                    if surfaces[k]["ids"][s[i]] in outliers[k]:
+                        newbetarow = recenterRow(betarow,columnindexs,i)
+                        kpv,ks = ptools.kterms(surfaces,k,s[i],params["scalecoeffs"],fallback=s[0])
+                        n = normOfRows(np.asarray(betavals),kpv[params["mixs"]])
+                        newAkvbrow, newAkhrow, newAkvorow = generateMixingRows(columnindexs,kpv,k,n,i=i)
+                        Apsi.append(np.asarray(newbetarow)/n)
+                        Akvb.append(newAkvbrow)
+                        Akh.append(newAkhrow)
+                        Akvo.append(newAkvorow)
+                        us[columnindexs[i]] = surfaces[k]["data"]["psiref"][s[0]]
+                        c.append(crow/n)
+
+                        
 
                 #######SALROW
                 ##make rows that can fit it 
                 salrow, salvals, crow = constructSalRow(surfaces,k,distances[k],s,columnindexs,params["scalecoeffs"],threepoint=params["3point"])
-                salvals = np.asarray(salvals)
-                n = np.linalg.norm(np.concatenate((np.asarray(salvals),ks[params["mixs"]])))
-                l = np.concatenate((salvals/n,ks[params["mixs"]]/n))
+                n = normOfRows(np.asarray(salvals),ks[params["mixs"]])
+                #l = np.concatenate((salvals/n,ks[params["mixs"]]/n))
                 #plt.bar(range(len(l)),np.abs(l))
                 ##plt.yscale("log")
                 #plt.title("sal: "+str(np.sum(np.power(l,2))))
@@ -753,23 +724,32 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
                 Apsi.append(np.asarray(salrow)/n)
 
                 ##im a rascal and this is a shorthad way of converting the NS to an index :P
-                Akvbrow = [0]*(columnindexs[0]+1)
-                Akvbrow[columnindexs[0]]=ks[1]/n
-
-                Akhrow = [0]*(int(k/200))
-                Akhrow[int(k/200-1)] = ks[2]/n
-
+                Akvbrow, Akhrow, Akvorow = generateMixingRows(columnindexs,ks,k,n)
                 Akvb.append(Akvbrow)
                 Akh.append(Akhrow)
+                Akvo.append(Akvorow)
 
-                Akvo.append([ks[0]/n])
+                for i in [1,2]:
+                    if surfaces[k]["ids"][s[i]] in outliers[k]:
+                        newbetarow = recenterRow(salrow,columnindexs,i)
+                        kpv,ks = ptools.kterms(surfaces,k,s[i],params["scalecoeffs"],fallback=s[0])
+                        n = normOfRows(np.asarray(salvals),ks[params["mixs"]])
+                        newAkvbrow, newAkhrow, newAkvorow = generateMixingRows(columnindexs,ks,k,n,i=i)
+                        Apsi.append(np.asarray(newbetarow)/n)
+                        Akvb.append(newAkvbrow)
+                        Akh.append(newAkhrow)
+                        Akvo.append(newAkvorow)
+                        us[columnindexs[i]] = surfaces[k]["data"]["psiref"][s[0]]
+                        c.append(crow/n)
 
                 ######SAL Error row
                 c.append(crow/n)
+                if np.isnan(crow):
+                    pdb.set_trace()
 
     if len(Apsi)<1:
         return None, None, [None,None,None],None, None
-
+    print("outliercount",len(totalcount))
     Apsi.insert(0,[1])
     Akvb.insert(0,[0])
     Akh.insert(0,[0])
@@ -809,6 +789,9 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
     c = np.matrix.transpose(np.asarray(c))
     us =  np.matrix.transpose(np.asarray(us))
     j,[VT, D, U] = SVDdecomp(A,n_elements=int(A.shape[1]))
+    if np.isnan(D).any():
+        pdb.set_trace()
+    print(c[np.isnan(c)])
     prime = np.matmul(j,c)
 
     if params["debug"]:
