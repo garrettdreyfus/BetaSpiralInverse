@@ -44,22 +44,22 @@ with open('data/newsurfaces.pickle', 'rb') as outfile:
 #with open('data/286364new.pickle', 'rb') as outfile:
   #surfaces=pickle.load(outfile)
 
-#surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
-#surfaces = nstools.addStreamFunc(surfaces,profiles)
+surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
+surfaces = nstools.addStreamFunc(surfaces,profiles)
 
-#surfaces =interptools.addXYToSurfaces(surfaces)
-#surfaces,neighbors,distances = interptools.interpolateSurfaces(surfaces)
-#surfaces = nstools.addBathAndMask(surfaces)
-#surfaces = nstools.fillOutEmptyFields(surfaces)
-#surfaces = nstools.addHeight(surfaces)
+surfaces =interptools.addXYToSurfaces(surfaces)
+surfaces,neighbors,distances = interptools.interpolateSurfaces(surfaces)
+surfaces = nstools.addBathAndMask(surfaces,neighbors)
+surfaces = nstools.fillOutEmptyFields(surfaces)
+surfaces = nstools.addHeight(surfaces)
 
-#surfaces = nstools.addHorizontalGrad(surfaces,neighbors,distances)
-#surfaces = nstools.addVerticalGrad(surfaces)
-#ptools.saveBathVarTermCache(surfaces,"data/bathVar.pickle")
-#surfaces = nstools.addK(surfaces,"data/bathVar.pickle")
+surfaces = nstools.addHorizontalGrad(surfaces,neighbors,distances)
+surfaces = nstools.addVerticalGrad(surfaces)
+ptools.saveBathVarTermCache(surfaces,"data/bathVar.pickle")
+surfaces = nstools.addK(surfaces,"data/bathVar.pickle")
 
-with open('data/ready4inverse.pickle', 'rb') as outfile:
-    [surfaces,neighbors,distances]=pickle.load(outfile)
+#with open('data/ready4inverse.pickle', 'rb') as outfile:
+    #[surfaces,neighbors,distances]=pickle.load(outfile)
 
 #nstools.surfaceDiagnostic(surfaces)
 #with open('data/ready4inverse.pickle', 'wb') as outfile:

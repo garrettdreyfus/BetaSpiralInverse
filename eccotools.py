@@ -54,7 +54,9 @@ def addSSHToSurface(surfaces):
             if (lat,lon) not in dumbcache.keys():
                 dumbcache[(lat,lon)]=getSSHAt(lat,lon)
             surfaces[k]["data"]["ssh"][l] = dumbcache[(lat,lon)]
+            surfaces[k]["data"]["psi"][l] = surfaces[k]["data"]["psi"][l]-9.8*dumbcache[(lat,lon)]
     return surfaces
+
 
 def addModelEccoUV(surfaces):
     distances = []
@@ -100,7 +102,7 @@ def generateProfiles(savepath='data/eccoprofiles.pickle'):
     for latindex in Bar("lats").iter(range(len(lat))):
         if lat[latindex][0] >= 68:
             for lonindex in Bar("lons").iter(range(len(lon[latindex]))):
-                if lonindex%5==0 and  not (lat[latindex][0]<81 and -93 < lon[latindex][lonindex] < 20):
+                if not (lat[latindex][0]<81 and -93 < lon[latindex][lonindex] < 20):
                     data = {}
                     data["lat"]=lat.values[latindex][lonindex]
                     data["lon"]=lon.values[latindex][lonindex]
@@ -127,6 +129,5 @@ def generateProfiles(savepath='data/eccoprofiles.pickle'):
     with open(savepath, 'wb') as outfile:
         pickle.dump(profiles, outfile)
 
-getLatLonIndex(87.9,-56.9)
 
-
+#generateProfiles()

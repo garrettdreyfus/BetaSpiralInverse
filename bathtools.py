@@ -64,7 +64,7 @@ def bathBox(bathDataset,lat,lon,length=28):
     return depths
 
 ## given a surfaces object add depth information to each point
-def addBathToSurface(surfaces):
+def addBathToSurfaces(surfaces):
     dumbcache = {}
     for k in surfaces.keys():
         surfaces[k]["data"]["z"] =  np.full(len(surfaces[k]["lons"]),np.nan)
@@ -75,6 +75,17 @@ def addBathToSurface(surfaces):
                 dumbcache[(lat,lon)]=searchBath(lat,lon)
             surfaces[k]["data"]["z"][l] = dumbcache[(lat,lon)]
     return surfaces
+
+def addBathToSurface(surface):
+    dumbcache = {}
+    surface["data"]["z"] =  np.full(len(surface["lons"]),np.nan)
+    for l in range(len(surface["lats"])):
+        lat = surface["lats"][l]
+        lon = surface["lons"][l]
+        if (lat,lon) not in dumbcache.keys():
+            dumbcache[(lat,lon)]=searchBath(lat,lon)
+        surface["data"]["z"][l] = dumbcache[(lat,lon)]
+    return surface
             
 
 

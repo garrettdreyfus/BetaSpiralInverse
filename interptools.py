@@ -109,11 +109,27 @@ def generateMaskedMesh(x,y,radius=200):
                     finalneighbors.append(tuple(s))
     return np.asarray(finalxi),np.asarray(finalyi),finalneighbors,finalids
 
+## snap points from profiles onto
+## closest surface point
+def surfaceSnap(surface,xgrid,ygrid):
+    interpdata = {}
+    for d in surface["data"].keys():
+        interpdata[d]=[np.nan]*len(xgrid)
+    for l in range(len(xgrid)):
+        idx = np.argpartition((xgrid[l]-surface["x"])**2 + (ygrid[l]-surface["y"])**2, 4)
+        for d in surface["data"].keys():
+            interpdata[d][l] = float(np.mean(surface["data"][d][idx[:4]]))
+
+    for d in surface["data"].keys():
+        interpdata[d]=np.asarray(interpdata[d])
+
+    return interpdata
+ 
 ##interpolate  a surface
 ## create the mesh, use gam interpolation
 ##also returns neighboring points for each points
 ## and the distance between those points
-def interpolateSurface(surface,debug=True):
+def interpolateSurface(surface,debug=True,gaminterpolate=True):
     #print("######")
     interpsurf={}
     X = np.zeros((len(surface["x"]),2))
@@ -126,16 +142,20 @@ def interpolateSurface(surface,debug=True):
     interpsurf["ids"] =finalids
     if len(xi) != len(finalids):
         print("OH NOOOOOO")
-    for k in Bar("Interpolating: ").iter(surface["data"].keys()):
-        notnan = ~np.isnan(surface["data"][k])
-        if np.count_nonzero(notnan)>10:
-            gam = pygam.LinearGAM(pygam.te(0,1)).fit(X[notnan],surface["data"][k][notnan])
-            Xgrid = np.zeros((yi.shape[0],2))
-            Xgrid[:,0] = xi
-            Xgrid[:,1] = yi
-            interpdata[k] = gam.predict(Xgrid)
-        else:
-            interpdata[k] = np.asarray([np.nan]*len(xi))
+    if gaminterpolate:
+        for d in Bar("Interpolating: ").iter(surface["data"].keys()):
+            notnan = ~np.isnan(surface["data"][d])
+            if np.count_nonzero(notnan)>10:
+                gam = pygam.LinearGAM(pygam.te(0,1)).fit(X[notnan],surface["data"][d][notnan])
+                Xgrid = np.zeros((yi.shape[0],2))
+                Xgrid[:,0] = xi
+                Xgrid[:,1] = yi
+                interpdata[d] = gam.predict(Xgrid)
+            else:
+                interpdata[d] = np.asarray([np.nan]*len(xi))
+    else:
+        interpdata = surfaceSnap(surface,xi,yi)
+ 
     interpsurf["data"] = interpdata
     interpsurf["data"]["ids"] = finalids
     interpsurf = addLatLonToSurface(interpsurf)
@@ -143,14 +163,14 @@ def interpolateSurface(surface,debug=True):
 
 ## interpolate all the surfaces vertically and store
 ## neighbors, and distances as well
-def interpolateSurfaces(surfaces,debug=True):
+def interpolateSurfaces(surfaces,debug=True,gaminterpolate=True):
     interpolatedsurfaces = {}
     neighbors={}
     lookups={}
     for k in surfaces.keys():
         if ~np.isnan(surfaces[k]["data"]["pres"]).any():
             surfaces[k] = removeDiscontinuities(surfaces[k],radius=0.1)
-            interpolatedsurfaces[k],neighbors[k] = interpolateSurface(surfaces[k])
+            interpolatedsurfaces[k],neighbors[k] = interpolateSurface(surfaces[k],gaminterpolate=gaminterpolate)
             lookups[k] = trueDistanceLookup(interpolatedsurfaces[k],neighbors[k])
     return interpolatedsurfaces,neighbors,lookups
 

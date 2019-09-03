@@ -379,7 +379,8 @@ def nanCopySurfaces(surfaces):
                     "dqnotdx","dqnotdy","d2thetads2","dalphadtheta",\
                     "alpha","beta","dalphads","dbetads","dalphadp",\
                     "dbetadp","psi","psinew","dqdz","dqdx","dqdy",\
-                    "d2qdz2","d2qdx2","d2qdy2","khp","khpdz","toph","both"]
+                    "d2qdz2","d2qdx2","d2qdy2","khp","khpdz","toph",\
+                    "both","dpsidx","dpsidy","ssh","ids","z"]
         for d in datafields:
             nancopy[k]["data"][d] = np.full(len(surfaces[k]["lons"]),np.nan)
     return nancopy
@@ -469,10 +470,20 @@ def addVerticalGrad(surfaces):
 ## "be in the right places" if you will we need to average
 ## the other quantities like position and t,s,v,h, and pres
 def averageOverNeighbors(staggered,surfaces,k,s):
-    staggered[k]["lons"][s[0]] = np.mean(np.abs(surfaces[k]["lons"][s]))*np.sign(surfaces[k]["lons"][s[0]])
-    staggered[k]["lats"][s[0]] = np.mean(surfaces[k]["lats"][s])
-    staggered[k]["x"][s[0]] = np.mean(surfaces[k]["x"][s])
-    staggered[k]["y"][s[0]] = np.mean(surfaces[k]["y"][s])
+    #if max(staggered[k]["lons"][s])>170 and min(staggered[k]["lons"][s])<-170:
+        #lons = staggered[k]["lons"][s]
+        #lons[lons<0] = lons[lons<0]+360
+        #avg = np.mean(lons)
+        #if avg>180:
+            #avg = -180+avg
+        #staggered[k]["lons"][s[0]] = avg
+    #else:
+    x = np.mean(surfaces[k]["x"][s])
+    y = np.mean(surfaces[k]["y"][s])
+    staggered[k]["x"][s[0]] = x
+    staggered[k]["y"][s[0]] = y
+    staggered[k]["lats"][s[0]] = 90-np.sqrt(x**2 + y**2)/111000.0
+    staggered[k]["lons"][s[0]] = np.degrees(np.arctan2(y,x))
     for d in surfaces[k]["data"].keys():
         if d in ["t","s","pv","h","pres","knownu","knownv"]:
             staggered[k]["data"][d][s[0]] = np.mean(surfaces[k]["data"][d][s])
@@ -503,12 +514,12 @@ def addHorizontalGrad(surfaces,neighbors,distances,debug=False):
         for s in neighbors[k]:
             s=np.asarray(s)
             if not np.isnan(s).any():
-                staggered = addGradients(surfaces,surfaces,k,s,distances)
+                staggered = addGradients(staggered,surfaces,k,s,distances)
         for s in neighbors[k]:
             s=np.asarray(s)
-            if not np.isnan(s).any():
-                staggered= averageOverNeighbors(staggered,surfaces,k,s)
-                staggered = addDoubleGradients(surfaces,k,s,distances)
+            staggered= averageOverNeighbors(staggered,surfaces,k,s)
+            staggered = addDoubleGradients(staggered,k,s,distances)
+
 
     return staggered
 
@@ -637,9 +648,6 @@ def addStreamFunc(surfaces,profiles):
     ks = []
     count =0
     for k in Bar("Adding Stream Func to :").iter(neutraldepths.keys()):
-        count+=1
-        if count > 2000:
-            break
         p = getProfileById(profiles,k)
         s.append(p.isals)
         t.append(p.itemps)
@@ -661,16 +669,13 @@ def addStreamFunc(surfaces,profiles):
         #print("nsdensref",nsdensref)
         psi = p.geoIsopycnal(nsa,nsdensref)
         for depth in range(len(nslabels)):
-            #print(psi)
-            #print(surfaces[nslabels[depth]]["ids"])
-            #print(np.asarray(surfaces[nslabels[depth]]["ids"]),int(k))
             if type(surfaces[nslabels[depth]]["ids"][0]) == type(1):
                 targets = np.where(np.asarray(surfaces[nslabels[depth]]["ids"]) ==int(k) )
             elif type(surfaces[nslabels[depth]]["ids"][0]) == type("str"):
                 targets = np.where(np.asarray(surfaces[nslabels[depth]]["ids"]) ==str(k) )
             else:
                 print("What is the type of the ids dude")
-            #print(targets)
+
             surfaces[nslabels[depth]]["data"]["psi"][targets] = psi[depth]
         p_ref.append([0]*len(p.ipres))
         ks.append(k)
@@ -694,17 +699,36 @@ def streamFuncToUV(surfaces,neighbors,distances):
     return surfaces
 
 ##Add bathymetry and remove points below
-def addBathAndMask(surfaces):
-    surfaces = bathtools.addBathToSurface(surfaces)
+def addBathAndMask(surfaces,neighbors):
+    surfaces = bathtools.addBathToSurfaces(surfaces)
     for k in Bar("Bath Masking").iter(surfaces.keys()):
         for l in range(len(surfaces[k]["lats"])):
             if abs(surfaces[k]["data"]["pres"][l]) > abs(surfaces[k]["data"]["z"][l]):
                 for d in surfaces[k]["data"].keys():
                     if d != "ids":
                         surfaces[k]["data"][d][l] = np.nan
+                surfaces[k]["x"][l] = np.nan
+                surfaces[k]["y"][l] = np.nan
+                surfaces[k]["lats"][l] = np.nan
+                surfaces[k]["lons"][l] = np.nan
+                surfaces[k]["ids"][l] = -999
+        for l in range(len(surfaces[k]["x"])):
+            ds = np.sqrt((surfaces[k]["x"]-surfaces[k]["x"][l])**2 + (surfaces[k]["y"]-surfaces[k]["y"][l])**2)
+            if len(np.where(ds<100000)[0])<4:
+                for d in surfaces[k]["data"].keys():
+                    if d != "ids":
+                        surfaces[k]["data"][d][l] = np.nan
+                surfaces[k]["x"][l] = np.nan
+                surfaces[k]["y"][l] = np.nan
+                surfaces[k]["lats"][l] = np.nan
+                surfaces[k]["lons"][l] = np.nan
+                surfaces[k]["ids"][l] = -999
+
     return surfaces
+   
 
 
+    
 ##this is spicy. it takes a couple mat files and works out the stream function
 ## on neutral surfaces from it. Just to check the frankenstein
 def addStreamFuncFromFile(surfaces,profiles,isopycnalfile,referencefile):

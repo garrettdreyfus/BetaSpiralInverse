@@ -108,7 +108,7 @@ def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=N
 ## given a surfaces object, a quantity index, graph quantity
 ## if you really want you can supply a profiles object and a deepest index to display a point
 ## controls to save, graph or maximize
-def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None,idlabels=False):
+def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None,idlabels=False,colorlimit=True):
     quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV",\
                      "u":"relative U","v":"relative V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X",\
                     "hy":"Neutral Gradient Y","curl":"Curl","drdt":"Northward Velocity",\
@@ -143,9 +143,10 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
                 m = np.nanmedian(d)
                 s = np.nanstd(d)
                 print("################")
-                plt.clim(m-2*s,m+2*s)
-                #plt.clim(i-400,i+400)
-                mapy.colorbar()
+                if colorlimit:
+                    plt.clim(m-2*s,m+2*s)
+                    #plt.clim(i-400,i+400)
+                    mapy.colorbar()
             #map the reference profile
             if profiles and deepestindex:
                 x,y = mapy(profiles[deepestindex].lon,profiles[deepestindex].lat)
@@ -222,12 +223,15 @@ def plotCruise(profiles,cruisename,fig=None,ax=None,show=True):
         plt.show()
 
 ##plot profiles with an option to supply one profile which should be highlighted
-def plotProfiles(profiles,title,specialprofile=None,fig=None,ax=None,show=True):
+def plotProfiles(profiles,title,specialprofile=None,fig=None,ax=None,show=True,data="pres",depth=False):
     lats, lons, depths=[],[],[]
     for p in profiles:
         lats.append(p.lat)
         lons.append(p.lon)
-        depths.append(np.max(p.pres))
+        if data == "pres":
+            depths.append(np.max(p.pres))
+        if data == "t" and depth:
+            depths.append(p.atPres(depth)[0])
 
     if not fig and not ax:
         fig,ax = plt.subplots(1,1)
@@ -382,6 +386,7 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",transform=True,save
             else:
                 bgfield = gsw.f(surfaces[k]["lats"][a])/surfaces[k]["data"]["z"][a]
             plt.tricontourf(xpv,ypv,bgfield,levels=50)
+            #plt.scatter(xpv,ypv,c=bgfield)
             plt.clim(np.min(bgfield),np.max(bgfield))
             mapy.colorbar()
             mapy.quiver(x,y,u,v,mag,cmap="cool",width = 0.002)
@@ -729,7 +734,11 @@ def graphProfilesVectorField(profiles,depths=range(200,4000,200),savepath=False,
             plt.show()
         plt.close()
 
-
+def distanceHist(distances):
+    for k in distances.keys():
+        plt.hist(distances[k].values())
+        plt.show()
+            
 
         
 
