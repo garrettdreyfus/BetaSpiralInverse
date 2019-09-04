@@ -701,14 +701,15 @@ def coupledInvert(surfaces,neighbors,distances,params={},edgeguard=True):
                     if surfaces[k]["ids"][s[i]] in outliers[k]:
                         newbetarow = recenterRow(betarow,columnindexs,i)
                         kpv,ks = ptools.kterms(surfaces,k,s[i],params["scalecoeffs"],fallback=s[0])
-                        n = normOfRows(np.asarray(betavals),kpv[params["mixs"]])
-                        newAkvbrow, newAkhrow, newAkvorow = generateMixingRows(columnindexs,kpv,k,n,i=i)
-                        Apsi.append(np.asarray(newbetarow)/n)
-                        Akvb.append(newAkvbrow)
-                        Akh.append(newAkhrow)
-                        Akvo.append(newAkvorow)
-                        us[columnindexs[i]] = surfaces[k]["data"]["psiref"][s[0]]
-                        c.append(crow/n)
+                        if kpv.any() and ks.any():
+                            n = normOfRows(np.asarray(betavals),kpv[params["mixs"]])
+                            newAkvbrow, newAkhrow, newAkvorow = generateMixingRows(columnindexs,kpv,k,n,i=i)
+                            Apsi.append(np.asarray(newbetarow)/n)
+                            Akvb.append(newAkvbrow)
+                            Akh.append(newAkhrow)
+                            Akvo.append(newAkvorow)
+                            us[columnindexs[i]] = surfaces[k]["data"]["psiref"][s[0]]
+                            c.append(crow/n)
 
                         
 
@@ -748,7 +749,7 @@ def coupledInvert(surfaces,neighbors,distances,params={},edgeguard=True):
                     pdb.set_trace()
 
     if len(Apsi)<1:
-        return None, None, [None,None,None],None, None
+        return None, None, [None,None,None],None, None,None
     print("outliercount",len(totalcount))
     Apsi.insert(0,[1])
     Akvb.insert(0,[0])

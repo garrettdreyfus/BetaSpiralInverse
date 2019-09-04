@@ -9,6 +9,8 @@ def searchBath(bathDataset,lat,lon):
     startlon = bathDataset.variables["x_range"][0]
     ret = bathDataset.variables["dimension"][:][0]
     z = bathDataset.variables["z"]
+    if np.isnan(lat) or np.isnan(lon):
+        return np.nan
     i = int((90-lat)/spacing)
     j = int((lon-startlon)/spacing)
     if np.isnan(z[j+i*ret]):

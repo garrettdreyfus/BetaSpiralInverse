@@ -64,24 +64,14 @@ with open('data/eccosurfaces.pickle', 'rb') as outfile:
 with open('data/prebathmask.pickle', 'rb') as outfile:
     surfaces,neighbors,distances =pickle.load(outfile)
 
-surfaces = nstools.addBathAndMask(surfaces,neighbors)
-graph.graphSurfaces(surfaces,"psi")
-
-
 #surfaces = eccotools.addModelEccoUV(surfaces)
-
-
-
-
 surfaces = nstools.fillOutEmptyFields(surfaces)
 surfaces = nstools.addHeight(surfaces)
 
-
 #with open('data/eccopregradient.pickle', 'rb') as outfile:
     #surfaces,neighbors,distances =pickle.load(outfile)
-
 surfaces = nstools.addHorizontalGrad(surfaces,neighbors,distances)
-graph.graphSurfaces(surfaces,"psi")
+surfaces = nstools.addBathAndMask(surfaces,neighbors)
 surfaces = nstools.addVerticalGrad(surfaces)
 ptools.saveBathVarTermCache(surfaces,"data/bathVarecco.pickle")
 surfaces = nstools.addK(surfaces,"data/bathVarecco.pickle")
@@ -92,10 +82,7 @@ surfaces = nstools.addK(surfaces,"data/bathVarecco.pickle")
 
 #with open('data/ready4inverseecco.pickle', 'wb') as outfile:
     #pickle.dump([surfaces,neighbors,distances], outfile)
-
-graph.graphSurfaces(surfaces,"psi")
-graph.graphVectorField(surfaces,"u","v","psi",\
-        savepath="refpics/vectorfields/eccogeo")
+graph.graphVectorField(surfaces,"u","v","psi")
 
 #for q in surfaces[1000]["data"].keys():
     #graph.graphSurfaces(surfaces,q,savepath="refpics/eccoallquantsbathmasked/",show=False)

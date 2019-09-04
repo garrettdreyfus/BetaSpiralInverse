@@ -446,7 +446,7 @@ def addVerticalGrad(surfaces):
             foundbelow = np.where(np.asarray(surfaces[depths[j+1]]["ids"])==eyed)
             found = index
             foundabove = np.where(np.asarray(surfaces[depths[j-1]]["ids"])==eyed)
-            if len(foundbelow)!=0 and len(foundbelow[0]) != 0 and len(foundabove)!=0 and len(foundabove[0]) != 0:
+            if eyed != -999 and len(foundbelow)!=0 and len(foundbelow[0]) != 0 and len(foundabove)!=0 and len(foundabove[0]) != 0:
                 foundbelow = foundbelow[0][0]
                 foundabove = foundabove[0][0]
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"s","dsdz",factor=-1)
@@ -461,7 +461,7 @@ def addVerticalGrad(surfaces):
             foundbelow = np.where(np.asarray(surfaces[depths[j+1]]["ids"])==eyed)
             found = index
             foundabove = np.where(np.asarray(surfaces[depths[j-1]]["ids"])==eyed)
-            if len(foundbelow)!=0 and len(foundbelow[0]) != 0 and len(foundabove)!=0 and len(foundabove[0]) != 0:
+            if eyed != -999 and len(foundbelow)!=0 and len(foundbelow[0]) != 0 and len(foundabove)!=0 and len(foundabove[0]) != 0:
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"dqdz","d2qdz2",factor=-1)
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"khp","khpdz",factor=-1)
     return surfaces
@@ -470,14 +470,6 @@ def addVerticalGrad(surfaces):
 ## "be in the right places" if you will we need to average
 ## the other quantities like position and t,s,v,h, and pres
 def averageOverNeighbors(staggered,surfaces,k,s):
-    #if max(staggered[k]["lons"][s])>170 and min(staggered[k]["lons"][s])<-170:
-        #lons = staggered[k]["lons"][s]
-        #lons[lons<0] = lons[lons<0]+360
-        #avg = np.mean(lons)
-        #if avg>180:
-            #avg = -180+avg
-        #staggered[k]["lons"][s[0]] = avg
-    #else:
     x = np.mean(surfaces[k]["x"][s])
     y = np.mean(surfaces[k]["y"][s])
     staggered[k]["x"][s[0]] = x
@@ -485,10 +477,11 @@ def averageOverNeighbors(staggered,surfaces,k,s):
     staggered[k]["lats"][s[0]] = 90-np.sqrt(x**2 + y**2)/111000.0
     staggered[k]["lons"][s[0]] = np.degrees(np.arctan2(y,x))
     for d in surfaces[k]["data"].keys():
-        if d in ["t","s","pv","h","pres","knownu","knownv"]:
+        if d in ["t","s","pv","h","pres","knownu","knownv",\
+                "psi","n^2","alpha","beta","toph","both"]:
             staggered[k]["data"][d][s[0]] = np.mean(surfaces[k]["data"][d][s])
         else:
-            staggered[k]["data"][d][s[0]] = surfaces[k]["data"][d][s[0]]
+            staggered[k]["data"][d][s[0]] = staggered[k]["data"][d][s[0]]
     return staggered
 
 ##terrible name but add the bathymetric variability coeffient of KVB
@@ -519,8 +512,6 @@ def addHorizontalGrad(surfaces,neighbors,distances,debug=False):
             s=np.asarray(s)
             staggered= averageOverNeighbors(staggered,surfaces,k,s)
             staggered = addDoubleGradients(staggered,k,s,distances)
-
-
     return staggered
 
 ##calculate gradient based on neighboring points
@@ -549,8 +540,10 @@ def d2thetads2(surfaces,k,s):
 ## set the horizontal gradient 
 def setSpatialGrad(out,data,k,s,distances,attr,attrx,attry,factorx=1,factory=1,mode="modify"):
     dx,dy = spatialGrad(data,k,distances,s,attr)
-    out[k]["data"][attrx][s[0]] = np.mean(dx)*factorx
-    out[k]["data"][attry][s[0]] = np.mean(dy)*factory
+    out[k]["data"][attrx][s[0]] = dx*factorx
+    out[k]["data"][attry][s[0]] = dy*factory
+    if attr == "psi" and attrx=="v":
+        print(factorx)
     return out
 
 #get the graient of two attributes among neighbors
@@ -712,9 +705,17 @@ def addBathAndMask(surfaces,neighbors):
                 surfaces[k]["lats"][l] = np.nan
                 surfaces[k]["lons"][l] = np.nan
                 surfaces[k]["ids"][l] = -999
-        for l in range(len(surfaces[k]["x"])):
-            ds = np.sqrt((surfaces[k]["x"]-surfaces[k]["x"][l])**2 + (surfaces[k]["y"]-surfaces[k]["y"][l])**2)
-            if len(np.where(ds<100000)[0])<4:
+        final = np.zeros(surfaces[k]["x"].shape)
+        for s in neighbors[k]:
+            keepem = True
+            for l in s:
+                if np.isnan(surfaces[k]["data"]["t"][l]):
+                    keepem = False
+            if keepem:
+                for l in s:
+                    final[l] = True
+        for l in range(len(final)):
+            if not final[l]:
                 for d in surfaces[k]["data"].keys():
                     if d != "ids":
                         surfaces[k]["data"][d][l] = np.nan
