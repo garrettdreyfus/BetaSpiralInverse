@@ -380,7 +380,8 @@ def nanCopySurfaces(surfaces):
                     "alpha","beta","dalphads","dbetads","dalphadp",\
                     "dbetadp","psi","psinew","dqdz","dqdx","dqdy",\
                     "d2qdz2","d2qdx2","d2qdy2","khp","khpdz","toph",\
-                    "both","dpsidx","dpsidy","ssh","ids","z"]
+                    "both","dpsidx","dpsidy","ssh","ids","z","knownu"\
+                    ,"knownv","diffkr","kapgm","kapredi"]
         for d in datafields:
             nancopy[k]["data"][d] = np.full(len(surfaces[k]["lons"]),np.nan)
     return nancopy
@@ -478,7 +479,8 @@ def averageOverNeighbors(staggered,surfaces,k,s):
     staggered[k]["lons"][s[0]] = np.degrees(np.arctan2(y,x))
     for d in surfaces[k]["data"].keys():
         if d in ["t","s","pv","h","pres","knownu","knownv",\
-                "psi","n^2","alpha","beta","toph","both"]:
+                "psi","n^2","alpha","beta","toph",\
+                "both","kapredi","kapgm","diffkr"]:
             staggered[k]["data"][d][s[0]] = np.mean(surfaces[k]["data"][d][s])
         else:
             staggered[k]["data"][d][s[0]] = staggered[k]["data"][d][s[0]]
@@ -542,8 +544,6 @@ def setSpatialGrad(out,data,k,s,distances,attr,attrx,attry,factorx=1,factory=1,m
     dx,dy = spatialGrad(data,k,distances,s,attr)
     out[k]["data"][attrx][s[0]] = dx*factorx
     out[k]["data"][attry][s[0]] = dy*factory
-    if attr == "psi" and attrx=="v":
-        print(factorx)
     return out
 
 #get the graient of two attributes among neighbors
