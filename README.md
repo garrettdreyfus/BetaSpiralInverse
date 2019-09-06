@@ -26,13 +26,13 @@ The traditional way to mark neutral surfaces on profiles is to find a depth of n
 from betaspiral import nstools
 
 #let profiles be a large list of profile objects
-# we will arbitrarily choose the deepest profile we have as the reference profile
+#we will arbitrarily choose the deepest profile we have as the reference profile
 deepestindex=nstools.deepestProfile(profiles)
 profilechoice = profiles[deepestindex]
-#this command searchs for surfaces from 200m to 4000m by steps of 200 meters, and only finds neutral depths between profiles which are within 100 km of each other.
+#kthis command searchs for surfaces from 200m to 4000m by steps of 200 meters, and only finds neutral depths between profiles which are within 100 km of each other.
 surfaces = nstools.runPeerSearch(profiles,200,4000,200,profilechoice,100)
 ```
-##Interpolating
+## Interpolating
 We now have a surfaces dictionary and it seems like a good time to describe what that entails. The surfaces object is a dictionary with keys of depth, and values of surface dictionaries. Surface dictionaries have arrays of lat, lon, x, y, and id. X,y is a cartesian projection of lat,lon for the purpose of interpolation and id is what ties together points on different neutral surfaces. The surface dictionary also has a "data" key which stores a dictionary containing yet more arrays of all the measurements and values we have on the surface. This contains but is not limited to temperature,salinity, potential vorticity, height of neutral surface, gradients
 
 Interpolating is quite easy. There are two options when interpolating, Gam interpolation, or linear interpolation. Loosely speaking if you are dealing with low nosie data like gridded data from a model then linear interpolation is a good choice, and if you are dealing with noisy observational data than Gam is for you.
@@ -43,7 +43,7 @@ surfaces,neighbors,distances = interptools.interpolateSurfaces(surfaces,gaminter
 ```
 Neighbors is a dictionary which contains dictionaries for each neutral surface on which points are adjacent to which on the grid. Distances  is a dictionary which contains dictionaries for each neutral surface on the **real** distances between adjacent points on the grid.
 
-##Adding parameters
+## Adding parameters
 Alot of things go into an inverse and they need to be added to your surfaces
 ```
 
@@ -56,13 +56,13 @@ surfaces = nstools.addK(surfaces,"data/bathVarecco.pickle")
 
 ```
 
-##Performing the actual inverse!
+## Performing the actual inverse!
 
-##Sensitivity Stuff
+## Sensitivity Stuff
 
-##Graphing and Diagnosing
+## Graphing and Diagnosing
 
-##Example inverse run
+## Example inverse run
 ```
 
 deepestindex=nstools.deepestProfile(profiles)
@@ -90,4 +90,4 @@ graph.graphVectorField(inv,"uabs","vabs","z")
 
 ```
 
-##Useful things that haven't been mentioned
+## Useful things that haven't been mentioned
