@@ -2,7 +2,7 @@
 
 Hello and welcome to the beta spiral inverse toolbox. The purpose of this library is to provide a set of tools to allow people to conduct beta spiral inverses, in the fashion of "The abyssal and deep circulation of the Northeast Pacific Basin" (Hauta 2018)
 
-##Fist steps - creating profiles!
+## Fist steps - creating profiles!
 This toolbox takes in data in the form of Profile objects. To construct a Profile object requires a set of potential temperatures, salinity readings, and pressures. Each profile should also be given a unique id, and can be provided with a cruise name.
 
 Below is an example construction of a profile object
@@ -16,8 +16,8 @@ newprofile = Profile(id,data)
 The hope is that if you are planning on conducting an inverse you have alot of data that you can turn into profile objects and throw into one big list.
 
 
-##salinity offsets and quality control
-##Finding Neutral Surfaces!
+## salinity offsets and quality control
+## Finding Neutral Surfaces!
 So you have a big bunch of profiles and now you want to find the neutral surfaces. LETS GET IT!
 
 The traditional way to mark neutral surfaces on profiles is to find a depth of neutral density relative to a premarked station closest to you (MCDOUGAL PAPER). However in some places (like the arctic where this was made for) there is are not many readily available stations. Due to this, this library takes a slightly different approach to finding neutral surfaces.It begins with one profile that can be thought of as the reference profile (but really can be any one you choose). Arbitrary neutral surfaces are marked down the depth of the profile. At every depth, profiles are considered within a given range and then the neutral depth for that surface is labelled on them. The program then considers all profiles with a labelled neutral depth on this neutral surface, reference profiles from which it searches for more profiles. In doing so it crawls out and finds neutral surfaces across a basin.
