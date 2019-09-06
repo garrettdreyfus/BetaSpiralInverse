@@ -113,9 +113,9 @@ def kChecker(surfaces,k,found,scales,debug=False):
               dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
               dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
               beta,d2qdx2,d2qdy2,khpdz]
-    kvoscale = scales[1]
-    kvbscale = scales[2]
-    khscale  = scales[3]
+    kvoscale = scales["kvo"]
+    kvbscale = scales["kvb"]
+    khscale  = scales["kh"]
 
     if (np.isnan(isitnan).any()):
         if debug:
@@ -175,8 +175,8 @@ def kChecker(surfaces,k,found,scales,debug=False):
             plt.yscale("log")
             plt.show()
 
-        kvhbreakdown=False
-        if kvhbreakdown:
+        khbreakdown=False
+        if khbreakdown:
             #(d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv -f*khpdz
             labels = ["d2qdx2+d2qdy2","2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv","f*khpdz","f","khpdz"]
             print(dsdz)
@@ -215,7 +215,8 @@ def fetchWithFallback(surfaces,k,q,found,fallback=None):
         return r
 ## file that generates the mixing terms of the Fq and Fs
 ## given a surfaces object, a depth and an index
-def kterms(surfaces,k,found,scales,debug=False,fallback=None):
+def kterms(surfaces,k,found,params,debug=False,fallback=None):
+    scales = params["scalecoeffs"]
     f = gsw.f(surfaces[k]["lats"][found])
     x = surfaces[k]["x"][found]
     y = surfaces[k]["y"][found]
@@ -264,9 +265,9 @@ def kterms(surfaces,k,found,scales,debug=False,fallback=None):
               dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
               dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
               beta,dkhpdz,d2qdx2,d2qdy2,khp,toph,both,uref,vref]
-    kvoscale = scales[1]
-    kvbscale = scales[2]
-    khscale  = scales[3]
+    kvoscale = scales["kvo"]
+    kvbscale = scales["kvb"]
+    khscale  = scales["kh"]
     if (np.isnan(isitnan).any()):
         if debug:
             print("pres is nan: ",np.isnan(pres))
@@ -275,18 +276,50 @@ def kterms(surfaces,k,found,scales,debug=False,fallback=None):
             print("x is nan: ",np.isnan(x))
             print("y is nan: ",np.isnan(y))
             print("something here is nan")
-        return np.array([]), np.array([])
+        return {},{}
     if not (np.isnan(isitnan).any()):
         pvkvb = (d2qdz2+2*(1/200.0)*dqdz+(1/(200.0**2))*pv)*CKVB
-        pvkv0 = d2qdz2
-        pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv -((1.0/both-1.0/toph)*f*khp)
+        pvkvo = d2qdz2
+        if params["modelmixing"]:
+            pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv - f*dkhpdz
+        else:
+            pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv -((1.0/both-1.0/toph)*f*khp)
         skvo = -alpha*f*(1/pv)*(dsdz**3)*doublets
         skvb = skvo*CKVB
         skhpart1 = (f/pv)*dsdz*(alphat*(dtdx**2 + dtdy**2)+alphap*(dtdx*dpdx+dtdy*dpdy))
         skhpart2 = (d2sdx2+d2sdy2)-2*(dqnotdx*dsdx + dqnotdy*dsdy)/pv
         skh = skhpart1 + skhpart2
-        kvs = np.asarray([-pvkv0*kvoscale,-pvkvb*kvbscale,-pvkh*khscale])
-        ks = np.asarray([-skvo*kvoscale,-skvb*kvbscale,-skh*khscale])
+        kvs = {"kvo":pvkvo*kvoscale,"kvb":pvkvb*kvbscale,"kh":pvkh*khscale}
+        ks = {"kvo":skvo*kvoscale,"kvb":skvb*kvbscale,"kh":skh*khscale}
         return kvs,ks
+
+def calcFQ(surfaces,k,found,scales,kpvs,distances):
+    dqdx = fetchWithFallback(surfaces,k,"dqdx",found)
+    dqdy = fetchWithFallback(surfaces,k,"dqdy",found)
+    dqnotdx = fetchWithFallback(surfaces,k,"dqnotdx",found)
+    dqnotdy = fetchWithFallback(surfaces,k,"dqnotdy",found)
+    pv = fetchWithFallback(surfaces,k,"pv",found)
+
+    missingpiece = -(2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv)
+    print("Qkvterm: ",surfaces[k]["data"]["diffkr"][found]*kpvs["kvo"])
+    print("Qkhterm: ",surfaces[k]["data"]["kapredi"][found]*(kpvs["kh"]-missingpiece)+\
+            surfaces[k]["data"]["kapgm"][found]*(missingpiece))
+    FQ = surfaces[k]["data"]["diffkr"][found]*kpvs["kvo"] +\
+            surfaces[k]["data"]["kapredi"][found]*(kpvs["kh"]-missingpiece)+\
+            surfaces[k]["data"]["kapgm"][found]*(missingpiece)
+    return FQ
+
+
+def calcFS(surfaces,k,found,scales,ks,distances):
+    FS = surfaces[k]["data"]["diffkr"][found]*ks["kvo"] +\
+            surfaces[k]["data"]["kapredi"][found]*ks["kh"] 
+    print("Skvterm: ",surfaces[k]["data"]["diffkr"][found]*ks["kvo"])
+    print("Skhterm: ",surfaces[k]["data"]["kapredi"][found]*ks["kh"] )
+    if np.isinf(-ks["kvo"]):
+        print("kvo inf")
+        print(ks)
+    if np.isinf(-ks["kh"]):
+        print("kh inf")
+    return FS
 
 

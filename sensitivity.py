@@ -30,9 +30,16 @@ def conditionError(inverse,surfaces,neighbors,distances,fname=False,disp=-1,para
             os.makedirs(savepath)
         except FileExistsError as e:
             print(e)
-    for lowlevel in range(params["upperbound"]+1000,2600,200):
+    for lowlevel in range(params["upperbound"],2600,200):
         params.update({"lowerbound":lowlevel})
-        inv,columndict,svds,A,e,meta= inverttools.invert(inverse,surfaces,neighbors,distances,params=params)
+        print(params)
+        out = inverttools.invert(inverse,surfaces,neighbors,distances,params=params)
+        inv = out["surfaces"]
+        columndict = out["coldict"]
+        svds = out["svddecomp"]
+        A = out["matrixsetup"]
+        e = out["errors"]
+        meta = out["metadata"]
         if inv:
             s = np.diag((1.0/svds[1]))
             condition = s[0]/s[-1]
@@ -40,12 +47,11 @@ def conditionError(inverse,surfaces,neighbors,distances,fname=False,disp=-1,para
             errors.append(np.sum(np.abs(e[1])))
             levels.append(lowlevel)
             i,o = graph.transportLine(inv,(-24.71,83.60),(27.496,80.06),2400,False,show=False)
-            #fram.append(abs(abs(i)-abs(o))) 
+            fram.append(abs(abs(i)-abs(o))) 
             inv = nstools.streamFuncToUV(inv,neighbors,distances)
-            fram.append(abs(distanceFromKnown(inv))) 
+            #fram.append(abs(distanceFromKnown(inv))) 
             if lowlevel ==disp:
                 coupleinvert = nstools.streamFuncToUV(inv,neighbors,distances)
-                coupleinvert = bathtools.addBathToSurface(inv)
                 #graph.transportLine(coupleinvert,(-24.71,83.60),(27.496,80.06),2400,True)
                 graph.graphVectorField(inv,"uabs","vabs","z")
     fig, (ax1,ax3) = plt.subplots(2,1)
@@ -75,14 +81,14 @@ def conditionError(inverse,surfaces,neighbors,distances,fname=False,disp=-1,para
 def conditionErrorRefLevel(inverse,surfaces,neighbors,distances,disp=-1,savepath=False,params={}):
     for reflevel in range(600,1600,200):
         print(params)
-        params.update({"mixs":[False,False,False],"reflevel":reflevel,"upperbound":reflevel})
+        params.update({"mixs":{"kvo":False,"kvb":False,"kh":False},"reflevel":reflevel,"upperbound":reflevel})
         print(params)
         conditionError(inverse,surfaces,neighbors,distances,disp=disp,params=params,savepath=savepath)
 
 def mixSens(inverse,surfaces,neighbors,distances,disp=-1,savepath=False,params={}):
     params = {"reflevel":600,"upperbound":600,"lowerbound":1600,"mixs":[True,True,True]}
     for i in np.arange(-5,-4,0.1):
-        for j,name in enumerate(["Kvo","Kvb","Kvh"]):
+        for j,name in enumerate(["Kvo","Kvb","Kh"]):
             if  j== 1:
                 newmix = mixs.copy()
                 newmix[j] = newmix[j]*(10**i)

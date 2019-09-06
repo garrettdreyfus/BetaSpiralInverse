@@ -32,173 +32,11 @@ def SVDdecomp(A,n_elements=2,full=True):
 
 def generateMixingRows(columnindexs,mixing,k,n,i=0):
     Akvbrow = [0]*(columnindexs[i]+1)
-    Akvbrow[columnindexs[i]]=mixing[1]/n
+    Akvbrow[columnindexs[i]]=-mixing["kvb"]/n
     Akhrow = [0]*(int(k/200))
-    Akhrow[int(k/200-1)] = mixing[2]/n
-    Akvorow = [mixing[0]/n]
+    Akhrow[int(k/200-1)] = -mixing["kh"]/n
+    Akvorow = [-mixing["kvo"]/n]
     return Akvbrow,Akhrow,Akvorow
-
-
-#simple pointwise inverse only conserves pv
-def simpleInvert(surfaces,reflevel=1000,debug=False):
-    outsurfaces = copy.deepcopy(surfaces)
-    for k in surfaces.keys():
-        outsurfaces[k]["data"]["u"].fill(np.nan)  
-        outsurfaces[k]["data"]["v"].fill(np.nan)  
-        outsurfaces[k]["data"]["uabs"].fill(np.nan)  
-        outsurfaces[k]["data"]["vabs"].fill(np.nan)  
-    for index in  Bar('Simple Invert: ').iter(range(len(surfaces[reflevel]["x"]))):
-        eyed = int(surfaces[reflevel]["ids"][index])
-        #print("id: ",eyed)
-        ns = []
-        us = [[],[]]
-        b = []
-        c = []
-        prime = [[],[]]
-        for k in surfaces.keys():
-            found = np.where(np.asarray(surfaces[k]["ids"])==eyed)
-            ns.append((k,found))
-            if len(found)!=0 and len(found[0]) != 0:
-                found = found[0][0]
-                x = surfaces[k]["x"][found]
-                y = surfaces[k]["y"][found]
-                r = np.sqrt(x**2 + y**2)
-                hx = surfaces[k]["data"]["hx"][found]
-                hy = surfaces[k]["data"]["hy"][found]
-                pres = surfaces[k]["data"]["pres"][found]
-                f = gsw.f(surfaces[k]["lats"][found])
-                beta = ptools.calcBeta(surfaces[k]["lats"][found])
-                pv = surfaces[k]["data"]["pv"][found]
-                dqnotdx = surfaces[k]["data"]["dqnotdx"][found]
-                dqnotdy = surfaces[k]["data"]["dqnotdy"][found]
-
-                if debug and (np.isnan(hx) or np.isnan(hy) or np.isnan(x) or np.isnan(y)):
-                    print("pres is nan: ",np.isnan(pres))
-                    print("hx is nan: ",np.isnan(hx))
-                    print("hy is nan: ",np.isnan(hy))
-                    print("x is nan: ",np.isnan(x))
-                    print("y is nan: ",np.isnan(y))
-                    print("something here is nan")
-                if k>=1000 and not(np.isnan(hx) or np.isnan(hy) or np.isnan(x) or np.isnan(y)):
-                    bvec = (hx+(beta*x)/(f*r),hy+(beta*y)/(f*r))
-                    #bvec=(dqnotdx-x*beta*pv/(f*r),dqnotdy-y*beta*pv/(f*r))
-                    b.append(norm(bvec))
-                    u = (surfaces[k]["data"]["u"][found] - surfaces[reflevel]["data"]["u"][index])
-                    v = (surfaces[k]["data"]["v"][found] - surfaces[reflevel]["data"]["v"][index])
-                    us[0].append(u)
-                    us[1].append(v)
-                    c.append(np.dot(norm(bvec),(-u,-v)))
-
-        if len(b)>0:
-            b = np.asarray(b)
-            c = np.matrix.transpose(np.asarray(c))
-            us = np.asarray(us)
-            #j = np.linalg.inv(np.matmul(np.matrix.transpose(b),b))
-            #j = SVDdecomp(b,n_elements=4)
-            j,[VT, D, U]  = SVDdecomp(b,n_elements=2,full=True)
-            s = np.diag(D)
-            print(b)
-            print(1.0/s)
-            print(s[-1]/s[0])
-
-            prime = np.matmul(j,c)
-            b = b.T
-            errorbefore = []
-            for i in range(len(b[0])):
-                errorbefore.append(b[0][i]*(us[0][i]+prime[0]) + b[1][i]*(us[1][i]+prime[1]))
-            errorafter = []
-            for i in range(len(b[0])):
-                errorafter.append(b[0][i]*(us[0][i]) + b[1][i]*(us[1][i]))
-
-            for i in range(len(ns)):
-                uref = surfaces[reflevel]["data"]["u"][index]
-                vref = surfaces[reflevel]["data"]["v"][index]
-                outsurfaces[ns[i][0]]["data"]["uprime"][ns[i][1]] = prime[0] 
-                outsurfaces[ns[i][0]]["data"]["uabs"][ns[i][1]] = prime[0] + surfaces[ns[i][0]]["data"]["u"][ns[i][1]]-uref
-                outsurfaces[ns[i][0]]["data"]["u"][ns[i][1]] = surfaces[ns[i][0]]["data"]["u"][ns[i][1]]-uref
-                outsurfaces[ns[i][0]]["data"]["vprime"][ns[i][1]] = prime[1]
-                outsurfaces[ns[i][0]]["data"]["vabs"][ns[i][1]] = prime[1] + surfaces[ns[i][0]]["data"]["v"][ns[i][1]]-vref
-                outsurfaces[ns[i][0]]["data"]["v"][ns[i][1]] = surfaces[ns[i][0]]["data"]["v"][ns[i][1]]-vref
-
-    return outsurfaces
-
-#simpe pointwise inverse conserves pv and salt
-def simplesaltInvert(surfaces,reflevel=1000,debug=False):
-    outsurfaces = copy.deepcopy(surfaces)
-    for k in surfaces.keys():
-        outsurfaces[k]["data"]["u"].fill(np.nan)  
-        outsurfaces[k]["data"]["v"].fill(np.nan)  
-        outsurfaces[k]["data"]["uabs"].fill(np.nan)  
-        outsurfaces[k]["data"]["vabs"].fill(np.nan)  
-    for index in  Bar('Simple Salt Inv refevel'+str(reflevel)+': ').iter(range(len(surfaces[reflevel]["x"]))):
-        eyed = int(surfaces[reflevel]["ids"][index])
-        #print("id: ",eyed)
-        ns = []
-        us = []
-        b = []
-        c = []
-        prime = [[],[]]
-        for k in surfaces.keys():
-            found = np.where(np.asarray(surfaces[k]["ids"])==eyed)
-            if len(found)!=0 and len(found[0]) != 0:
-                ns.append((k,found))
-                found = found[0][0]
-                x = surfaces[k]["x"][found]
-                y = surfaces[k]["y"][found]
-                r = np.sqrt(x**2 + y**2)
-                hx = surfaces[k]["data"]["hx"][found]
-                hy = surfaces[k]["data"]["hy"][found]
-                dsdx = surfaces[k]["data"]["dsdx"][found]
-                dsdy = surfaces[k]["data"]["dsdy"][found]
-                dqnotdx = surfaces[k]["data"]["dqnotdx"][found]
-                dqnotdy = surfaces[k]["data"]["dqnotdy"][found]
-                pv = surfaces[k]["data"]["pv"][found]
-                pres = surfaces[k]["data"]["pres"][found]
-                f = gsw.f(surfaces[k]["lats"][found])
-                beta = ptools.calcBeta(surfaces[k]["lats"][found])
-
-                if debug and (np.isnan(hx) or np.isnan(hy) or np.isnan(x) or np.isnan(y)):
-                    print("pres is nan: ",np.isnan(pres))
-                    print("hx is nan: ",np.isnan(hx))
-                    print("hy is nan: ",np.isnan(hy))
-                    print("x is nan: ",np.isnan(x))
-                    print("y is nan: ",np.isnan(y))
-                    print("something here is nan")
-                if k>= 1000 and not(np.isnan(hx) or np.isnan(hy) or np.isnan(x) or np.isnan(y)):
-                    u = (surfaces[k]["data"]["u"][found] - surfaces[reflevel]["data"]["u"][index])
-                    v = (surfaces[k]["data"]["v"][found] - surfaces[reflevel]["data"]["v"][index])
-                    #surfaces[k]["data"]["uabs"][found]=0
-                    pvvec=((hx+(beta*x)/(f*r)),(hy+(beta*y)/(f*r)))
-                    #pvvec=(dqnotdx-x*beta*pv/(f*r),dqnotdy-y*beta*pv/(f*r))
-                    #pvvec=pvvec/np.linalg.norm(pvvec)
-                    b.append(norm(pvvec))
-                    us.append((u,v))
-                    c.append(np.dot((-u,-v),norm(pvvec)))
-
-                    svec=(dsdx,dsdy)
-                    #svec=svec/np.linalg.norm(svec)
-                    b.append(norm(svec))
-                    c.append(np.dot((-u,-v),norm(svec)))
-                    us.append((u,v))
-        if len(b)>0:
-            b = np.asarray(b)
-            c = np.matrix.transpose(np.asarray(c))
-            us = np.asarray(us)
-            #j = np.linalg.inv(np.matmul(np.matrix.transpose(b),b))
-            #j = SVDdecomp(b,n_elements=4)
-            j,[VT,D,U] = SVDdecomp(b,n_elements=3,full=True)
-            prime = np.matmul(j,c)
-            
-            for i in range(len(ns)):
-                uref = surfaces[reflevel]["data"]["u"][index]
-                vref = surfaces[reflevel]["data"]["v"][index]
-                outsurfaces[ns[i][0]]["data"]["uprime"][ns[i][1]] = prime[0] 
-                outsurfaces[ns[i][0]]["data"]["uabs"][ns[i][1]] = prime[0] + surfaces[ns[i][0]]["data"]["u"][ns[i][1]]-uref
-                outsurfaces[ns[i][0]]["data"]["u"][ns[i][1]] = surfaces[ns[i][0]]["data"]["u"][ns[i][1]]-uref
-                outsurfaces[ns[i][0]]["data"]["vprime"][ns[i][1]] = prime[1]
-                outsurfaces[ns[i][0]]["data"]["vabs"][ns[i][1]] = prime[1] + surfaces[ns[i][0]]["data"]["v"][ns[i][1]]-vref
-                outsurfaces[ns[i][0]]["data"]["v"][ns[i][1]] = surfaces[ns[i][0]]["data"]["v"][ns[i][1]]-vref
-    return outsurfaces
 
 def error(b,us,prime):
     b = np.asarray(b)
@@ -227,204 +65,6 @@ def graphError(b,us,prime):
 ##normalize a vector
 def norm(v):
     return v/np.linalg.norm(v)
-
-##performs a pointwise ivnerse that conserves pv and salt
-## and also includes Fs mixing terms
-def complexSaltInvert(surfaces,reflevel=1000,debug=False):
-    outsurfaces = copy.deepcopy(surfaces)
-    for k in surfaces.keys():
-        outsurfaces[k]["data"]["u"].fill(np.nan)  
-        outsurfaces[k]["data"]["v"].fill(np.nan)  
-        outsurfaces[k]["data"]["uabs"].fill(np.nan)  
-        outsurfaces[k]["data"]["vabs"].fill(np.nan)  
-    for index in  Bar('Complex Salt Invert: ').iter(range(len(surfaces[reflevel]["x"]))):
-        eyed = int(surfaces[reflevel]["ids"][index])
-        #print("id: ",eyed)
-        ns = []
-        us = []
-        b = []
-        c = []
-        prime = [[],[]]
-        for k in sorted(list(surfaces.keys())):
-            found = np.where(np.asarray(surfaces[k]["ids"])==eyed)
-            ns.append((k,found))
-            if len(found)!=0 and len(found[0]) != 0:
-                found = found[0][0]
-                x = surfaces[k]["x"][found]
-                y = surfaces[k]["y"][found]
-                r = np.sqrt(x**2 + y**2)
-                hx = surfaces[k]["data"]["hx"][found]
-                hy = surfaces[k]["data"]["hy"][found]
-                dsdx = surfaces[k]["data"]["dsdx"][found]
-                dsdy = surfaces[k]["data"]["dsdy"][found]
-                pres = surfaces[k]["data"]["pres"][found]
-                alpha = surfaces[k]["data"]["alpha"][found] 
-                betaTherm = surfaces[k]["data"]["beta"][found] 
-                dsdz =  surfaces[k]["data"]["dsdz"][found] 
-                d2sdx2 =  surfaces[k]["data"]["d2sdx2"][found] 
-                d2sdy2 =  surfaces[k]["data"]["d2sdy2"][found] 
-                dalphadtheta = surfaces[k]["data"]["dalphadtheta"][found] 
-                dalphads = surfaces[k]["data"]["dalphads"][found] 
-                dalphadp = surfaces[k]["data"]["dalphadp"][found] 
-                dbetadp = surfaces[k]["data"]["dbetadp"][found] 
-                dbetads = surfaces[k]["data"]["dbetads"][found] 
-                dtdx = surfaces[k]["data"]["dtdx"][found] 
-                dtdy = surfaces[k]["data"]["dtdy"][found] 
-                dqnotdx = surfaces[k]["data"]["dqnotdx"][found] 
-                dqnotdy = surfaces[k]["data"]["dqnotdy"][found] 
-                dpdx = surfaces[k]["data"]["dpdx"][found] 
-                dpdy = surfaces[k]["data"]["dpdy"][found] 
-                alphat = dalphadtheta+2*(alpha/betaTherm)*dalphads-(alpha**2/betaTherm**2)*dbetads
-                alphap = dalphadp -(alpha/betaTherm)*dbetadp
-                pv =  surfaces[k]["data"]["pv"][found] 
-                doublets =  surfaces[k]["data"]["d2thetads2"][found] 
-                CKVB =  surfaces[k]["data"]["CKVB"][found] 
-                f = gsw.f(surfaces[k]["lats"][found])
-                beta = ptools.calcBeta(surfaces[k]["lats"][found])
-                isitnan = [alpha,betaTherm,dsdz,hx,hy,dsdx,dsdy,pres,d2sdx2,d2sdy2,\
-                          dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
-                          dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
-                          beta]
-
-                if debug and (np.isnan(isitnan).any()):
-                    print("pres is nan: ",np.isnan(pres))
-                    print("hx is nan: ",np.isnan(hx))
-                    print("hy is nan: ",np.isnan(hy))
-                    print("x is nan: ",np.isnan(x))
-                    print("y is nan: ",np.isnan(y))
-                    print("something here is nan")
-                if debug and (np.isnan(isitnan[3:]).any()) and k!=200:
-                    print(isitnan)
-                if k>=1000 and not (np.isnan(isitnan).any()):
-                    u = (surfaces[k]["data"]["u"][found] - surfaces[reflevel]["data"]["u"][index])
-                    v = (surfaces[k]["data"]["v"][found] - surfaces[reflevel]["data"]["v"][index])
-                    us.append((u,v,0,0,0))
-                    us.append((u,v,0,0,0))
-                    ######################################
-                    ###Potential vorticity row
-                    #left side
-                    pvvec=((hx+(beta*x)/(f*r)),(hy+(beta*y)/(f*r)),0,0,0)
-                    pvnorm=np.linalg.norm(pvvec)
-                    b.append(pvvec/pvnorm)
-                    #right side
-                    c.append(np.dot((-u,-v),pvvec[0:2]/pvnorm))
-                    ######################################
-                    ###Salinity row
-                    #left side
-                    kvo = -alpha*f*(1/pv)*(dsdz**3)*doublets
-                    kvb = kvo*CKVB
-
-                    khpart1 = (f/pv)*dsdz*(alphat*(dtdx**2 + dtdy**2)+alphap*(dtdx*dpdx+dtdy*dpdy))
-                    khpart2 = (d2sdx2+d2sdy2)-2*(dqnotdx*dsdx + dqnotdy*dsdy)/pv
-                    kh = khpart1 + khpart2
-
-                    svec=(dsdx,dsdy,-kvb,-kvo,-kh)
-                    snorm = np.linalg.norm(svec)
-                    b.append(svec/snorm)
-
-                    #right side
-                    c.append(np.dot((-u,-v),svec[0:2]/snorm))
-
-        if len(b)>4:
-            b = np.asarray(b)
-            c = np.matrix.transpose(np.asarray(c))
-            us = np.asarray(us)
-            j = SVDdecomp(b,n_elements=3)
-            prime = np.matmul(j,c)
-            error = []
-            #graphError(b,us,prime)
-            #print(prime)
-            for i in range(len(ns)):
-                uref = surfaces[reflevel]["data"]["u"][index]
-                vref = surfaces[reflevel]["data"]["v"][index]
-                outsurfaces[ns[i][0]]["data"]["uprime"][ns[i][1]] = uref
-                outsurfaces[ns[i][0]]["data"]["uabs"][ns[i][1]] = prime[0] + surfaces[ns[i][0]]["data"]["u"][ns[i][1]]-uref
-                outsurfaces[ns[i][0]]["data"]["u"][ns[i][1]] = surfaces[ns[i][0]]["data"]["u"][ns[i][1]]-uref
-                outsurfaces[ns[i][0]]["data"]["vprime"][ns[i][1]] = vref
-                outsurfaces[ns[i][0]]["data"]["vabs"][ns[i][1]] = prime[1] + surfaces[ns[i][0]]["data"]["v"][ns[i][1]]-vref
-                outsurfaces[ns[i][0]]["data"]["v"][ns[i][1]] = surfaces[ns[i][0]]["data"]["v"][ns[i][1]]-vref
-    return outsurfaces
-
-##performs a pointwise ivnerse that conserves pv and salt
-## and also includes Fs and Fq mixing terms
-def complexInvert(surfaces,reflevel=1000,debug=False):
-    outsurfaces = copy.deepcopy(surfaces)
-    for k in surfaces.keys():
-        outsurfaces[k]["data"]["u"].fill(np.nan)  
-        outsurfaces[k]["data"]["v"].fill(np.nan)  
-        outsurfaces[k]["data"]["uabs"].fill(np.nan)  
-        outsurfaces[k]["data"]["vabs"].fill(np.nan)  
-    stats=[[],[],[]]
-    for index in  Bar('Complex Salt Invert: ').iter(range(len(surfaces[reflevel]["x"]))):
-        eyed = int(surfaces[reflevel]["ids"][index])
-        #print("id: ",eyed)
-        ns = []
-        us = []
-        b = []
-        c = []
-        prime = [[],[]]
-        for k in sorted(list(surfaces.keys())):
-            found = np.where(np.asarray(surfaces[k]["ids"])==eyed)
-            ns.append((k,found))
-            if len(found)!=0 and len(found[0]) != 0:
-                found = found[0][0]
-                kpv,ks = ptools.kterms(surfaces,k,found)
-                if k>=1000 and kpv and ks:
-                    x = surfaces[k]["x"][found]
-                    y = surfaces[k]["y"][found]
-                    r = np.sqrt(x**2 + y**2)
-                    hx = surfaces[k]["data"]["hx"][found]
-                    dsdx = surfaces[k]["data"]["dsdx"][found]
-                    dsdy = surfaces[k]["data"]["dsdy"][found]
-                    hy = surfaces[k]["data"]["hy"][found]
-                    f = gsw.f(surfaces[k]["lats"][found])
-                    beta = ptools.calcBeta(surfaces[k]["lats"][found])
-                    u = (surfaces[k]["data"]["u"][found] - surfaces[reflevel]["data"]["u"][index])
-                    v = (surfaces[k]["data"]["v"][found] - surfaces[reflevel]["data"]["v"][index])
-                    us.append((u,v,0,0,0))
-                    us.append((u,v,0,0,0))
-                    ######################################
-                    ###Potential vorticity row
-                    #left side
-                    pvvec=((hx+(beta*x)/(f*r)),(hy+(beta*y)/(f*r)),kpv[1],kpv[0],kpv[2])
-                    pvnorm=np.linalg.norm(pvvec)
-                    b.append(pvvec/pvnorm)
-                    #right side
-                    c.append(np.dot((-u,-v),pvvec[0:2]/pvnorm))
-                    ######################################
-                    ###Salinity row
-                    #left side
-                    svec=(dsdx,dsdy,ks[1],ks[0],ks[2])
-                    snorm = np.linalg.norm(svec)
-                    b.append(svec/snorm)
-
-                    #right side
-                    c.append(np.dot((-u,-v),svec[0:2]/snorm))
-
-        if len(b)>4:
-            b = np.asarray(b)
-            c = np.matrix.transpose(np.asarray(c))
-            us = np.asarray(us)
-            j = SVDdecomp(b,n_elements=4)
-            prime = np.matmul(j,c)
-            stats[0].append(prime[2])
-            stats[1].append(prime[3])
-            stats[2].append(prime[4])
-            error = []
-            #graphError(b,us,prime)
-            #print(prime)
-            for i in range(len(ns)):
-                uref = surfaces[reflevel]["data"]["u"][index]
-                vref = surfaces[reflevel]["data"]["v"][index]
-                outsurfaces[ns[i][0]]["data"]["uprime"][ns[i][1]] = uref
-                outsurfaces[ns[i][0]]["data"]["uabs"][ns[i][1]] = prime[0] + surfaces[ns[i][0]]["data"]["u"][ns[i][1]]-uref
-                outsurfaces[ns[i][0]]["data"]["u"][ns[i][1]] = surfaces[ns[i][0]]["data"]["u"][ns[i][1]]-uref
-                outsurfaces[ns[i][0]]["data"]["vprime"][ns[i][1]] = vref
-                outsurfaces[ns[i][0]]["data"]["vabs"][ns[i][1]] = prime[1] + surfaces[ns[i][0]]["data"]["v"][ns[i][1]]-vref
-                outsurfaces[ns[i][0]]["data"]["v"][ns[i][1]] = surfaces[ns[i][0]]["data"]["v"][ns[i][1]]-vref
-    print(np.mean(stats[0]),np.mean(stats[1]),np.mean(stats[2]))
-    return outsurfaces
-
 #get the column number of a parameter
 #generates new number if necessary
 def getColumnNumber(eyedict,eyed):
@@ -470,13 +110,13 @@ def applyPrime(staggeredsurfaces,prime,coldict,params,widths,mixing=False):
         staggeredsurfaces[k]["data"]["usol"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         staggeredsurfaces[k]["data"]["vsol"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         for i in range(len(staggeredsurfaces[k]["data"]["ids"])):
-            eyed = staggeredsurfaces[k]["data"]["ids"][i] 
+            eyed = staggeredsurfaces[k]["ids"][i] 
             if eyed in coldict.keys():
-                staggeredsurfaces[k]["data"]["psinew"][i] = staggeredsurfaces[k]["data"]["psiref"][i] + prime[coldict[eyed]]*scales[0]
-                staggeredsurfaces[k]["data"]["psisol"][i] = prime[coldict[eyed]]*scales[0]
+                staggeredsurfaces[k]["data"]["psinew"][i] = staggeredsurfaces[k]["data"]["psiref"][i] + prime[coldict[eyed]]*scales["Ar"]
+                staggeredsurfaces[k]["data"]["psisol"][i] = prime[coldict[eyed]]*scales["Ar"]
                 #if params["mixs"] == [True,True,True]:
                     #staggeredsurfaces[k]["data"]["kvb"][i] = prime[widths[0]+coldict[eyed]]
-                    #staggeredsurfaces[k]["data"]["kvh"][i] = prime[widths[0]+widths[1]+]
+                    #staggeredsurfaces[k]["data"]["kh"][i] = prime[widths[0]+widths[1]+]
                     #staggeredsurfaces[k]["data"]["kvo"][i] = prime[widths[0]+widths[1](2*m)+int(k/200.0)]
     return staggeredsurfaces
 
@@ -500,7 +140,7 @@ def generateWhiteList(surfaces,neighbors,lowlevel,highlevel):
 ## construct row of inverse that conserves PV, threepoint determines whether a 
 ## threepoint or four point grid setup will be used
 def constructBetaRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True):
-    Arscale = scales[0]
+    Arscale = scales["Ar"]
     Apsirow = [0]*(max(columnindexs)+1)
 
     beta = ptools.calcBeta(surfaces[k]["lats"][s[0]])
@@ -558,11 +198,12 @@ def constructBetaRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True)
         Apsirow[columnindexs[2]] = values[2]
         Apsirow[columnindexs[3]] = values[3]
     crow = (-u)*(dqnotdx-x*beta*pv/(f*r))+(-v)*(dqnotdy-y*beta*pv/(f*r))
+    print(u)
     return np.asarray(Apsirow)*Arscale,np.asarray(values)*Arscale,np.asarray(crow)
 
 ## construct row of inverse that conserves salt
 def constructSalRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True):
-    Arscale = scales[0]
+    Arscale = scales["Ar"]
     Apsirow = [0]*(max(columnindexs)+1)
     dsdx = surfaces[k]["data"]["dsdx"][s[0]]
     dsdy = surfaces[k]["data"]["dsdy"][s[0]]
@@ -619,9 +260,12 @@ def fillDefault(params):
     params.setdefault("lowerbound",2600)
     params.setdefault("upperbound",1000)
     params.setdefault("reflevel",1000)
-    params.setdefault("mixs",[True,False,True])
-    params.setdefault("scalecoeffs",[0.05,5*10**-6,5*10**-5,500])
+    params.setdefault("mixs",{"kvh":True,"kvb":False,"kvo":True})
+    params.setdefault("scalecoeffs",{"Ar":0.05,"kvo":5*10**-6,"kvb":5*10**-5,"kh":500})
+    #params.setdefault("scalecoeffs",{"Ar":1,"kvo":1,"kvb":1,"kh":1})
     params.setdefault("3point",True)
+    params.setdefault("edgeguard",True)
+    params.setdefault("modelmixing",False)
     return params
 
 def normOfRows(*argv):
@@ -629,14 +273,14 @@ def normOfRows(*argv):
 
 #generate a list of profiles which are never the center
 #at a neutral surface
-def genOutliers(surfaces,neighbors):
+def genOutliers(surfaces,neighbors,params):
     outliers={}
     for k in neighbors.keys():
         centerpoints = set()
         points = set()
         for s in neighbors[k]:
-            kpv,ks = ptools.kterms(surfaces,k,s[0],[1,1,1,1])
-            if kpv.any() and ks.any():
+            kpv,ks = ptools.kterms(surfaces,k,s[0],params)
+            if np.asarray(kpv.values()).any() and np.asarray(ks.values()).any():
                 centerpoints.add(surfaces[k]["ids"][s[0]])
             for l in s[:3]:
                 points.add(surfaces[k]["ids"][l])
@@ -655,8 +299,15 @@ def recenterRow(row,columnindexs,newcenter):
         newrow[columnindexs[0]] = yval
     return row
 
+def mixSwitch(mixing,switchs):
+    scales = []
+    for k in mixing.keys():
+        if switchs[k]:
+            scales.append(mixing[k])
+    return scales
 #full coupled inverse with mixing terms
-def coupledInvert(surfaces,neighbors,distances,params={},edgeguard=True):
+def coupledInvert(surfaces,neighbors,distances,params={}):
+    params["edgeguard"]=False
     surfaces = copy.deepcopy(surfaces)
     Apsi,Akvb,Akh,Akvo,c=[],[],[],[],[]
     us = [0]*100000
@@ -664,13 +315,17 @@ def coupledInvert(surfaces,neighbors,distances,params={},edgeguard=True):
     ##dictionary of ids to column numbers
     columndictionary = {}
     surfaces = applyRefLevel(surfaces,params["reflevel"])
-    outliers = genOutliers(surfaces,neighbors)
+    outliers = genOutliers(surfaces,neighbors,params)
     totalcount = set()
     for k in Bar("adding to matrix: ").iter(sorted(neighbors.keys())[::-1]):
         for s in neighbors[k]:
             s=np.asarray(s)
-            kpv,ks = ptools.kterms(surfaces,k,s[0],params["scalecoeffs"])
-            if kpv.any() and ks.any() and params["lowerbound"]>=k>=params["upperbound"] and surfaces[k]["ids"][s[0]]:
+            kpv,ks = ptools.kterms(surfaces,k,s[0],params)
+            if len(kpv.values()) != 0 and len(ks)!=0 and \
+                    (not (np.inf in np.abs(list(ks.values()))) or (np.inf in np.abs(list(kpv.values())))) \
+                    and params["lowerbound"]>=k>=params["upperbound"]\
+                    and surfaces[k]["ids"][s[0]]\
+                    and surfaces[k]["ids"][s[0]] != -999 :
                 ##find/store column indexs for each neighbor
                 if params["3point"]:
                     columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s[:3],columndictionary)
@@ -680,7 +335,14 @@ def coupledInvert(surfaces,neighbors,distances,params={},edgeguard=True):
                 ##this is a shorthad way of converting the NS to an index
                 #######PVROW
                 betarow,betavals, crow = constructBetaRow(surfaces,k,distances[k],s,columnindexs,params["scalecoeffs"],threepoint=params["3point"])
-                n = normOfRows(np.asarray(betavals),kpv[params["mixs"]])
+                n = normOfRows(np.asarray(betavals),mixSwitch(kpv,params["mixs"]))
+                if params["modelmixing"]:
+                    oldcrow= crow
+                    print("pv","#"*10)
+                    print("oldcrow: ",oldcrow)
+                    crow = crow+ptools.calcFQ(surfaces,k,s[0],params["scalecoeffs"],kpv,distances)
+                    print("crow: ",crow)
+
                 #l = np.concatenate((betavals/n,kpv[params["mixs"]]/n))
                 #plt.bar(range(len(l)),np.abs(l))
                 ##plt.yscale("log")
@@ -696,14 +358,13 @@ def coupledInvert(surfaces,neighbors,distances,params={},edgeguard=True):
                 Akvo.append(Akvorow)
                 us[columnindexs[0]] = surfaces[k]["data"]["psiref"][s[0]]
                 c.append(crow/n)
-
                 for i in [1,2]:
-                    if surfaces[k]["ids"][s[i]] in outliers[k]:
+                    if surfaces[k]["ids"][s[i]] in outliers[k] and params["edgeguard"]:
                         newbetarow = recenterRow(betarow,columnindexs,i)
-                        kpv,ks = ptools.kterms(surfaces,k,s[i],params["scalecoeffs"],fallback=s[0])
-                        if kpv.any() and ks.any():
-                            n = normOfRows(np.asarray(betavals),kpv[params["mixs"]])
-                            newAkvbrow, newAkhrow, newAkvorow = generateMixingRows(columnindexs,kpv,k,n,i=i)
+                        edgekpv,edgeks = ptools.kterms(surfaces,k,s[i],params,fallback=s[0])
+                        if len(edgekpv.values())>0 and len(edgeks.values())>0 and not (np.inf in edgeks.values()) or (np.inf in edgekpv.values()):
+                            n = normOfRows(np.asarray(betavals),mixSwitch(kpv,params["mixs"]))
+                            newAkvbrow, newAkhrow, newAkvorow = generateMixingRows(columnindexs,edgekpv,k,n,i=i)
                             Apsi.append(np.asarray(newbetarow)/n)
                             Akvb.append(newAkvbrow)
                             Akh.append(newAkhrow)
@@ -716,7 +377,13 @@ def coupledInvert(surfaces,neighbors,distances,params={},edgeguard=True):
                 #######SALROW
                 ##make rows that can fit it 
                 salrow, salvals, crow = constructSalRow(surfaces,k,distances[k],s,columnindexs,params["scalecoeffs"],threepoint=params["3point"])
-                n = normOfRows(np.asarray(salvals),ks[params["mixs"]])
+                n = normOfRows(np.asarray(salvals),mixSwitch(ks,params["mixs"]))
+                if params["modelmixing"]:
+                    oldcrow = crow
+                    print("sal","#"*10)
+                    print("oldcrow: ",oldcrow)
+                    crow = crow+ptools.calcFS(surfaces,k,s[0],params["scalecoeffs"],ks,distances)
+                    print("newcrow: ",crow)
                 #l = np.concatenate((salvals/n,ks[params["mixs"]]/n))
                 #plt.bar(range(len(l)),np.abs(l))
                 ##plt.yscale("log")
@@ -731,17 +398,18 @@ def coupledInvert(surfaces,neighbors,distances,params={},edgeguard=True):
                 Akvo.append(Akvorow)
 
                 for i in [1,2]:
-                    if surfaces[k]["ids"][s[i]] in outliers[k]:
+                    if surfaces[k]["ids"][s[i]] in outliers[k] and params["edgeguard"]:
                         newbetarow = recenterRow(salrow,columnindexs,i)
-                        kpv,ks = ptools.kterms(surfaces,k,s[i],params["scalecoeffs"],fallback=s[0])
-                        n = normOfRows(np.asarray(salvals),ks[params["mixs"]])
-                        newAkvbrow, newAkhrow, newAkvorow = generateMixingRows(columnindexs,ks,k,n,i=i)
-                        Apsi.append(np.asarray(newbetarow)/n)
-                        Akvb.append(newAkvbrow)
-                        Akh.append(newAkhrow)
-                        Akvo.append(newAkvorow)
-                        us[columnindexs[i]] = surfaces[k]["data"]["psiref"][s[0]]
-                        c.append(crow/n)
+                        edgekpv,edgeks = ptools.kterms(surfaces,k,s[i],params,fallback=s[0])
+                        if len(edgekpv.values())>0 and len(edgeks.values())>0 and not (np.inf in edgeks.values()) or (np.inf in edgekpv.values()):
+                            n = normOfRows(np.asarray(salvals),mixSwitch(ks,params["mixs"]))
+                            newAkvbrow, newAkhrow, newAkvorow = generateMixingRows(columnindexs,ks,k,n,i=i)
+                            Apsi.append(np.asarray(newbetarow)/n)
+                            Akvb.append(newAkvbrow)
+                            Akh.append(newAkhrow)
+                            Akvo.append(newAkvorow)
+                            us[columnindexs[i]] = surfaces[k]["data"]["psiref"][s[0]]
+                            c.append(crow/n)
 
                 ######SAL Error row
                 c.append(crow/n)
@@ -762,16 +430,16 @@ def coupledInvert(surfaces,neighbors,distances,params={},edgeguard=True):
     m = columndictionary["max"]+1
     us = us[:m]
 
-    if params["mixs"] == [True,True,True]:
+    if params["mixs"]["kh"] and params["mixs"]["kvb"] and params["mixs"]["kvo"]:
         A,widths = combineAs([m,m,18,1],[1,2],Apsi,Akvb,Akh,Akvo)
         print("ALL ON")
-    elif params["mixs"] == [True,False,True]:
+    elif params["mixs"]["kh"] and not params["mixs"]["kvb"] and params["mixs"]["kvo"]:
         print("ALL KVO, Kh")
         A,widths = combineAs([m,18,1],[1],Apsi,Akh,Akvo)
-    elif params["mixs"] == [True,False,False]:
+    elif not params["mixs"]["kh"] and not params["mixs"]["kvb"] and params["mixs"]["kvo"]:
         print("ALL KVO")
         A,widths = combineAs([m,1],[],Apsi,Akvo)
-    elif params["mixs"] == [False,False,False]:
+    elif not params["mixs"]["kh"] and not params["mixs"]["kvb"] and not params["mixs"]["kvo"]:
         print("ALL OFF")
         A,widths = combineAs([m],[0],Apsi)
         
@@ -790,9 +458,7 @@ def coupledInvert(surfaces,neighbors,distances,params={},edgeguard=True):
     c = np.matrix.transpose(np.asarray(c))
     us =  np.matrix.transpose(np.asarray(us))
     j,[VT, D, U] = SVDdecomp(A,n_elements=int(A.shape[1]))
-    if np.isnan(D).any():
-        pdb.set_trace()
-    print(c[np.isnan(c)])
+
     prime = np.matmul(j,c)
 
     if params["debug"]:
@@ -804,17 +470,18 @@ def coupledInvert(surfaces,neighbors,distances,params={},edgeguard=True):
     metadata = copy.copy(params)
     metadata["condition"] = condition(D)
     metadata["error"] = np.sum(np.abs(errors[1]))
-    surfacer = applyPrime(surfaces,prime,columndictionary,params,widths,mixing=True)
-    return surfaces, columndictionary, [VT,D,U],A, errors,metadata
+    surfaces = applyPrime(surfaces,prime,columndictionary,params,widths,mixing=True)
+
+    return {"surfaces":surfaces,"coldict":columndictionary, "svddecomp":[VT,D,U],"matrixsetup":A,"errors":errors,"metadata":metadata}
 
 def calculatediapycnalv(surfaces,prime,params,widths,coldict):
     kvbs=np.asarray([])
-    kvhs =np.asarray([])
+    khs =np.asarray([])
     if params["mixs"] == [True,True,True]:
         kvbs = prime[widths[0]:widths[0]+widths[1]]
-        kvhs = prime[widths[0]+widths[1]:widths[0]+widths[1]+widths[2]]
+        khs = prime[widths[0]+widths[1]:widths[0]+widths[1]+widths[2]]
     if params["mixs"] == [True,False,True]:
-        kvhs = prime[widths[0]:widths[0]+widths[1]]
+        khs = prime[widths[0]:widths[0]+widths[1]]
     for k in surfaces.keys():
         surfaces[k]["data"]["e"] = np.full(len(surfaces[k]["data"]["psi"]),np.nan)
         if params["lowerbound"] >= k >= params["upperbound"]:
@@ -824,14 +491,14 @@ def calculatediapycnalv(surfaces,prime,params,widths,coldict):
                 if kpvs.any():
                     rhonot = 1025.0
                     e=0
-                    kvhindex = (k-params["upperbound"])/200
-                    if kvhs.any() and kvhindex<len(kvhs) :
-                        print("params scale: ",params["scalecoeffs"][3])
-                        kvh = kvhs[int(kvhindex)]*params["scalecoeffs"][3]
-                        e+=kvh*kpvs[2]
+                    khindex = (k-params["upperbound"])/200
+                    if khs.any() and khindex<len(khs) :
+                        print("params scale: ",params["scalecoeffs"]["kh"])
+                        kh = khs[int(khindex)]*params["scalecoeffs"]["kh"]
+                        e+=kh*kpvs["kvh"]
                     if kvbs.any():
                         kvb = kvbs[coldict[surfaces[k]["ids"][point]]]
-                        e+=kvb*kpvs[1]
+                        e+=kvb*kpvs["kvb"]
                     print(e)
                     surfaces[k]["data"]["e"][point]=e
 
@@ -957,13 +624,13 @@ def combineAs(maxlengths,totrim,*argv):
 #graph solution of mixing terms
 def graphKs(prime,m):
     kvb = prime[m:2*m]
-    kvh = prime[2*m:2*m+8]
+    kh = prime[2*m:2*m+8]
     kvo =prime[-1]
     fig, (ax1,ax2) = plt.subplots(1,2)
     ax1.set_title("KVB")
     ax1.plot(range(len(kvb)),kvb+kvo)
-    ax2.set_title("KVH")
-    ax2.plot(range(len(kvh)),kvh)
+    ax2.set_title("KH")
+    ax2.plot(range(len(kh)),kh)
     plt.show()
     print(kvo)
 

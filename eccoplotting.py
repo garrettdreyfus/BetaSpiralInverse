@@ -19,12 +19,13 @@ def extractArctic(arr,depth):
     arr = xr.DataArray(arr[48600:56700,0].reshape([90,90]),coords=[np.arange(0,90,1),np.arange(0,90,1)],
                             dims=['j','i'])
     return arr
+
 varnames = ["diffkr","kapredi","kapgm"]
 for var in varnames:
     for depth in range(0,50,5):
-        geoflx = np.fromfile('ecco/'+var+'.bin', dtype=np.float32)
+        geoflx = np.fromfile('ecco/mixingdata/'+var+'.bin', dtype=np.float32)
         geoflx06 = extractArctic(geoflx,depth)
-        geoflx = np.fromfile('ecco/'+var+'.data', dtype=np.float32)
+        geoflx = np.fromfile('ecco/mixingdata/'+var+'.data', dtype=np.float32)
         geoflx06 = extractArctic(geoflx,depth)+geoflx06
 
         ecco_grid = xr.open_dataset('ecco/TILEDATA/ARCTICGRID.nc')
@@ -55,7 +56,7 @@ for var in varnames:
         ax.add_feature(cfeature.LAND)
         ax.gridlines()
         ax.coastlines()
-        plt.colorbar()
+        #plt.colorbar()
 
         # Limit the map to -60 degrees latitude and below.
         ax.set_extent([-180, 180, 90, 60], ccrs.PlateCarree())
@@ -69,5 +70,5 @@ for var in varnames:
         circle = mpath.Path(verts * radius + center)
         meterdepth = str(int(ecco_nvel.dep[depth]))
         ax.set_title(var + ": " + meterdepth)
-        plt.savefig("refpics/eccomix/"+var+"/"+meterdepth+".png")
+        plt.savefig("refpics/surfaces/eccomixnoswap/"+var+"/"+meterdepth+".png")
         plt.close()

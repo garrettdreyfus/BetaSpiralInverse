@@ -186,7 +186,7 @@ def emptySurface():
 ## to the nearest profile with an identified neutral surface. Only quits
 ## when all remaining profiles either are not close enough to a profile with a 
 ## known NS or a NS is not able to be determined for them
-def peerSearch(profiles,deepestindex,depth,profilechoice,radius=500):
+def peerSearch(profiles,depth,profilechoice,radius=500):
     surfaces = {}
     surfaces[depth]= emptySurface()
     profilechoice.neutraldepth[depth] = depth
@@ -215,11 +215,11 @@ def peerSearch(profiles,deepestindex,depth,profilechoice,radius=500):
     return surfaces
 
 ## runs the peer search on every neutral surface essentially
-def runPeerSearch(profiles,deepestindex,shallowlimit,deeplimit,surfacestep,profilechoice,radius):
+def runPeerSearch(profiles,shallowlimit,deeplimit,surfacestep,profilechoice,radius):
     surfaces = {}
     for d in range(shallowlimit,deeplimit,surfacestep)[::-1]:
         print("NSearching: ",d)
-        surfaces.update(peerSearch(profiles.copy(),deepestindex,d,profilechoice,1000))
+        surfaces.update(peerSearch(profiles.copy(),d,profilechoice,1000))
     return surfaces
 
 ## faultyway of finding neutral surfaces in the arctic
@@ -300,6 +300,7 @@ def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
         print("############################")
 
         print("ns: ",k," negative count: ",negativecount/len(surfaces[k]["lons"]),"pv mean:" ,np.mean(tempSurf["data"]["pv"]))
+    tempSurfs = addStreamFunc(tempSurfs,profiles)
     return tempSurfs
 
 
@@ -358,8 +359,9 @@ def surfaceDiagnostic(surfaces):
             diagnostics[d][0] = diagnostics[d][0] + np.count_nonzero(np.isnan(surfaces[k]["data"][d]))
             diagnostics[d][1] = diagnostics[d][1] + np.count_nonzero(~np.isnan(surfaces[k]["data"][d]))
     for d in diagnostics.keys():
-        percentage = int(round(diagnostics[d][0]/sum(diagnostics[d]),3)*100)
-        t.add_row([d,percentage])
+        if sum(diagnostics[d])!=0:
+            percentage = int(round(diagnostics[d][0]/sum(diagnostics[d]),3)*100)
+            t.add_row([d,percentage])
     print(t)
 
 
@@ -379,7 +381,7 @@ def nanCopySurfaces(surfaces):
                     "dqnotdx","dqnotdy","d2thetads2","dalphadtheta",\
                     "alpha","beta","dalphads","dbetads","dalphadp",\
                     "dbetadp","psi","psinew","dqdz","dqdx","dqdy",\
-                    "d2qdz2","d2qdx2","d2qdy2","khp","khpdz","toph",\
+                    "d2qdz2","d2qdx2","d2qdy2","khp","khpterm","khpdz","toph",\
                     "both","dpsidx","dpsidy","ssh","ids","z","knownu"\
                     ,"knownv","diffkr","kapgm","kapredi"]
         for d in datafields:
@@ -455,6 +457,7 @@ def addVerticalGrad(surfaces):
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"alpha","dalphadp")
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"beta","dbetadp")
                 surfaces[depths[j]]["data"]["khp"][found] = ptools.calculateKHP(surfaces,depths[j],found)
+                surfaces[depths[j]]["data"]["khpterm"][found] = ptools.calculateKHP(surfaces,depths[j],found) * surfaces[depths[j]]["data"]["kapredi"][found] 
                 
     for j in Bar('Adding Vertical Double Gradients:   ').iter(range(len(depths))[1:-1]):
         for index in range(len(surfaces[depths[j]]["x"])):
@@ -464,7 +467,7 @@ def addVerticalGrad(surfaces):
             foundabove = np.where(np.asarray(surfaces[depths[j-1]]["ids"])==eyed)
             if eyed != -999 and len(foundbelow)!=0 and len(foundbelow[0]) != 0 and len(foundabove)!=0 and len(foundabove[0]) != 0:
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"dqdz","d2qdz2",factor=-1)
-                surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"khp","khpdz",factor=-1)
+                surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"khpterm","khpdz",factor=-1)
     return surfaces
 
 ## when we stagger our grid in order to have our gradients 

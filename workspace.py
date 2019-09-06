@@ -29,37 +29,36 @@ import random
 #with open('data/newsurfaces.pickle', 'wb') as outfile:
     #pickle.dump(surfaces, outfile)
 
-with open('data/annotatedprofiles.pickle', 'rb') as outfile:
-    profiles=pickle.load(outfile)
+#with open('data/annotatedprofiles.pickle', 'rb') as outfile:
+    #profiles=pickle.load(outfile)
 
-with open('data/newsurfaces.pickle', 'rb') as outfile:
-    surfaces=pickle.load(outfile)
+#with open('data/newsurfaces.pickle', 'rb') as outfile:
+    #surfaces=pickle.load(outfile)
 
-##graph.tsNeutralExplore(profiles)
-#######fileObject = open(str(profilechoice.eyed)+"new.pickle",'wb')  
-######## load the object from the file into var b
-#######b = pickle.dump(surfaces,fileObject)  
-#######fileObject.close()
+###graph.tsNeutralExplore(profiles)
+########fileObject = open(str(profilechoice.eyed)+"new.pickle",'wb')  
+######### load the object from the file into var b
+########b = pickle.dump(surfaces,fileObject)  
+########fileObject.close()
 
-#with open('data/286364new.pickle', 'rb') as outfile:
-  #surfaces=pickle.load(outfile)
+##with open('data/286364new.pickle', 'rb') as outfile:
+  ##surfaces=pickle.load(outfile)
 
-surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
-surfaces = nstools.addStreamFunc(surfaces,profiles)
+#surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
+#surfaces = nstools.addStreamFunc(surfaces,profiles)
 
-surfaces =interptools.addXYToSurfaces(surfaces)
-surfaces,neighbors,distances = interptools.interpolateSurfaces(surfaces)
-surfaces = nstools.addBathAndMask(surfaces,neighbors)
-surfaces = nstools.fillOutEmptyFields(surfaces)
-surfaces = nstools.addHeight(surfaces)
+#surfaces =interptools.addXYToSurfaces(surfaces)
+#surfaces,neighbors,distances = interptools.interpolateSurfaces(surfaces)
+#surfaces = nstools.fillOutEmptyFields(surfaces)
+#surfaces = nstools.addHeight(surfaces)
+#surfaces = nstools.addHorizontalGrad(surfaces,neighbors,distances)
+#surfaces = nstools.addVerticalGrad(surfaces)
+#surfaces = nstools.addBathAndMask(surfaces,neighbors)
+#ptools.saveBathVarTermCache(surfaces,"data/bathVar.pickle")
+#surfaces = nstools.addK(surfaces,"data/bathVar.pickle")
 
-surfaces = nstools.addHorizontalGrad(surfaces,neighbors,distances)
-surfaces = nstools.addVerticalGrad(surfaces)
-ptools.saveBathVarTermCache(surfaces,"data/bathVar.pickle")
-surfaces = nstools.addK(surfaces,"data/bathVar.pickle")
-
-#with open('data/ready4inverse.pickle', 'rb') as outfile:
-    #[surfaces,neighbors,distances]=pickle.load(outfile)
+with open('data/ready4inverse.pickle', 'rb') as outfile:
+    [surfaces,neighbors,distances]=pickle.load(outfile)
 
 #nstools.surfaceDiagnostic(surfaces)
 #with open('data/ready4inverse.pickle', 'wb') as outfile:
@@ -71,13 +70,13 @@ nstools.surfaceDiagnostic(surfaces)
 #sensitivity.conditionErrorRefLevel("coupled",surfaces,neighbors,distances)
 #sensitivity.conditionError("coupled",staggeredsurfaces,neighbors,distances)
 #graph.graphSurfaces(surfaces,"khp")
-params = {"reflevel":1000,"upperbound":1000,"lowerbound":2000,"mixs":[True,False,True],"debug":True}
-inv,columndictionary,svds,A,errors,metadata= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
+params = {"reflevel":1000,"upperbound":1000,"lowerbound":2000,"mixs":{"kvo":True,"kvb":False,"kh":True},"debug":True}
+out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
 
-coupleinvert = nstools.streamFuncToUV(inv,neighbors,distances)
+inv = nstools.streamFuncToUV(out["surfaces"],neighbors,distances)
 
 #graph.graphSurfaces(inv,"e")
-graph.graphVectorField(inv,"uabs","vabs","z",metadata=metadata)
+graph.graphVectorField(inv,"uabs","vabs","z",metadata=out["metadata"])
 
 
 #across basin

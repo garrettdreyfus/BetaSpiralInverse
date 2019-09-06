@@ -10,8 +10,8 @@ import pickle
 import sensitivity
 import random
     
-#with open('data/eccoprofiles.pickle', 'rb') as outfile:
-    #profiles = pickle.load(outfile)
+with open('data/eccoprofiles.pickle', 'rb') as outfile:
+    profiles = pickle.load(outfile)
 
 #graph.plotProfiles(profiles,"yo",data="t",depth="200")
 
@@ -24,7 +24,7 @@ import random
 #profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
 #profilechoice = nstools.getProfileById(profiles,profiles[deepestindex].eyed)
 
-#surfaces = nstools.runPeerSearch(profiles,deepestindex,200,4000,200,profilechoice,1000)
+#surfaces = nstools.runPeerSearch(profiles,200,4000,200,profilechoice,1000)
 
 #with open('data/eccosurfaces.pickle', 'wb') as outfile:
   #pickle.dump(surfaces, outfile)
@@ -32,71 +32,60 @@ import random
 #with open('data/eccoannotatedprofiles.pickle', 'wb') as outfile:
     #pickle.dump(profiles, outfile)
 
-with open('data/eccoannotatedprofiles.pickle', 'rb') as outfile:
-    profiles=pickle.load(outfile)
+#with open('data/eccoannotatedprofiles.pickle', 'rb') as outfile:
+    #profiles=pickle.load(outfile)
 
-#with open('data/eccosurfaces.pickle', 'rb') as outfile:
-    #surfaces=pickle.load(outfile)
-#graph.graphSurfaces(surfaces,"pres")
-###graph.tsNeutralExplore(profiles)
+with open('data/eccosurfaces.pickle', 'rb') as outfile:
+    surfaces=pickle.load(outfile)
+###graph.graphSurfaces(surfaces,"pres")
+#####graph.tsNeutralExplore(profiles)
 
-#surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
-#with open('data/eccosurfwithd.pickle', 'wb') as outfile:
-    #pickle.dump(surfaces, outfile)
+surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
+with open('data/eccosurfwithd.pickle', 'wb') as outfile:
+    pickle.dump(surfaces, outfile)
 
 #with open('data/eccosurfwithd.pickle', 'rb') as outfile:
     #surfaces=pickle.load(outfile)
 
-#surfaces = nstools.addStreamFunc(surfaces,profiles)
-#nstools.surfaceDiagnostic(surfaces)
+nstools.surfaceDiagnostic(surfaces)
 
-#surfaces =interptools.addXYToSurfaces(surfaces)
-#surfaces,neighbors,distances = interptools.interpolateSurfaces(surfaces,gaminterpolate=False)
-
-##graph.distanceHist(distances)
-with open('data/prebathmask.pickle', 'rb') as outfile:
-    surfaces,neighbors,distances =pickle.load(outfile)
+surfaces,neighbors,distances = interptools.interpolateSurfaces(surfaces,gaminterpolate=False)
 
 surfaces = eccotools.addModelEccoMix(surfaces)
 surfaces = eccotools.addModelEccoUV(surfaces)
 
-#with open('data/prebathmask.pickle', 'wb') as outfile:
-    #pickle.dump([surfaces,neighbors,distances], outfile)
-
-#graph.graphVectorField(surfaces,"knownu","knownv","pv",transform=False)
-
-surfaces = nstools.fillOutEmptyFields(surfaces)
 surfaces = nstools.addHeight(surfaces)
 
-#with open('data/eccopregradient.pickle', 'rb') as outfile:
-    #surfaces,neighbors,distances =pickle.load(outfile)
 surfaces = nstools.addHorizontalGrad(surfaces,neighbors,distances)
 surfaces = nstools.addBathAndMask(surfaces,neighbors)
 surfaces = nstools.addVerticalGrad(surfaces)
 ptools.saveBathVarTermCache(surfaces,"data/bathVarecco.pickle")
 surfaces = nstools.addK(surfaces,"data/bathVarecco.pickle")
+with open('data/ready4inverseecco.pickle', 'wb') as outfile:
+    pickle.dump([surfaces,neighbors,distances], outfile)
+
+
 #with open('data/ready4inverseecco.pickle', 'rb') as outfile:
     #[surfaces,neighbors,distances]=pickle.load(outfile)
-
-
-#with open('data/ready4inverseecco.pickle', 'wb') as outfile:
-    #pickle.dump([surfaces,neighbors,distances], outfile)
-
-for q in surfaces[1000]["data"].keys():
-    graph.graphSurfaces(surfaces,q,savepath="refpics/eccoallquantsnewgrid/",show=False)
+#for q in surfaces[1000]["data"].keys():
+    #graph.graphSurfaces(surfaces,q,savepath="refpics/eccoallquantsnewgrid/",show=False)
 
 
 #sensitivity.mixSens("coupled",surfaces,neighbors,distances,savepath="refpics/sensitivity/bathmasked")
-#sensitivity.conditionErrorRefLevel("coupled",surfaces,neighbors,distances)
-#sensitivity.conditionError("coupled",staggeredsurfaces,neighbors,distances)
+#params = {"mixs":{"kvo":False,"kvb":False,"kh":False},"modelmixing":False}
+#params = {"mixs":{"kvo":False,"kvb":False,"kh":False},"debug":False,"modelmixing":True}
+#sensitivity.conditionErrorRefLevel("coupled",surfaces,neighbors,distances,params=params)
+##sensitivity.conditionError("coupled",staggeredsurfaces,neighbors,distances)
 
-params = {"reflevel":600,"upperbound":600,"lowerbound":2200,"mixs":[True,False,True],"debug":True}
+params = {"reflevel":1000,"upperbound":1000,"lowerbound":1400,"mixs":{"kvo":False,"kvb":False,"kh":False},\
+        "debug":True,"modelmixing":True}
 
-inv,columndictionary,svds,A,errors,metadata= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
-
+out = inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
+inv = out["surfaces"]
 inv = nstools.streamFuncToUV(inv,neighbors,distances)
-#nstools.surfaceDiagnostic(surfaces)
-#graph.graphVectorField(inv,"uabs","vabs","z")
+graph.graphVectorField(inv,"uabs","vabs","diffkr")
+#graph.graphVectorField(inv,"uabs","vabs","kapredi")
+#graph.graphVectorField(inv,"uabs","vabs","kapgm")
 ##surfaces = eccotools.addSSHToSurface(surfaces)
 ##graph.graphSurfaces(surfaces,"ssh")
 ##graph.graphVectorField(inv,"u","v","pv",savepath="refpics/vectorfields/geostroph/")

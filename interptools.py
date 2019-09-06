@@ -164,6 +164,7 @@ def interpolateSurface(surface,debug=True,gaminterpolate=True):
 ## interpolate all the surfaces vertically and store
 ## neighbors, and distances as well
 def interpolateSurfaces(surfaces,debug=True,gaminterpolate=True):
+    surfaces = addXYToSurfaces(surfaces)
     interpolatedsurfaces = {}
     neighbors={}
     lookups={}
@@ -172,6 +173,7 @@ def interpolateSurfaces(surfaces,debug=True,gaminterpolate=True):
             surfaces[k] = removeDiscontinuities(surfaces[k],radius=0.1)
             interpolatedsurfaces[k],neighbors[k] = interpolateSurface(surfaces[k],gaminterpolate=gaminterpolate)
             lookups[k] = trueDistanceLookup(interpolatedsurfaces[k],neighbors[k])
+    interpolatedsurfaces = fillOutEmptyFields(interpolatedsurfaces)
     return interpolatedsurfaces,neighbors,lookups
 
 ##lat lon to x y
