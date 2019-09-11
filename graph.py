@@ -86,6 +86,23 @@ def zoomGraph(m,ax):
     ax.set_xlim([xmin, xmax])
     ax.set_ylim([ymin, ymax])
 
+def mapSetup(coords,region="arctic",newax=True):
+    regions = {"arctic":[90,-60],
+                "nepb":[40,-150]}
+    if newax:
+        fig,ax = plt.subplots(1,1)
+    else:
+        fig=None
+        ax=None
+    if region != "auto":
+        mapy = Basemap(projection='ortho', lat_0=regions[region][0],lon_0=regions[region][1])
+        if region == "arctic":
+            zoomGraph(mapy,ax)
+    mapy.drawmapboundary(fill_color='aqua')
+    mapy.fillcontinents(color='coral',lake_color='aqua')
+    mapy.drawcoastlines()
+    return fig,ax,mapy
+
 ## analagous to graphSurfaces but you can provide a second surfaces object
 ## usually one which is not interpolated to test interpolation
 def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None):
@@ -108,7 +125,8 @@ def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=N
 ## given a surfaces object, a quantity index, graph quantity
 ## if you really want you can supply a profiles object and a deepest index to display a point
 ## controls to save, graph or maximize
-def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None,idlabels=False,colorlimit=True):
+def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,\
+        show=True,maximize=True,savepath=None,idlabels=False,colorlimit=True,region="arctic"):
     quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV",\
                      "u":"relative U","v":"relative V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X",\
                     "hy":"Neutral Gradient Y","curl":"Curl","drdt":"Northward Velocity",\
@@ -125,11 +143,7 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
         writeInfoFile(savepath)
     for i in surfaces.keys():
         if len(surfaces[i]["lons"])>3 and len(surfaces[i]["data"][quantindex])>3:
-            fig,ax = plt.subplots(1,1)
-            mapy = Basemap(projection='ortho', lat_0=90,lon_0=-60)
-            mapy.drawmapboundary(fill_color='aqua')
-            mapy.fillcontinents(color='coral',lake_color='aqua')
-            mapy.drawcoastlines()
+            fig,ax,mapy = mapSetup(surfaces,region=region)
             x,y = mapy(surfaces[i]["lons"],surfaces[i]["lats"])
             d = np.asarray(surfaces[i]["data"][quantindex])
             ids = np.asarray(surfaces[i]["ids"])
@@ -144,14 +158,13 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
                 s = np.nanstd(d)
                 print("################")
                 if colorlimit:
-                    plt.clim(m-2*s,m+2*s)
+                    #plt.clim(m-2*s,m+2*s)
                     #plt.clim(i-400,i+400)
                     mapy.colorbar()
             #map the reference profile
             if profiles and deepestindex:
                 x,y = mapy(profiles[deepestindex].lon,profiles[deepestindex].lat)
                 mapy.scatter(x,y,c="red")
-            zoomGraph(mapy,ax)
             if idlabels:
                 for j, eyed in enumerate(ids):
                     ax.annotate(eyed,(x[j],y[j]))
@@ -170,18 +183,14 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
             plt.close()
 
 ## plots a given cruise and its reference cruise
-def plotCruiseAndRef(cruises,refcruises,show=True):
-    fig,ax = plt.subplots(1,1)
+def plotCruiseAndRef(cruises,refcruises,show=True,region="arctic"):
+    fig,ax,mapy = mapSetup([],region=region)
     lats, lons, depths=[],[],[]
     for p in refcruises:
         lats.append(p.lat)
         lons.append(p.lon)
         depths.append(np.max(p.pres))
     #fig.suptitle(cruisename)
-    mapy = Basemap(projection='ortho', lat_0=90,lon_0=0)
-    mapy.drawmapboundary(fill_color='aqua')
-    mapy.fillcontinents(color='coral',lake_color='aqua')
-    mapy.drawcoastlines()
     x,y = mapy(lons,lats)
     plt.scatter(x,y)
     lats, lons, depths=[],[],[]
@@ -190,10 +199,7 @@ def plotCruiseAndRef(cruises,refcruises,show=True):
         lons.append(p.lon)
         depths.append(np.max(p.pres))
     #fig.suptitle(cruisename)
-    mapy = Basemap(projection='ortho', lat_0=90,lon_0=0)
-    mapy.drawmapboundary(fill_color='aqua')
-    mapy.fillcontinents(color='coral',lake_color='aqua')
-    mapy.drawcoastlines()
+    a,b,mapy = mapSetup([],newax=False,region=region) 
     x,y = mapy(lons,lats)
     plt.scatter(x,y,c=depths,cmap="plasma")
     mapy.colorbar()
@@ -201,21 +207,20 @@ def plotCruiseAndRef(cruises,refcruises,show=True):
         plt.show()
 
 ##plot a certain cruise
-def plotCruise(profiles,cruisename,fig=None,ax=None,show=True):
+def plotCruise(profiles,cruisename,fig=None,ax=None,show=True,region="arctic"):
     lats, lons, depths=[],[],[]
     for p in profiles:
         lats.append(p.lat)
         lons.append(p.lon)
         depths.append(np.max(p.pres))
-
+    
     if not fig and not ax:
-        fig,ax = plt.subplots(1,1)
+        mapSetup([],region=region)
+    else:
+        mapSetup([],region=region,newax=False)
 
     fig.suptitle(cruisename)
-    mapy = Basemap(projection='ortho', lat_0=90,lon_0=0)
-    mapy.drawmapboundary(fill_color='aqua')
-    mapy.fillcontinents(color='coral',lake_color='aqua')
-    mapy.drawcoastlines()
+
     x,y = mapy(lons,lats)
     plt.scatter(x,y,c=depths,cmap="plasma")
     mapy.colorbar()
@@ -223,7 +228,7 @@ def plotCruise(profiles,cruisename,fig=None,ax=None,show=True):
         plt.show()
 
 ##plot profiles with an option to supply one profile which should be highlighted
-def plotProfiles(profiles,title,specialprofile=None,fig=None,ax=None,show=True,data="pres",depth=False):
+def plotProfiles(profiles,title,specialprofile=None,fig=None,ax=None,show=True,data="pres",depth=False,region="arctic"):
     lats, lons, depths=[],[],[]
     for p in profiles:
         lats.append(p.lat)
@@ -234,13 +239,12 @@ def plotProfiles(profiles,title,specialprofile=None,fig=None,ax=None,show=True,d
             depths.append(p.atPres(depth)[0])
 
     if not fig and not ax:
-        fig,ax = plt.subplots(1,1)
+        fig,ax,mapy=mapSetup([],region=region)
+    else:
+        fig,ax,mapy=mapSetup([],region=region,newax=False)
+
 
     fig.suptitle(title)
-    mapy = Basemap(projection='ortho', lat_0=90,lon_0=0)
-    mapy.drawmapboundary(fill_color='aqua')
-    mapy.fillcontinents(color='coral',lake_color='aqua')
-    mapy.drawcoastlines()
     x,y = mapy(lons,lats)
     plt.scatter(x,y,c=depths,cmap="plasma")
     mapy.colorbar()
@@ -376,7 +380,6 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",transform=True,save
         lats = np.asarray(lats)
         u,v,x,y = mapy.rotate_vector(uthetas,urs,lons,lats,returnxy=True)
         mag = np.sqrt(u**2+v**2)
-        zoomGraph(mapy,ax)
         fig.set_size_inches(16.5,12)
         a = tuple([(abs(surfaces[k]["lats"]-90)>0.5) & (~np.isnan(surfaces[k]["data"][backgroundfield]))])
         if np.count_nonzero(a)>4:
@@ -387,15 +390,15 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",transform=True,save
                 bgfield = gsw.f(surfaces[k]["lats"][a])/surfaces[k]["data"]["z"][a]
             plt.tricontourf(xpv,ypv,bgfield,levels=50)
             #plt.scatter(xpv,ypv,c=bgfield)
-            plt.clim(np.min(bgfield),np.max(bgfield))
-            mapy.colorbar()
+            #plt.clim(np.min(bgfield),np.max(bgfield))
+            #mapy.colorbar()
             mapy.quiver(x,y,u,v,mag,cmap="cool",width = 0.002)
             if savepath:
                 plt.savefig(savepath+key1+key2+"/ns"+str(k)+".png")
 
             if show:
                 plt.show()
-            plt.close()
+        plt.close()
 
 
 
@@ -670,7 +673,7 @@ def tsNeutralExplore(profiles):
 
 ## graph a vector field given a surfaces object on a map
 ## any quantity can be supplied as a background field
-def graphProfilesVectorField(profiles,depths=range(200,4000,200),savepath=False,show=True):
+def graphProfilesVectorField(profiles,depths=range(200,4000,200),savepath=False,show=True,region="arctic"):
 
     if savepath:
         try:
@@ -679,16 +682,12 @@ def graphProfilesVectorField(profiles,depths=range(200,4000,200),savepath=False,
             print(e)
 
     for k in depths[::-1]:
-        fig,ax = plt.subplots(1,1)
-        mapy = Basemap(projection='ortho', lat_0=90,lon_0=-60)
-        mapy.drawmapboundary(fill_color='aqua')
-        mapy.fillcontinents(color='coral',lake_color='aqua')
-        mapy.drawcoastlines()
         urs=[]
         uthetas=[]
         lons = []
         lats = []
         bgfield = []
+        fig,ax,mapy = mapSetup(profiles,region=region)
         for p in profiles[::2]:
             if k in p.neutraldepth.keys() and 1000 in p.neutraldepth.keys():
                 i = p.ipresIndex(p.neutraldepth[k])
@@ -719,14 +718,13 @@ def graphProfilesVectorField(profiles,depths=range(200,4000,200),savepath=False,
         lats = np.asarray(lats)
         u,v,x,y = mapy.rotate_vector(uthetas,urs,lons,lats,returnxy=True)
         mag = np.sqrt(urs**2+uthetas**2)
-        zoomGraph(mapy,ax)
         fig.set_size_inches(16.5,12)
 
         xpv,ypv = mapy(lons,lats)
 
         #plt.scatter(xpv,ypv,bgfield)
         #plt.clim(np.min(bgfield),np.max(bgfield))
-        #mapy.colorbar()
+        mapy.colorbar()
         mapy.quiver(x,y,u,v,mag,cmap="plasma",width = 0.002)
         if savepath:
             plt.savefig(savepath+"eccouv"+"/ns"+str(k)+".png")
@@ -738,7 +736,10 @@ def distanceHist(distances):
     for k in distances.keys():
         plt.hist(distances[k].values())
         plt.show()
-            
+
+def saveAllQuants(surfaces,savepath):
+    for d in surfaces[1000]["data"].keys():
+        graphSurfaces(surfaces,d,show=False,savepath=savepath)
 
         
 

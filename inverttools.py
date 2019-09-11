@@ -91,6 +91,8 @@ def applyRefLevel(surfaces,reflevel=1000):
         surfaces[k]["data"]["psiref"] = np.full(len(surfaces[k]["data"]["psi"]),np.nan)
         surfaces[k]["data"]["uref"] = np.full(len(surfaces[k]["data"]["psi"]),np.nan)
         surfaces[k]["data"]["vref"] = np.full(len(surfaces[k]["data"]["psi"]),np.nan)
+        surfaces[k]["data"]["FQ"] = np.full(len(surfaces[k]["data"]["psi"]),np.nan)
+        surfaces[k]["data"]["FS"] = np.full(len(surfaces[k]["data"]["psi"]),np.nan)
         for l in range(len(surfaces[k]["data"]["psi"])):
             found = np.where(np.asarray(surfaces[reflevel]["ids"])==surfaces[k]["ids"][l])
             if len(found) != 0 and len(found[0]) != 0:
@@ -316,7 +318,12 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
     columndictionary = {}
     surfaces = applyRefLevel(surfaces,params["reflevel"])
     outliers = genOutliers(surfaces,neighbors,params)
+    #surfaceDiagnostic(surfaces)
     totalcount = set()
+    fqcrows= []
+    fscrows= []
+    fqs = []
+    fss = []
     for k in Bar("adding to matrix: ").iter(sorted(neighbors.keys())[::-1]):
         for s in neighbors[k]:
             s=np.asarray(s)
@@ -338,10 +345,9 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
                 n = normOfRows(np.asarray(betavals),mixSwitch(kpv,params["mixs"]))
                 if params["modelmixing"]:
                     oldcrow= crow
-                    print("pv","#"*10)
-                    print("oldcrow: ",oldcrow)
+                    fqcrows.append(crow)
                     crow = crow+ptools.calcFQ(surfaces,k,s[0],params["scalecoeffs"],kpv,distances)
-                    print("crow: ",crow)
+                    fqs.append(ptools.calcFQ(surfaces,k,s[0],params["scalecoeffs"],kpv,distances))
 
                 #l = np.concatenate((betavals/n,kpv[params["mixs"]]/n))
                 #plt.bar(range(len(l)),np.abs(l))
@@ -351,7 +357,7 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
                 #ptools.kChecker(surfaces,k,s[0],params["scalecoeffs"])
                 Apsi.append(np.asarray(betarow)/n)
 
-                ##make rows that can fit it 
+                #make rows that can fit it 
                 Akvbrow, Akhrow, Akvorow = generateMixingRows(columnindexs,kpv,k,n)
                 Akvb.append(Akvbrow)
                 Akh.append(Akhrow)
@@ -380,10 +386,9 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
                 n = normOfRows(np.asarray(salvals),mixSwitch(ks,params["mixs"]))
                 if params["modelmixing"]:
                     oldcrow = crow
-                    print("sal","#"*10)
-                    print("oldcrow: ",oldcrow)
+                    fscrows.append(crow)
                     crow = crow+ptools.calcFS(surfaces,k,s[0],params["scalecoeffs"],ks,distances)
-                    print("newcrow: ",crow)
+                    fss.append(ptools.calcFS(surfaces,k,s[0],params["scalecoeffs"],ks,distances))
                 #l = np.concatenate((salvals/n,ks[params["mixs"]]/n))
                 #plt.bar(range(len(l)),np.abs(l))
                 ##plt.yscale("log")
@@ -425,7 +430,18 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
     Akvo.insert(0,[0])
     c.insert(0,0)
     us.insert(0,0)
-
+    plt.plot(np.abs(fqcrows),color="red",label="c")
+    plt.plot(np.abs(fqs),color="blue",label="FQ")
+    plt.legend()
+    plt.yscale("log")
+    plt.title("FQ vs c")
+    plt.show()
+    plt.title("FS vs c")
+    plt.plot(np.abs(fscrows),color="red",label="c")
+    plt.plot(np.abs(fss),color="blue",label="FS")
+    plt.legend()
+    plt.yscale("log")
+    plt.show()
     ##We now have all the terms we need, we just need to reshape and concatenate
     m = columndictionary["max"]+1
     us = us[:m]

@@ -12,57 +12,45 @@ import pickle
 import sensitivity
 import random
     
-with open('data/eccoprofiles.pickle', 'rb') as outfile:
+with open('data/ecconepbprofiles.pickle', 'rb') as outfile:
     profiles = pickle.load(outfile)
 
-##graph.plotProfiles(profiles,"yo",data="t",depth="200")
 
-#deepestindex=nstools.deepestProfile(profiles)
-##graph.plotProfiles(profiles,"ecco",specialprofile=profiles[deepestindex])
-
-##profiles = nstools.filterCruises(profiles,offsets.keys())
-##profiles = saloffset.applyOffsets(profiles,offsets)
-
-##profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
-#profilechoice = profiles[deepestindex]
+deepestindex=nstools.deepestProfile(profiles)
+profilechoice = profiles[deepestindex]
 
 #surfaces = nstools.runPeerSearch(profiles,200,4000,200,profilechoice,1000)
 
-#with open('data/eccosurfaces.pickle', 'wb') as outfile:
-  #pickle.dump(surfaces, outfile)
-
-##with open('data/eccoannotatedprofiles.pickle', 'wb') as outfile:
-    ##pickle.dump(profiles, outfile)
-##with open('data/eccoannotatedprofiles.pickle', 'rb') as outfile:
-    ##profiles=pickle.load(outfile)
-
-with open('data/eccosurfaces.pickle', 'rb') as outfile:
-    surfaces=pickle.load(outfile)
-#######graph.graphSurfaces(surfaces,"pres")
+#with open('data/ecconepbsurfaces.pickle', 'wb') as outfile:
+    #pickle.dump(surfaces,outfile)
+#with open('data/ecconepbsurfaces.pickle', 'rb') as outfile:
+    #surfaces=pickle.load(outfile)
+#graph.graphSurfaces(surfaces,"pres",region="nepb",savepath="refpics/surfaces/ecconepbns/",show=False)
 #########graph.tsNeutralExplore(profiles)
 
-surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
-##with open('data/eccosurfwithd.pickle', 'wb') as outfile:
-    ##pickle.dump(surfaces, outfile)
+#surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
 
-##with open('data/eccosurfwithd.pickle', 'rb') as outfile:
-    ##surfaces=pickle.load(outfile)
+#with open('data/ecconepbsurfaceswithd.pickle', 'wb') as outfile:
+    #pickle.dump(surfaces,outfile)
 
-###nstools.surfaceDiagnostic(surfaces)
+#with open('data/ecconepbsurfaceswithd.pickle', 'rb') as outfile:
+    #surfaces=pickle.load(outfile)
 
-surfaces,neighbors,distances = interptools.interpolateSurfaces(surfaces,gaminterpolate=False)
+####nstools.surfaceDiagnostic(surfaces)
 
-##with open('data/postinterp.pickle', 'wb') as outfile:
-    ##pickle.dump([surfaces,neighbors,distances], outfile)
-##with open('data/postinterp.pickle', 'rb') as outfile:
-    ##[surfaces,neighbors,distances]=pickle.load(outfile)
+#surfaces,neighbors,distances = interptools.interpolateSurfaces(surfaces,gaminterpolate=False,fixedgrid="nepb")
 
-surfaces = eccotools.addModelEccoMix(surfaces,"ARCTIC")
-surfaces = eccotools.addModelEccoUV(surfaces,"ARCTIC")
-with open('data/preparameter.pickle', 'wb') as outfile:
-    pickle.dump([surfaces,neighbors,distances], outfile)
+#surfaces = eccotools.addModelEccoMix(surfaces,"NEPB")
+#surfaces = eccotools.addModelEccoUV(surfaces,"NEPB")
+
+#with open('data/preparameter.pickle', 'wb') as outfile:
+    #pickle.dump([surfaces,neighbors,distances], outfile)
+
+with open('data/preparameter.pickle', 'rb') as outfile:
+    [surfaces,neighbors,distances ] = pickle.load(outfile)
 
 surfaces = nstools.addParametersToSurfaces(surfaces,neighbors,distances)
+
 with open('data/ready4inverseecco.pickle', 'wb') as outfile:
     pickle.dump([surfaces,neighbors,distances], outfile)
 

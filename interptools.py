@@ -52,20 +52,21 @@ def removeDiscontinuities(surface,radius=10,debug=True):
 ## here I put in my favorite x and y coordinates for the arctic
 ## they should be hardcoded because you want the grid points to 
 ## align vertically throughout the water column
-def createMesh(n,xvals,yvals,custom=False):
-    if custom:
+def createMesh(n,xvals,yvals,fixedgrid="arctic"):
+    preset = {"arctic":{"xmin":-1793163,"xmax":971927,"ymin":-1455096,"ymax":1200385},
+            "nepb":{"xmin":-7626269.8278319035,"xmax":-2637514.7450460778,"ymin":-6070024.08806232,"ymax":-694647.408618841}
+            }
+    if not fixedgrid:
+        print(np.min(xvals),np.max(xvals),np.min(yvals),np.max(yvals))
         return np.meshgrid(np.linspace(np.min(xvals),np.max(xvals),n), np.linspace(np.min(yvals),np.max(yvals),n),indexing="xy")
     else:
-        xmin=-1793163
-        xmax=971927
-        ymin=-1455096
-        ymax=1200385
-        return np.meshgrid(np.linspace(xmin,xmax,n), np.linspace(ymin,ymax,n),indexing="xy")
+        vals = preset[fixedgrid]
+        return np.meshgrid(np.linspace(vals["xmin"],vals["xmax"],n), np.linspace(vals["ymin"],vals["ymax"],n),indexing="xy")
 
 #generate a mesh and remove points in that mesh 
 #which are too far away from locations with observations
-def generateMaskedMesh(x,y,radius=200):
-    xi,yi = createMesh(40,x,y)
+def generateMaskedMesh(x,y,radius=200,fixedgrid="arctic"):
+    xi,yi = createMesh(30,x,y,fixedgrid=fixedgrid)
     final = np.zeros(xi.shape)
     neighbors = []
     for i in range(len(x)):
@@ -129,13 +130,13 @@ def surfaceSnap(surface,xgrid,ygrid):
 ## create the mesh, use gam interpolation
 ##also returns neighboring points for each points
 ## and the distance between those points
-def interpolateSurface(surface,debug=True,gaminterpolate=True):
+def interpolateSurface(surface,debug=True,gaminterpolate=True,fixedgrid="arctic"):
     #print("######")
     interpsurf={}
     X = np.zeros((len(surface["x"]),2))
     X[:,0]=surface["x"]
     X[:,1]=surface["y"]
-    xi,yi,neighbors,finalids = generateMaskedMesh(surface["x"],surface["y"])
+    xi,yi,neighbors,finalids = generateMaskedMesh(surface["x"],surface["y"],fixedgrid=fixedgrid)
     interpdata={}
     interpsurf["x"] =xi
     interpsurf["y"] =yi
@@ -163,7 +164,7 @@ def interpolateSurface(surface,debug=True,gaminterpolate=True):
 
 ## interpolate all the surfaces vertically and store
 ## neighbors, and distances as well
-def interpolateSurfaces(surfaces,debug=True,gaminterpolate=True):
+def interpolateSurfaces(surfaces,fixedgrid,debug=True,gaminterpolate=True):
     surfaces = addXYToSurfaces(surfaces)
     interpolatedsurfaces = {}
     neighbors={}
@@ -171,7 +172,7 @@ def interpolateSurfaces(surfaces,debug=True,gaminterpolate=True):
     for k in surfaces.keys():
         if ~np.isnan(surfaces[k]["data"]["pres"]).any():
             surfaces[k] = removeDiscontinuities(surfaces[k],radius=0.1)
-            interpolatedsurfaces[k],neighbors[k] = interpolateSurface(surfaces[k],gaminterpolate=gaminterpolate)
+            interpolatedsurfaces[k],neighbors[k] = interpolateSurface(surfaces[k],gaminterpolate=gaminterpolate,fixedgrid=fixedgrid)
             lookups[k] = trueDistanceLookup(interpolatedsurfaces[k],neighbors[k])
     interpolatedsurfaces = fillOutEmptyFields(interpolatedsurfaces)
     return interpolatedsurfaces,neighbors,lookups

@@ -2,7 +2,7 @@
 
 Hello and welcome to the beta spiral inverse toolbox. The purpose of this library is to provide a set of tools to allow people to conduct beta spiral inverses, in the fashion of "The abyssal and deep circulation of the Northeast Pacific Basin" (Hauta 2018)
 
-## Fist steps - creating profiles!
+## First steps - creating profiles!
 This toolbox takes in data in the form of Profile objects. To construct a Profile object requires a set of potential temperatures, salinity readings, and pressures. Each profile should also be given a unique id, and can be provided with a cruise name.
 
 Below is an example construction of a profile object
@@ -74,13 +74,7 @@ surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
 nstools.surfaceDiagnostic(surfaces)
 
 surfaces,neighbors,distances = interptools.interpolateSurfaces(surfaces,gaminterpolate=False)
-
-surfaces = nstools.addHeight(surfaces)
-surfaces = nstools.addHorizontalGrad(surfaces,neighbors,distances)
-surfaces = nstools.addBathAndMask(surfaces,neighbors)
-surfaces = nstools.addVerticalGrad(surfaces)
-ptools.saveBathVarTermCache(surfaces,"data/bathVarecco.pickle")
-surfaces = nstools.addK(surfaces,"data/bathVarecco.pickle")
+surfaces = nstools.addParametersToSurfaces(surfaces,neighbors,distances)
 params = {"reflevel":1000,"upperbound":1000,"lowerbound":1400,"mixs":{"kvo":False,"kvb":False,"kh":False},\
         "debug":True,"modelmixing":True}
 out = inverttools.invert("coupled",surfaces,neighbors,distances,params=params)

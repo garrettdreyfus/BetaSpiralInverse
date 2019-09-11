@@ -169,7 +169,6 @@ def kChecker(surfaces,k,found,scales,debug=False):
         kv0breakdown=False
         if kv0breakdown:
             labels = ["d2qdz2","alpha","f","1/pv","dsdz**3","doublets","skvo"]
-            print(dsdz)
             values = [np.abs(d2qdz2),alpha,f,1/pv,np.abs(dsdz)**3,np.abs(doublets),np.abs(skvo)]
             plt.bar(labels,values)
             plt.yscale("log")
@@ -179,7 +178,6 @@ def kChecker(surfaces,k,found,scales,debug=False):
         if khbreakdown:
             #(d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv -f*khpdz
             labels = ["d2qdx2+d2qdy2","2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv","f*khpdz","f","khpdz"]
-            print(dsdz)
             values = [np.abs(d2qdx2+d2qdy2),np.abs(2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv),np.abs(f*khpdz),f,abs(khpdz)]
             plt.bar(labels,values)
             plt.yscale("log")
@@ -188,7 +186,6 @@ def kChecker(surfaces,k,found,scales,debug=False):
         kvbbreakdown=True
         if kvbbreakdown:
             labels = ["d2qdz2","dqdz","pv"]
-            print(dsdz)
             values = [np.abs(d2qdz2),2*(1/1000)*abs(dqdz),(1/(1000**2))*pv]
             plt.bar(labels,values)
             plt.yscale("log")
@@ -281,7 +278,7 @@ def kterms(surfaces,k,found,params,debug=False,fallback=None):
         pvkvb = (d2qdz2+2*(1/200.0)*dqdz+(1/(200.0**2))*pv)*CKVB
         pvkvo = d2qdz2
         if params["modelmixing"]:
-            pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv - f*dkhpdz
+            pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv - f*dkhpdz/(surfaces[k]["data"]["kapredi"][found])
         else:
             pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv -((1.0/both-1.0/toph)*f*khp)
         skvo = -alpha*f*(1/pv)*(dsdz**3)*doublets
@@ -293,28 +290,34 @@ def kterms(surfaces,k,found,params,debug=False,fallback=None):
         ks = {"kvo":skvo*kvoscale,"kvb":skvb*kvbscale,"kh":skh*khscale}
         return kvs,ks
 
-def calcFQ(surfaces,k,found,scales,kpvs,distances):
+def calcFQ(surfaces,k,found,scales,kpvs,distances,debug=False):
     dqdx = fetchWithFallback(surfaces,k,"dqdx",found)
     dqdy = fetchWithFallback(surfaces,k,"dqdy",found)
     dqnotdx = fetchWithFallback(surfaces,k,"dqnotdx",found)
     dqnotdy = fetchWithFallback(surfaces,k,"dqnotdy",found)
     pv = fetchWithFallback(surfaces,k,"pv",found)
 
-    missingpiece = -(2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv)
-    print("Qkvterm: ",surfaces[k]["data"]["diffkr"][found]*kpvs["kvo"])
-    print("Qkhterm: ",surfaces[k]["data"]["kapredi"][found]*(kpvs["kh"]-missingpiece)+\
-            surfaces[k]["data"]["kapgm"][found]*(missingpiece))
+    missingpiece = -(2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv)*scales["kh"]
+    if debug:
+        print("Qkvterm: ",surfaces[k]["data"]["diffkr"][found]*kpvs["kvo"])
+        print("Qkhterm part 1 : ",surfaces[k]["data"]["kapredi"][found]*(kpvs["kh"]-missingpiece))
+        print("Qkhterm part 2 : ",surfaces[k]["data"]["kapgm"][found]*(missingpiece))
+        print("kapgm: ",surfaces[k]["data"]["kapgm"][found])
+        print("kapredi: ",surfaces[k]["data"]["kapredi"][found])
     FQ = surfaces[k]["data"]["diffkr"][found]*kpvs["kvo"] +\
             surfaces[k]["data"]["kapredi"][found]*(kpvs["kh"]-missingpiece)+\
             surfaces[k]["data"]["kapgm"][found]*(missingpiece)
+    surfaces[k]["data"]["FQ"][found] = FQ
     return FQ
 
 
-def calcFS(surfaces,k,found,scales,ks,distances):
+def calcFS(surfaces,k,found,scales,ks,distances,debug=False):
     FS = surfaces[k]["data"]["diffkr"][found]*ks["kvo"] +\
-            surfaces[k]["data"]["kapredi"][found]*ks["kh"] 
-    print("Skvterm: ",surfaces[k]["data"]["diffkr"][found]*ks["kvo"])
-    print("Skhterm: ",surfaces[k]["data"]["kapredi"][found]*ks["kh"] )
+            surfaces[k]["data"]["kapredi"][found]*ks["kh"]
+    if debug:
+        print("Skvterm: ",surfaces[k]["data"]["diffkr"][found]*ks["kvo"])
+        print("Skhterm: ",surfaces[k]["data"]["kapredi"][found]*ks["kh"] )
+    surfaces[k]["data"]["FS"][found] = FS
     if np.isinf(-ks["kvo"]):
         print("kvo inf")
         print(ks)

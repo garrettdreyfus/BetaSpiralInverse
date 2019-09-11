@@ -6,11 +6,12 @@ import pickle
 import xarray as xr
 from geopy.distance import great_circle
 import pdb
+import graph
 
 ##return index of certain coord
-def closestGridPoint(x,y):
+def closestGridPoint(x,y,prefix):
     if not hasattr(closestGridPoint,"grid"):
-        closestGridPoint.grid = xr.open_dataset('ecco/TILEDATA/ARCTICGRID.nc',decode_times=False)
+        closestGridPoint.grid = xr.open_dataset('ecco/TILEDATA/'+prefix+'GRID.nc',decode_times=False)
         lons = closestGridPoint.grid.XC
         lats = closestGridPoint.grid.YC
         print("lons shape",lons.shape)
@@ -31,11 +32,11 @@ def getSSHAt(latin,lonin):
     return getSSHAt.sshset["SSH"][0][latindex][lonindex]
 
 #return the vel at a coord
-def getVelAt(x,y,d):
-    loc = closestGridPoint(x,y)
+def getVelAt(x,y,d,prefix):
+    loc = closestGridPoint(x,y,prefix)
     if not hasattr(getVelAt,"nvelset"):
-        getVelAt.nvelset = xr.open_dataset('ecco/TILEDATA/NVELARCTIC.nc',decode_times=False)
-        getVelAt.evelset = xr.open_dataset('ecco/TILEDATA/EVELARCTIC.nc',decode_times=False)
+        getVelAt.nvelset = xr.open_dataset('ecco/TILEDATA/'+prefix+'NVEL.nc',decode_times=False)
+        getVelAt.evelset = xr.open_dataset('ecco/TILEDATA/'+prefix+'EVEL.nc',decode_times=False)
         getVelAt.depths = getVelAt.nvelset["dep"].values
     if d >= getVelAt.depths[0] and d <= getVelAt.depths[-1]:
         before = np.argwhere(getVelAt.depths<=d)[-1][0]
@@ -49,34 +50,36 @@ def getVelAt(x,y,d):
     else:
         return 0,0,0
 
-def extractArctic(arr,depth):
+def extractArctic(arr,depth,tilenumber):
     arr = arr[105300*depth:105300*(depth+1)]
     arr = arr.byteswap().reshape([105300,1])
 
-    arr = xr.DataArray(arr[48600:56700,0].reshape([90,90]),coords=[np.arange(0,90,1),np.arange(0,90,1)],
+    arr = xr.DataArray(arr[(tilenumber-1)*8100:(tilenumber)*8100,0].reshape([90,90]),coords=[np.arange(0,90,1),np.arange(0,90,1)],
                             dims=['j','i'])
     return arr
 
-def formatMixData(var):
+def formatMixData(var,prefix):
+    prefixToTile = {"ARCTIC":7,"NEPB":8}
+    tilenumber = prefixToTile[prefix]
     dat = []
     for depth in Bar("depth").iter(range(50)):
         geoflx = np.fromfile('ecco/mixingdata/'+var+'.bin', dtype=np.float32)
-        geoflx06 = extractArctic(geoflx,depth)
+        geoflx06 = extractArctic(geoflx,depth,tilenumber)
         geoflx = np.fromfile('ecco/mixingdata/'+var+'.data', dtype=np.float32)
-        geoflx06 = extractArctic(geoflx,depth)+geoflx06
+        geoflx06 = extractArctic(geoflx,depth,tilenumber)+geoflx06
         dat.append(geoflx06)
     return dat
 
 
 
-def getMixAt(x,y,d):
-    loc = closestGridPoint(x,y)
+def getMixAt(x,y,d,prefix):
+    loc = closestGridPoint(x,y,prefix)
     if not hasattr(getMixAt,"nvelset"):
-        getMixAt.nvelset = xr.open_dataset('ecco/TILEDATA/NVELARCTIC.nc',decode_times=False)
+        getMixAt.nvelset = xr.open_dataset('ecco/TILEDATA/'+prefix+'NVEL.nc',decode_times=False)
         getMixAt.depths = getMixAt.nvelset["dep"].values
-        getMixAt.diffkr = formatMixData("diffkr")
-        getMixAt.kapredi = formatMixData("kapredi")
-        getMixAt.kapgm = formatMixData("kapgm")
+        getMixAt.diffkr = formatMixData("diffkr",prefix)
+        getMixAt.kapredi = formatMixData("kapredi",prefix)
+        getMixAt.kapgm = formatMixData("kapgm",prefix)
     if d >= getMixAt.depths[0] and d <= getMixAt.depths[-1]:
         before = np.argwhere(getMixAt.depths<=d)[-1][0]
         after = np.argwhere(getMixAt.depths>=d)[0][0]
@@ -91,22 +94,8 @@ def getMixAt(x,y,d):
     else:
         return 0,0,0
 
-##add ssh values to a surface
-#def addSSHToSurface(surfaces):
-    #dumbcache = {}
-    #for k in surfaces.keys():
-        #surfaces[k]["data"]["ssh"] =  np.full(len(surfaces[k]["lons"]),np.nan)
-        #for l in range(len(surfaces[k]["lats"])):
-            #lat = surfaces[k]["lats"][l]
-            #lon = surfaces[k]["lons"][l]
-            #if (lat,lon) not in dumbcache.keys():
-                #dumbcache[(lat,lon)]=getSSHAt(lat,lon)
-            #surfaces[k]["data"]["ssh"][l] = dumbcache[(lat,lon)]
-            #surfaces[k]["data"]["psi"][l] = surfaces[k]["data"]["psi"][l]-9.8*dumbcache[(lat,lon)]
-    #return surfaces
 
-
-def addModelEccoUV(surfaces):
+def addModelEccoUV(surfaces,prefix):
     for k in Bar("Adding model uv").iter(surfaces.keys()):
         surfaces[k]["data"]["knownu"] =  np.full(len(surfaces[k]["lons"]),np.nan)
         surfaces[k]["data"]["knownv"] =  np.full(len(surfaces[k]["lons"]),np.nan)
@@ -114,12 +103,12 @@ def addModelEccoUV(surfaces):
             x = surfaces[k]["x"][l]
             y = surfaces[k]["y"][l]
             d = surfaces[k]["data"]["pres"][l]
-            u,v = getVelAt(x,y,d)
+            u,v = getVelAt(x,y,d,prefix)
             surfaces[k]["data"]["knownu"][l] = u
             surfaces[k]["data"]["knownv"][l] = v
     return surfaces
 
-def addModelEccoMix(surfaces):
+def addModelEccoMix(surfaces,prefix):
     for k in Bar("Adding model mix").iter(surfaces.keys()):
         surfaces[k]["data"]["diffkr"] =  np.full(len(surfaces[k]["lons"]),np.nan)
         surfaces[k]["data"]["kapredi"] =  np.full(len(surfaces[k]["lons"]),np.nan)
@@ -128,7 +117,7 @@ def addModelEccoMix(surfaces):
             x = surfaces[k]["x"][l]
             y = surfaces[k]["y"][l]
             d = surfaces[k]["data"]["pres"][l]
-            diffkr,kapredi,kapgm = getMixAt(x,y,d)
+            diffkr,kapredi,kapgm = getMixAt(x,y,d,prefix)
             surfaces[k]["data"]["diffkr"][l] = diffkr
             surfaces[k]["data"]["kapgm"][l] = kapgm
             surfaces[k]["data"]["kapredi"][l] = kapredi
@@ -143,58 +132,20 @@ def idgenerator():
     idgenerator.id = idgenerator.id+1
     return idgenerator.id
 
-#read nc files, load into profiles and save into pickle
-def generateProfiles(savepath='data/eccoprofiles.pickle'):
-    thetaset = xr.open_dataset('ecco/THETA.2015.nc',decode_times=False)
-    lat = thetaset["lat"]
-    lon = thetaset["lon"]
-    depths = thetaset["dep"]
-    theta= xr.open_dataset('ecco/THETA.2015.nc',decode_times=False)["THETA"]
+def arcticRestrict(lat,lon):
+    return (lat >= 68 and not (lat<81 and -93 < lon < 20))
 
-    salt = xr.open_dataset('ecco/SALT.2015.nc',decode_times=False)["SALT"]
-    u = xr.open_dataset('ecco/EVEL.2015.nc',decode_times=False)["EVEL"]
-    v = xr.open_dataset('ecco/NVEL.2015.nc',decode_times=False)["NVEL"]
-
-    profiles = []
-    print("LETS RIP")
-    for latindex in Bar("lats").iter(range(len(lat))):
-        if lat[latindex][0] >= 68:
-            for lonindex in Bar("lons").iter(range(len(lon[latindex]))):
-                if not (lat[latindex][0]<81 and -93 < lon[latindex][lonindex] < 20):
-                    data = {}
-                    data["lat"]=lat.values[latindex][lonindex]
-                    data["lon"]=lon.values[latindex][lonindex]
-                    data["temp"]=[]
-                    data["sal"]=[]
-                    data["pres"]=[]
-                    data["knownu"]=[]
-                    data["knownv"]=[]
-                    for depthindex in range(len(depths)):
-                        if ~np.isnan(theta.values[0][depthindex][latindex][lonindex]) and ~np.isnan(salt.values[0][depthindex][latindex][lonindex]):
-                            data["pres"].append(float(depths.values[depthindex]))
-                            data["temp"].append(float(theta.values[0][depthindex][latindex][lonindex]))
-                            data["sal"].append(float(salt.values[0][depthindex][latindex][lonindex]))
-                            data["knownu"].append(float(u.values[0][depthindex][latindex][lonindex]))
-                            data["knownv"].append(float(v.values[0][depthindex][latindex][lonindex]))
-
-                    if len(data["pres"])>4 and max(data["pres"])>1500:
-                        eyed=idgenerator()
-                        p=Profile(eyed,data)
-                        profiles.append(p)
-                
-
-    print(len(profiles))
-    with open(savepath, 'wb') as outfile:
-        pickle.dump(profiles, outfile)
+def nepbRestrict(lat,lon):
+    return 60>lat> 20 and 0>lon > -170
 
 #read nc files, load into profiles and save into pickle
-def generateProfilesNative(savepath='data/eccoprofiles.pickle'):
-    thetaset= xr.open_dataset('ecco/TILEDATA/THETAARCTIC.nc',decode_times=False)
-    saltset = xr.open_dataset('ecco/TILEDATA/SALTARCTIC.nc',decode_times=False)
-    uset = xr.open_dataset('ecco/TILEDATA/EVELARCTIC.nc',decode_times=False)
-    vset = xr.open_dataset('ecco/TILEDATA/NVELARCTIC.nc',decode_times=False)
+def generateProfilesNative(prefix,coordFilter,savepath='data/eccoprofiles.pickle'):
+    thetaset= xr.open_dataset('ecco/TILEDATA/'+prefix+'THETA.nc',decode_times=False)
+    saltset = xr.open_dataset('ecco/TILEDATA/'+prefix+'SALT.nc',decode_times=False)
+    uset = xr.open_dataset('ecco/TILEDATA/'+prefix+'EVEL.nc',decode_times=False)
+    vset = xr.open_dataset('ecco/TILEDATA/'+prefix+'NVEL.nc',decode_times=False)
     depths = thetaset.dep
-    ecco_grid = xr.open_dataset('ecco/TILEDATA/ARCTICGRID.nc')
+    ecco_grid = xr.open_dataset('ecco/TILEDATA/'+prefix+'GRID.nc')
     lons = ecco_grid.XC
     lats = ecco_grid.YC
 
@@ -204,7 +155,7 @@ def generateProfilesNative(savepath='data/eccoprofiles.pickle'):
         for j in range(90):
             lon = lons[i][j]
             lat = lats[i][j]
-            if lat >= 68 and not (lat<81 and -93 < lon < 20):
+            if coordFilter(lat,lon):
                 data = {}
                 data["lat"]=lat
                 data["lon"]=lon
@@ -224,7 +175,10 @@ def generateProfilesNative(savepath='data/eccoprofiles.pickle'):
                 
 
     print(len(profiles))
-    graph.plotProfiles(profiles,"profs")
+    graph.plotProfiles(profiles,"profs",region="nepb")
     with open(savepath, 'wb') as outfile:
         pickle.dump(profiles, outfile)
 
+
+#generateProfilesNative("ARCTIC",arcticRestrict,"data/ecconprofiles.pickle")
+#generateProfilesNative("NEPB",nepbRestrict,"data/ecconepbprofiles.pickle")

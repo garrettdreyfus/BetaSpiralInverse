@@ -13,6 +13,7 @@ import random
 from scipy.interpolate import Rbf
 import pyproj
 import bathtools
+import graph
 import copy
 import gsw
 import pygam
@@ -155,14 +156,18 @@ def removeNorwegianSea(profiles):
 ##finds the closest profile from a list of profiles in which
 # a neutral surface has already been found
 def closestIdentifiedNS(profiles,queryprofile,depth,radius,speedy=False):
+    if not hasattr(closestIdentifiedNS,"cache"):
+        closestIdentifiedNS.cache = {}
     minimumdistance = radius
     minprofile = None
     for p in profiles:
         if depth in p.neutraldepth.keys():
-            if speedy:
-                dist = np.sqrt((queryprofile.x-p.x)**2 + (queryprofile.y-p.y)**2)/10000
-            else:
+            eyeds = tuple(sorted((queryprofile.eyed,p.eyed)))
+            if eyeds not in closestIdentifiedNS.cache.keys():
                 dist = great_circle((queryprofile.lat,queryprofile.lon),(p.lat,p.lon)).km
+                closestIdentifiedNS.cache[eyeds] = dist
+            else:
+                dist = closestIdentifiedNS.cache[eyeds]
             if dist<minimumdistance:
                 minimumdistance = dist
                 minprofile = p
@@ -533,14 +538,14 @@ def spatialGrad(surfaces,k,distances,s,attr,factorx=1,factory=1):
 
 ##double derivative of conservative temperature with respect to salinity
 def d2thetads2(surfaces,k,s):
-    temps = surfaces[k]["data"]["t"][s[0:3]]
-    salts = surfaces[k]["data"]["s"][s[0:3]]
+    temps = surfaces[k]["data"]["t"][s[0:4]]
+    salts = surfaces[k]["data"]["s"][s[0:4]]
     l = np.argsort(salts)
     temps = temps[l]
     salts = salts[l]
-    d1 = (temps[1] - temps[0])/(salts[1] - salts[0])
-    d2 = (temps[2] - temps[1])/(salts[2] - salts[1])
-    return (d2-d1)/(salts[2] - salts[0])
+    grad1 = np.gradient(np.asarray([temps,salts]))[1][0]
+    grad2 = np.mean(np.gradient(np.asarray([grad1,salts]))[1][0])
+    return grad2
 
 ## set the horizontal gradient 
 def setSpatialGrad(out,data,k,s,distances,attr,attrx,attry,factorx=1,factory=1,mode="modify"):
@@ -557,10 +562,7 @@ def attrGrad(out,data,k,s,attry,attrx,outattr):
     sort = np.argsort(xs)
     xs = xs[sort]
     ys = ys[sort]
-    grad = []
-    for i in range(1,len(ys)-1):
-        grad.append((ys[i+1]-ys[i-1])/(xs[i+1]-xs[i-1]))
-    out[k]["data"][outattr][s[0]] = np.mean(grad)
+    out[k]["data"][outattr][s[0]] = np.mean(np.gradient([ys,xs])[1][0])
     return out
 
 ##add all non-vertical gradients
@@ -695,8 +697,8 @@ def streamFuncToUV(surfaces,neighbors,distances):
     return surfaces
 
 ##Add bathymetry and remove points below
-def addBathAndMask(surfaces,neighbors):
-    surfaces = bathtools.addBathToSurfaces(surfaces)
+def addBathAndMask(surfaces,neighbors,region):
+    surfaces = bathtools.addBathToSurfaces(surfaces,region)
     for k in Bar("Bath Masking").iter(surfaces.keys()):
         for l in range(len(surfaces[k]["lats"])):
             if abs(surfaces[k]["data"]["pres"][l]) > abs(surfaces[k]["data"]["z"][l]):
@@ -730,7 +732,15 @@ def addBathAndMask(surfaces,neighbors):
 
     return surfaces
    
-
+def addParametersToSurfaces(surfaces,neighbors,distances):
+    surfaces = addHeight(surfaces)
+    surfaces = addHorizontalGrad(surfaces,neighbors,distances)
+    surfaces = addBathAndMask(surfaces,neighbors,"nepb")
+    graph.graphSurfaces(surfaces,"z",region="nepb")
+    surfaces = addVerticalGrad(surfaces)
+    ptools.saveBathVarTermCache(surfaces,"data/bathVarecco.pickle")
+    surfaces = addK(surfaces,"data/bathVarecco.pickle")
+    return surfaces
 
     
 ##this is spicy. it takes a couple mat files and works out the stream function
