@@ -16,7 +16,6 @@ import bathtools
 import graph
 import copy
 import gsw
-import pygam
 import pickle
 #from gswmatlab.pyinterface import geo_strf_isopycnal
 import scipy.io as sio
@@ -171,21 +170,24 @@ def closestIdentifiedNS(profiles,queryprofile,depth,radius,speedy=False):
             if dist<minimumdistance:
                 minimumdistance = dist
                 minprofile = p
+            #elif minimumdistance != radius:
+                #print(dist)
     #print(minprofile.neutraldepth)
     return minprofile
 
 ## find profiles in a certain location
-def profileInBox(profiles,lonleft,lonright,latbot,lattop):
+def profileInBox(profiles,lonleft,lonright,latbot,lattop,depth):
     results=[]
     for p in profiles:
-        if lonleft< p.lon <lonright and latbot < p.lat < lattop:
+        if lonleft< p.lon <lonright and latbot < p.lat < lattop\
+            and np.max(abs(p.pres))>depth:
             results.append(p)
     return results
 
 ##create an empty surface
 def emptySurface():
     return {"lats":[],"lons":[],"ids":[],\
-            "data":{"pres":[],"t":[],"s":[],"pv":[],"n^2":[],"alpha":[],"beta":[]}}
+            "data":{"pres":[],"t":[],"s":[],"pv":[],"n^2":[],"alpha":[],"beta":[],"nsdiff":[]}}
 
 ##given a seed profile, finds neutral surfaces by comparing each profile 
 ## to the nearest profile with an identified neutral surface. Only quits
@@ -199,11 +201,13 @@ def peerSearch(profiles,depth,profilechoice,radius=500):
     references.append(profilechoice)
     while len(profiles)>0:
         foundcounter = 0
+        closestcounter = 0
         for p in profiles.copy():
             closest = closestIdentifiedNS(references,p,depth,radius)
             if closest:
+                closestcounter+=1
                 #print(closest.neutraldepth)
-                ns = closest.neutralDepth(p,closest.neutraldepth[depth],depthname=depth,searchrange=100) 
+                ns = closest.neutralDepth(p,closest.neutraldepth[depth],depthname=depth,searchrange=500) 
                 if ns != None:
                     surfaces[depth]["lons"].append(p.lon)
                     surfaces[depth]["lats"].append(p.lat)
@@ -211,11 +215,12 @@ def peerSearch(profiles,depth,profilechoice,radius=500):
                     surfaces[depth]["ids"].append(p.eyed)
                     profiles.remove(p)
                     foundcounter +=1
-                    references.append(p)
+                    #references.append(p)
         if foundcounter ==0:
             break
 
         print("found: ,",foundcounter,"left: ", len(profiles))
+        print("close enough: ",closestcounter)
         #plotProfiles(references,"ITS SPREADING",specialprofile = profilechoice)
     return surfaces
 
@@ -224,7 +229,7 @@ def runPeerSearch(profiles,shallowlimit,deeplimit,surfacestep,profilechoice,radi
     surfaces = {}
     for d in range(shallowlimit,deeplimit,surfacestep)[::-1]:
         print("NSearching: ",d)
-        surfaces.update(peerSearch(profiles.copy(),d,profilechoice,1000))
+        surfaces.update(peerSearch(profiles.copy(),d,profilechoice,radius))
     return surfaces
 
 ## faultyway of finding neutral surfaces in the arctic
@@ -297,15 +302,22 @@ def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
                     tempSurf["data"]["n^2"].append(pv*(9.8/gsw.f(p.lat)))
                     tempSurf["data"]["alpha"].append(gsw.alpha(s,t,surfaces[k]["data"]["pres"][l]))
                     tempSurf["data"]["beta"].append(gsw.beta(s,t,surfaces[k]["data"]["pres"][l]))
+                    if k in p.knownns.keys():
+                        tempSurf["data"]["nsdiff"].append(p.neutraldepth[k] - p.knownns[k])
+                    else:
+                        tempSurf["data"]["nsdiff"].append(np.nan)
+
+
+                    
         if len(tempSurf["lats"])>5:
             tempSurfs[k] = tempSurf
         print("\n###########"+str(k)+"#################")
         print(monthcount)
         print(monthnegativecount)
         print("############################")
-
-        print("ns: ",k," negative count: ",negativecount/len(surfaces[k]["lons"]),"pv mean:" ,np.mean(tempSurf["data"]["pv"]))
-    tempSurfs = addStreamFunc(tempSurfs,profiles)
+        if len(surfaces[k]["lons"])>0:
+            print("ns: ",k," negative count: ",negativecount/len(surfaces[k]["lons"]),"pv mean:" ,np.mean(tempSurf["data"]["pv"]))
+    #tempSurfs = addStreamFunc(tempSurfs,profiles)
     return tempSurfs
 
 
@@ -388,25 +400,10 @@ def nanCopySurfaces(surfaces):
                     "dbetadp","psi","psinew","dqdz","dqdx","dqdy",\
                     "d2qdz2","d2qdx2","d2qdy2","khp","khpterm","khpdz","toph",\
                     "both","dpsidx","dpsidy","ssh","ids","z","knownu"\
-                    ,"knownv","diffkr","kapgm","kapredi"]
+                    ,"knownv","diffkr","kapgm","kapredi","nsdiff"]
         for d in datafields:
             nancopy[k]["data"][d] = np.full(len(surfaces[k]["lons"]),np.nan)
     return nancopy
-
-def fillOutEmptyFields(surfaces):
-    for k in surfaces.keys():
-        datafields = ["u","v","hx","h","CKVB","hy","t","s","pv","pres",\
-                     "curl","uabs","vabs","uprime","vprime","dsdx","dsdz","dsdy",\
-                    "d2sdx2","d2sdy2","dtdx","dtdy","dpdx","dpdy","n^2",\
-                    "dqnotdx","dqnotdy","d2thetads2","dalphadtheta",\
-                    "alpha","beta","dalphads","dbetads","dalphadp",\
-                    "dbetadp","psi","dqdz","dqdx","dqdy","toph","both",\
-                    "d2qdz2","d2qdx2","d2qdy2","khp","khpdz","dpsidx","dpsidy"]
-        for d in datafields:
-            if d not in surfaces[k]["data"].keys():
-                surfaces[k]["data"][d] = np.full(len(surfaces[k]["lons"]),np.nan)
-    return surfaces
-
 #perform a vertical gradient of a quantity of a surface
 #WITH RESPECT TO PRESSURE NOT Z
 # out is a surface you are adding to 
@@ -621,7 +618,7 @@ def addStreamFunc(surfaces,profiles):
         for i in range(len(surfaces[k]["ids"])):
             if surfaces[k]["ids"][i] not in neutraldepths:
                 neutraldepths[surfaces[k]["ids"][i]] =[[],[]]
-            if abs(k)<3700 and int(abs(surfaces[k]["data"]["pres"][i])) not in neutraldepths[surfaces[k]["ids"][i]][1]:
+            if abs(k)<5000 and int(abs(surfaces[k]["data"]["pres"][i])) not in neutraldepths[surfaces[k]["ids"][i]][1]:
                 neutraldepths[surfaces[k]["ids"][i]][0].append(k)
                 neutraldepths[surfaces[k]["ids"][i]][1].append(int(abs(surfaces[k]["data"]["pres"][i])))
     refns = []
@@ -736,9 +733,8 @@ def addParametersToSurfaces(surfaces,neighbors,distances):
     surfaces = addHeight(surfaces)
     surfaces = addHorizontalGrad(surfaces,neighbors,distances)
     surfaces = addBathAndMask(surfaces,neighbors,"nepb")
-    graph.graphSurfaces(surfaces,"z",region="nepb")
     surfaces = addVerticalGrad(surfaces)
-    ptools.saveBathVarTermCache(surfaces,"data/bathVarecco.pickle")
+    ptools.saveBathVarTermCache(surfaces,"data/bathVarecco.pickle","nepb")
     surfaces = addK(surfaces,"data/bathVarecco.pickle")
     return surfaces
 

@@ -24,7 +24,7 @@ def nepbSearchBath(bathDataset,lat,lon):
         return np.nan
     f = bathDataset.sel(lon=lon, lat=lat, method='nearest')
     if ~np.isnan(f):
-        return float(f.elevation.values)
+        return float(-f.elevation.values)
     else:
         return f
 
@@ -49,9 +49,8 @@ def bathBox(lat,lon,region,length=28,spacing=0.1):
         flip = np.arange(-180,toprightlon,spacing*30)
         gridlons = np.concatenate((normal,flip))
     else:
-        gridlons = np.arange(botleftlon,toprightlon,spacing*30)
-
-    gridlats = np.arange(botleftlat,toprightlat,spacing*6)
+        gridlons = np.arange(botleftlon,toprightlon,spacing)
+    gridlats = np.arange(botleftlat,toprightlat,spacing)
     idx = np.round(np.linspace(0, len(gridlons) - 1, 10)).astype(int)
     gridlons = gridlons[idx]
     idx = np.round(np.linspace(0, len(gridlats) - 1, 10)).astype(int)
@@ -90,9 +89,8 @@ def addBathToSurface(surface,region):
         surface["data"]["z"][l] = dumbcache[(lat,lon)]
     return surface
 
-def searchBath(lat,lon,region="arctic"):
+def searchBath(lat,lon,region):
     regionToFunction = {"arctic":arcticSearchBath,"nepb":nepbSearchBath}
-    print(region)
     return regionToFunction[region](lat,lon)
 
 

@@ -9,19 +9,19 @@ import pickle
 import sensitivity
 import random
     
-#profiles,deepestindex = nstools.extractProfilesBox(["data/1500mprofiles.json"],-180,180,65,90)
-#profiles,deepestindex = nstools.removeNorwegianSea(profiles)
+profiles,deepestindex = nstools.extractProfilesBox(["data/1500mprofiles.json"],-180,180,65,90)
+profiles,deepestindex = nstools.removeNorwegianSea(profiles)
 
-#fileObject = open("data/1500NoNorwegian.pickle",'rb')  
+fileObject = open("data/1500NoNorwegian.pickle",'rb')  
 #offsets,badfiles,beepestindex = pickle.load(fileObject)
 
 ##profiles = nstools.filterCruises(profiles,offsets.keys())
 ##profiles = saloffset.applyOffsets(profiles,offsets)
 
 ###profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
-#profilechoice = nstools.getProfileById(profiles,"286364")
+profilechoice = nstools.getProfileById(profiles,"286364")
 #graph.plotProfiles(profiles,"UDASH DATA",nstools.getProfileById(profiles,"286364"))
-#surfaces = nstools.runPeerSearch(profiles,deepestindex,200,4000,200,profilechoice,1000)
+surfaces = nstools.runPeerSearch(profiles,200,4000,200,profilechoice,1000)
 
 #with open('data/annotatedprofiles.pickle', 'wb') as outfile:
     #pickle.dump(profiles, outfile)
@@ -44,10 +44,9 @@ import random
 ##with open('data/286364new.pickle', 'rb') as outfile:
   ##surfaces=pickle.load(outfile)
 
-#surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
+surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
 #surfaces = nstools.addStreamFunc(surfaces,profiles)
 
-#surfaces =interptools.addXYToSurfaces(surfaces)
 #surfaces,neighbors,distances = interptools.interpolateSurfaces(surfaces)
 #surfaces = nstools.fillOutEmptyFields(surfaces)
 #surfaces = nstools.addHeight(surfaces)

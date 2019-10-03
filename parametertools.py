@@ -12,8 +12,8 @@ def calcBeta(lat):
     return (2*omega*np.cos(lat))/a
 
 ## calcute the bathymetric variability term
-def bathVarTerm(lat,lon):
-    d=bathtools.bathBox(lat,lon)
+def bathVarTerm(lat,lon,region):
+    d=bathtools.bathBox(lat,lon,region)
     dnot = 750
     return (np.var(d)/dnot)**(0.25)
 
@@ -35,7 +35,7 @@ def calculateKHP(staggered,k,index):
 
 ## this stuff takes a long time to calculate so this
 ## throws everything into a pickle for later
-def saveBathVarTermCache(surfaces,outfilename):
+def saveBathVarTermCache(surfaces,outfilename,region):
     bathVar = {}
     coords = []
     for k in surfaces.keys():
@@ -43,7 +43,7 @@ def saveBathVarTermCache(surfaces,outfilename):
     coords = set(coords)
     for p in  Bar("var coord :").iter(coords):
         if not (np.isnan(p[0]) and np.isnan(p[1])):
-            d=bathtools.bathBox(p[1],p[0])
+            d=bathtools.bathBox(p[1],p[0],region)
             dnot = 750
             bathVar[p] = (np.var(d)/dnot)**(0.25)
     with open(outfilename, 'wb') as outfile:
@@ -66,7 +66,7 @@ def Kv(lat,lon,pv,pres,cachename=None):
        bVT = bathVarTermCache(lat,lon,cachename) 
     else:
         bVT = bathVarTerm(lat,lon)
-    return bVT*np.exp(-(abs(bathtools.searchBath(lat,lon))-abs(pres))/500)
+    return bVT*np.exp(-(abs(bathtools.searchBath(lat,lon,"nepb"))-abs(pres))/500)
 
 #function for exploring k mixing term values
 def kChecker(surfaces,k,found,scales,debug=False):
@@ -212,7 +212,8 @@ def fetchWithFallback(surfaces,k,q,found,fallback=None):
         return r
 ## file that generates the mixing terms of the Fq and Fs
 ## given a surfaces object, a depth and an index
-def kterms(surfaces,k,found,params,debug=False,fallback=None):
+def kterms(surfaces,k,found,params,fallback=None):
+    debug = params["debug"]
     scales = params["scalecoeffs"]
     f = gsw.f(surfaces[k]["lats"][found])
     x = surfaces[k]["x"][found]
@@ -261,23 +262,24 @@ def kterms(surfaces,k,found,params,debug=False,fallback=None):
     isitnan = [alpha,betaTherm,dsdz,hx,hy,dsdx,dsdy,pres,d2sdx2,d2sdy2,\
               dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
               dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
-              beta,dkhpdz,d2qdx2,d2qdy2,khp,toph,both,uref,vref]
+              beta,d2qdx2,d2qdy2,d2qdz2,khp,toph,both,uref,vref]
+    isitnanstr = np.asarray(["alpha","betaTherm","dsdz","hx","hy","dsdx","dsdy","pres","d2sdx2","d2sdy2",\
+              "dalphadtheta","dalphads","dalphadp","dbetadp","dbetads","dtdx","dtdy",\
+              "dqnotdx","dqnotdy","dpdx","dpdy","alphat","alphap","pv","doublets","CKVB",\
+              "beta","d2qdx2","d2qdy2","d2qdz2","khp","toph","both","uref","vref"])
     kvoscale = scales["kvo"]
     kvbscale = scales["kvb"]
     khscale  = scales["kh"]
     if (np.isnan(isitnan).any()):
         if debug:
-            print("pres is nan: ",np.isnan(pres))
-            print("hx is nan: ",np.isnan(hx))
-            print("hy is nan: ",np.isnan(hy))
-            print("x is nan: ",np.isnan(x))
-            print("y is nan: ",np.isnan(y))
+            print(isitnanstr[np.isnan(isitnan)])
             print("something here is nan")
         return {},{}
     if not (np.isnan(isitnan).any()):
         pvkvb = (d2qdz2+2*(1/200.0)*dqdz+(1/(200.0**2))*pv)*CKVB
         pvkvo = d2qdz2
         if params["modelmixing"]:
+            print("NO")
             pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv - f*dkhpdz/(surfaces[k]["data"]["kapredi"][found])
         else:
             pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv -((1.0/both-1.0/toph)*f*khp)

@@ -1,6 +1,10 @@
-from nstools import *
 import bathtools
-
+import nstools
+import pygam
+import numpy as np
+import itertools
+from geopy.distance import geodesic
+from progress.bar import Bar
 #add x and y to surfaces. x and y necesarry for interpolation
 def addXYToSurfaces(surfaces,debug=True):
     if debug:
@@ -11,6 +15,21 @@ def addXYToSurfaces(surfaces,debug=True):
         surfaces[k]["x"]=x
         surfaces[k]["y"]=y
     return surfaces
+
+def fillOutEmptyFields(surfaces):
+    for k in surfaces.keys():
+        datafields = ["u","v","hx","h","CKVB","hy","t","s","pv","pres",\
+                     "curl","uabs","vabs","uprime","vprime","dsdx","dsdz","dsdy",\
+                    "d2sdx2","d2sdy2","dtdx","dtdy","dpdx","dpdy","n^2",\
+                    "dqnotdx","dqnotdy","d2thetads2","dalphadtheta",\
+                    "alpha","beta","dalphads","dbetads","dalphadp",\
+                    "dbetadp","psi","dqdz","dqdx","dqdy","toph","both",\
+                    "d2qdz2","d2qdx2","d2qdy2","khp","khpdz","dpsidx","dpsidy"]
+        for d in datafields:
+            if d not in surfaces[k]["data"].keys():
+                surfaces[k]["data"][d] = np.full(len(surfaces[k]["lons"]),np.nan)
+    return surfaces
+
 
 ##sometimes points are too close together and the interpolation
 ## loses it so we just smooth em
@@ -65,7 +84,7 @@ def createMesh(n,xvals,yvals,fixedgrid="arctic"):
 
 #generate a mesh and remove points in that mesh 
 #which are too far away from locations with observations
-def generateMaskedMesh(x,y,radius=200,fixedgrid="arctic"):
+def generateMaskedMesh(x,y,radius=1000,fixedgrid="arctic"):
     xi,yi = createMesh(30,x,y,fixedgrid=fixedgrid)
     final = np.zeros(xi.shape)
     neighbors = []

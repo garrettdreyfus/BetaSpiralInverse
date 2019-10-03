@@ -46,28 +46,30 @@ profilechoice = profiles[deepestindex]
 #with open('data/preparameter.pickle', 'wb') as outfile:
     #pickle.dump([surfaces,neighbors,distances], outfile)
 
-with open('data/preparameter.pickle', 'rb') as outfile:
-    [surfaces,neighbors,distances ] = pickle.load(outfile)
+#with open('data/preparameter.pickle', 'rb') as outfile:
+    #[surfaces,neighbors,distances ] = pickle.load(outfile)
 
-surfaces = nstools.addParametersToSurfaces(surfaces,neighbors,distances)
+#surfaces = nstools.addParametersToSurfaces(surfaces,neighbors,distances)
 
-with open('data/ready4inverseecco.pickle', 'wb') as outfile:
-    pickle.dump([surfaces,neighbors,distances], outfile)
+#with open('data/ready4inverseecco.pickle', 'wb') as outfile:
+    #pickle.dump([surfaces,neighbors,distances], outfile)
 
 
-#with open('data/ready4inverseecco.pickle', 'rb') as outfile:
-    #[surfaces,neighbors,distances]=pickle.load(outfile)
+with open('data/ready4inverseecco.pickle', 'rb') as outfile:
+    [surfaces,neighbors,distances]=pickle.load(outfile)
 #for q in surfaces[1000]["data"].keys():
-    #graph.graphSurfaces(surfaces,q,savepath="refpics/eccoallquantsnewgrid/",show=False)
+    #graph.graphSurfaces(surfaces,q,savepath="refpics/surfaces/ecconpeballquants/",show=False,region="nepb")
 
 
 #sensitivity.mixSens("coupled",surfaces,neighbors,distances,savepath="refpics/sensitivity/bathmasked")
 #params = {"mixs":{"kvo":False,"kvb":False,"kh":False},"modelmixing":False}
-#params = {"mixs":{"kvo":False,"kvb":False,"kh":False},"debug":False,"modelmixing":True}
+#params = {"mixs":{"kvo":False,"kvb":False,"kh":False},"debug":False,"modelmixing":False}
 #sensitivity.conditionErrorRefLevel("coupled",surfaces,neighbors,distances,params=params)
 ##sensitivity.conditionError("coupled",staggeredsurfaces,neighbors,distances)
 
-params = {"reflevel":1000,"upperbound":1000,"lowerbound":1400,"mixs":{"kvo":False,"kvb":False,"kh":False},\
+#graph.graphVectorField(surfaces,"knownu","knownv","z",region="nepb",transform=False)
+
+params = {"reflevel":600,"upperbound":600,"lowerbound":1200,"mixs":{"kvo":False,"kvb":False,"kh":False},\
         "debug":False,"modelmixing":False}
 
 out = inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
@@ -96,8 +98,10 @@ inv = nstools.streamFuncToUV(inv,neighbors,distances)
 #plt.plot(surfs,eccovelsurfaces,label="ECCOMEAN")
 #plt.legend()
 #plt.show()
-graph.graphVectorField(inv,"uabs","vabs","z")
-#graph.saveAllQuants(inv,"refpics/surfaces/eccoallquants/")
+#graph.graphVectorField(inv,"uabs","vabs","z",region="nepb")
+#graph.saveAllQuants(surfaces,"refpics/surfaces/eccoallquantsnepb/","nepb")
+graph.graphVectorField(surfaces,"knownu","knownv","z",region="nepb",show=False,transform=False,savepath="refpics/vectorfields/eccomodelnepb/")
+graph.graphVectorField(surfaces,"u","v","z",region="nepb",show=False,savepath="refpics/vectorfields/eccogeonepb/")
 #graph.graphVectorField(inv,"uref","vref",savepath="refpics/vectorfields/RefEcco/",show=False)
 #graph.graphVectorField(inv,"u","v","z",show=False,savepath="refpics/vectorfields/nativegeostroph/")
 #nstools.surfaceDiagnostic(surfaces)

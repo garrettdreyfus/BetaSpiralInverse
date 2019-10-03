@@ -5,10 +5,11 @@ import datetime
 import matplotlib.pyplot as plt
 from scipy import interpolate
 import mygsw
+#import gswmatlab.pyinterface as matgsw
 
 
 class Profile:
-    def __init__(self,eyed, data):
+    def __init__(self,eyed, data,ct=False,abssal=False):
         ##id of profiles plus info
         self.eyed = eyed
         self.lat = data["lat"]
@@ -27,15 +28,24 @@ class Profile:
             self.knownv = np.asarray(data["knownv"])
         else:
             self.knownv =np.array([])
+        if "knownns" in data.keys():
+            self.knownns = np.asarray(data["knownns"])
+        else:
+            self.knownns =np.array([])
+
         #Temerature Salinity and Pressure
         self.temps = np.asarray(data["temp"])
         self.sals = np.asarray(data["sal"])
         self.pres = np.asarray(data["pres"])
+        if not abssal:
+            self.sals = gsw.SA_from_SP(self.sals,self.pres,self.lon,self.lat)
+        if not ct:
+            self.temps = gsw.CT_from_t(self.sals,self.temps,np.abs(self.pres))
+
         s = np.argsort(self.pres)
         self.temps = self.temps[s]
         self.sals = self.sals[s]
         self.pres = self.pres[s]
-        self.temps = gsw.CT_from_t(self.sals,self.temps,np.abs(self.pres))
         ##Interpolated Temperature, Salinity, and Pressure
         self.itemps = []
         self.isals = []
@@ -77,8 +87,7 @@ class Profile:
     def interpolate(self):
         self.ipres = range(int(min(self.pres)),int(max(self.pres)))
         if len(self.pres)>4:
-            tck = interpolate.splrep(self.pres,self.sals)
-            self.isals = interpolate.splev(self.ipres,tck)
+            self.isals = np.interp(self.ipres,self.pres,self.sals)
             self.itemps = np.interp(self.ipres,self.pres,self.temps)
             if self.knownu.any() and self.knownv.any():
                 self.knownu = np.interp(self.ipres,self.pres,self.knownu)
@@ -191,8 +200,12 @@ class Profile:
     #essentialy find depth between on one profile at which the 
     # at which potential density reference to the average pressure between
     ## the two points is equal
-    def neutralDepth(self,p2,depth,debug=False,searchrange=50,depthname=None):
+    def neutralDepth(self,p2,depth,debug=False,searchrange=100,depthname=None):
+        searchrange = int(min(abs(self.ipres[0]-depth),abs(self.ipres[-1]-depth),\
+                            abs(p2.ipres[0]-depth),abs(p2.ipres[-1]-depth),searchrange))
         try:
+            if searchrange <2:
+                return None
             depth=int(depth)
             if depthname ==None:
                 depthname=depth
@@ -220,25 +233,32 @@ class Profile:
             selfdensity=self.calculateDensity(self.isals[startindexself+searchrange],self.itemps[startindexself+searchrange],(p2.ipres[index+startindexp2]+depth)/2.0)
             Es.append(p2density-selfdensity)
         zero_crossings = np.where(np.diff(np.sign(Es)))[0]
-        zeroes = np.where(np.abs(Es) <0.1)[0]
+        #if depth>3000:
+            #plt.plot(p2.ipres[startindexp2:startindexp2+200],Es)
+            #for j in zero_crossings:
+                #plt.gca().axvline(p2.ipres[startindexp2]+j)
+            #plt.show()
+        smallest = np.argmin(np.abs(Es))
         #plt.plot(Es,self.ipres[startindexself:startindexself+2*searchrange])
         #plt.show()
-        if len(zero_crossings)==1 :
-            p2.neutraldepth[depthname] = p2.ipres[startindexp2+zero_crossings[0]]
-            #print("One zero crossing")
-            return p2.ipres[startindexp2+zero_crossings[0]]
-        elif len(zero_crossings) > 1 :
-            p2.neutraldepth[depthname] = (p2.ipres[startindexp2+zero_crossings[0]] + p2.ipres[startindexp2+zero_crossings[-1]])/2.0
+        if len(zero_crossings)>=1 :
+            if abs(p2.ipres[zero_crossings[0]] - p2.ipres[zero_crossings[-1]])>100:
+                return None
+            a  =np.asarray(startindexp2+zero_crossings)
+            p2.neutraldepth[depthname] = np.mean(np.asarray(p2.ipres)[a])
             #print("More than one crossing")
             return p2.neutraldepth[depthname]
-        elif len(zeroes)==1:
+        elif abs(Es[smallest])<0.005:
             #print("One zero")
-            p2.neutraldepth[depthname] = p2.ipres[startindexp2+zeroes[0]]
-            return p2.ipres[startindexp2+zeroes[0]]
-
+            #p2.neutraldepth[depthname] = p2.ipres[startindexp2+smallest]
+            #return p2.neutraldepth[depthname]
+            return None
         else:
+
             #print("not a single zero crossing")
             #print(self.cruise,p2.cruise)
+            #p2.neutraldepth[depthname] = p2.ipres[startindexp2]
+            #return p2.ipres[startindexp2]
             return None
 
     ## this thing is a little bit wild

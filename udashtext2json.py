@@ -7,13 +7,14 @@ import numpy as np
 from netCDF4 import Dataset
 import json
 import glob
+from progress.bar import Bar
 
 
 def extractProfiles(fnames,depthlimit):
     lons = []
     lats=[]
     profileDict = {}
-    for fname in fnames:
+    for fname in Bar("files: ").iter(fnames):
         print(fname)
         f = open(fname, 'r')
         for line in f:
@@ -49,8 +50,8 @@ def extractProfiles(fnames,depthlimit):
 #with open('data/profiles.json', 'w') as outfile:
     #json.dump(extractProfiles(glob.glob("data/udashtxtdata/*.txt")), outfile)
 
-with open('data/1000mprofiles.json', 'w') as outfile:
-    json.dump(extractProfiles(glob.glob("data/udashtxt/*.txt"),1000), outfile)
+with open('data/1500mprofiles.json', 'w') as outfile:
+    json.dump(extractProfiles(glob.glob("data/udashtxt/*.txt"),1500), outfile)
 
 
 

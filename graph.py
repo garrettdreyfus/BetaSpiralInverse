@@ -72,11 +72,17 @@ def graphNeighbors(surfaces,neighbors):
             plt.show()
 
 ## zoom given map and axis into the arctic.
-def zoomGraph(m,ax):
-    lllon = -136
-    urlon = 78
-    lllat = 55
-    urlat = 63
+def zoomGraph(m,ax,region):
+    if region == "arctic":
+        lllon = -136
+        urlon = 78
+        lllat = 55
+        urlat = 63
+    if region == "nepb":
+        lllon = 170
+        urlon = -100
+        lllat = 0
+        urlat = 60
 
     xmin, ymin = m(lllon, lllat)
     xmax, ymax = m(urlon, urlat)
@@ -95,12 +101,11 @@ def mapSetup(coords,region="arctic",newax=True):
         fig=None
         ax=None
     if region != "auto":
-        mapy = Basemap(projection='ortho', lat_0=regions[region][0],lon_0=regions[region][1])
-        if region == "arctic":
-            zoomGraph(mapy,ax)
+        mapy = Basemap(projection='ortho', lat_0=regions[region][0],lon_0=regions[region][1],area_thresh=10)
     mapy.drawmapboundary(fill_color='aqua')
     mapy.fillcontinents(color='coral',lake_color='aqua')
     mapy.drawcoastlines()
+    zoomGraph(mapy,ax,region)
     return fig,ax,mapy
 
 ## analagous to graphSurfaces but you can provide a second surfaces object
@@ -144,6 +149,8 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
     for i in surfaces.keys():
         if len(surfaces[i]["lons"])>3 and len(surfaces[i]["data"][quantindex])>3:
             fig,ax,mapy = mapSetup(surfaces,region=region)
+            mapy.drawparallels(np.linspace(-90,90,19))
+            mapy.drawmeridians(np.linspace(-180, 180, 37))
             x,y = mapy(surfaces[i]["lons"],surfaces[i]["lats"])
             d = np.asarray(surfaces[i]["data"][quantindex])
             ids = np.asarray(surfaces[i]["ids"])
@@ -158,7 +165,7 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
                 s = np.nanstd(d)
                 print("################")
                 if colorlimit:
-                    #plt.clim(m-2*s,m+2*s)
+                    plt.clim(m-2*s,m+2*s)
                     #plt.clim(i-400,i+400)
                     mapy.colorbar()
             #map the reference profile
@@ -323,7 +330,7 @@ def graphStaggeredSurface(surfaces,neighbors,debug=False):
 
 ## graph a vector field given a surfaces object on a map
 ## any quantity can be supplied as a background field
-def graphVectorField(surfaces,key1,key2,backgroundfield="pv",transform=True,savepath=False,show=True,metadata={}):
+def graphVectorField(surfaces,key1,key2,backgroundfield="pv",region="arctic",transform=True,savepath=False,show=True,metadata={}):
 
     if savepath:
         try:
@@ -332,11 +339,7 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",transform=True,save
             print(e)
         writeInfoFile(savepath,metadata)
     for k in surfaces.keys():
-        fig,ax = plt.subplots(1,1)
-        mapy = Basemap(projection='ortho', lat_0=90,lon_0=-60)
-        mapy.drawmapboundary(fill_color='aqua')
-        mapy.fillcontinents(color='coral',lake_color='aqua')
-        mapy.drawcoastlines()
+        fig,ax,mapy = mapSetup([],region=region)
         urs=[]
         uthetas=[]
         lons = []
@@ -365,13 +368,13 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",transform=True,save
 
         urs.append(0.1)
         uthetas.append(0)
-        lons.append(89)
-        lats.append(89)
+        lons.append(-150)
+        lats.append(40)
 
         urs.append(0)
         uthetas.append(0.1)
-        lons.append(89)
-        lats.append(89)
+        lons.append(-150)
+        lats.append(40)
 
         fig.suptitle(key1+"," + key2 + " NS: "+str(k))
         urs = np.asarray(urs)
@@ -390,8 +393,10 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",transform=True,save
                 bgfield = gsw.f(surfaces[k]["lats"][a])/surfaces[k]["data"]["z"][a]
             plt.tricontourf(xpv,ypv,bgfield,levels=50)
             #plt.scatter(xpv,ypv,c=bgfield)
-            #plt.clim(np.min(bgfield),np.max(bgfield))
-            #mapy.colorbar()
+            m = np.nanmedian(bgfield)
+            s = np.nanstd(bgfield)
+            plt.clim(m-2*s,m+2*s)
+            mapy.colorbar()
             mapy.quiver(x,y,u,v,mag,cmap="cool",width = 0.002)
             if savepath:
                 plt.savefig(savepath+key1+key2+"/ns"+str(k)+".png")
@@ -687,7 +692,7 @@ def graphProfilesVectorField(profiles,depths=range(200,4000,200),savepath=False,
         lons = []
         lats = []
         bgfield = []
-        fig,ax,mapy = mapSetup(profiles,region=region)
+        fig,ax,mapy = mapSetup([],region=region)
         for p in profiles[::2]:
             if k in p.neutraldepth.keys() and 1000 in p.neutraldepth.keys():
                 i = p.ipresIndex(p.neutraldepth[k])
@@ -737,9 +742,9 @@ def distanceHist(distances):
         plt.hist(distances[k].values())
         plt.show()
 
-def saveAllQuants(surfaces,savepath):
+def saveAllQuants(surfaces,savepath,region="arctic"):
     for d in surfaces[1000]["data"].keys():
-        graphSurfaces(surfaces,d,show=False,savepath=savepath)
+        graphSurfaces(surfaces,d,show=False,savepath=savepath,region=region)
 
         
 

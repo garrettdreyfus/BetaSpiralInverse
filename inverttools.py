@@ -309,7 +309,6 @@ def mixSwitch(mixing,switchs):
     return scales
 #full coupled inverse with mixing terms
 def coupledInvert(surfaces,neighbors,distances,params={}):
-    params["edgeguard"]=False
     surfaces = copy.deepcopy(surfaces)
     Apsi,Akvb,Akh,Akvo,c=[],[],[],[],[]
     us = [0]*100000
@@ -348,8 +347,9 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
                     fqcrows.append(crow)
                     crow = crow+ptools.calcFQ(surfaces,k,s[0],params["scalecoeffs"],kpv,distances)
                     fqs.append(ptools.calcFQ(surfaces,k,s[0],params["scalecoeffs"],kpv,distances))
-
-                #l = np.concatenate((betavals/n,kpv[params["mixs"]]/n))
+                #print(betavals)
+                #print(mixSwitch(kpv,params["mixs"]))
+                #l = np.concatenate((betavals/n,mixSwitch(kpv,params["mixs"])/n))
                 #plt.bar(range(len(l)),np.abs(l))
                 ##plt.yscale("log")
                 #plt.title("beta: "+str(np.sum(np.power(l,2))))
@@ -430,18 +430,19 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
     Akvo.insert(0,[0])
     c.insert(0,0)
     us.insert(0,0)
-    plt.plot(np.abs(fqcrows),color="red",label="c")
-    plt.plot(np.abs(fqs),color="blue",label="FQ")
-    plt.legend()
-    plt.yscale("log")
-    plt.title("FQ vs c")
-    plt.show()
-    plt.title("FS vs c")
-    plt.plot(np.abs(fscrows),color="red",label="c")
-    plt.plot(np.abs(fss),color="blue",label="FS")
-    plt.legend()
-    plt.yscale("log")
-    plt.show()
+    #if params["debug"]:
+        #plt.plot(np.abs(fqcrows),color="red",label="c")
+        #plt.plot(np.abs(fqs),color="blue",label="FQ")
+        #plt.legend()
+        #plt.yscale("log")
+        #plt.title("FQ vs c")
+        #plt.show()
+        #plt.title("FS vs c")
+        #plt.plot(np.abs(fscrows),color="red",label="c")
+        #plt.plot(np.abs(fss),color="blue",label="FS")
+        #plt.legend()
+        #plt.yscale("log")
+        #plt.show()
     ##We now have all the terms we need, we just need to reshape and concatenate
     m = columndictionary["max"]+1
     us = us[:m]
@@ -622,12 +623,14 @@ def rectAndWidths(maxlengths,totrim,arrays):
     widths = []
     for i in range(len(arrays)):
         x  = np.asarray(rectangularize(arrays[i],maxlengths[i]))
-        print(x.shape)
+        print("====")
+        print("before: ",x.shape)
         if np.all(x == 0, axis=0).any():
             print("removing 0 columns")
         if i in totrim:
             x = x[:,~np.all(x == 0, axis=0)]
-        print(x.shape)
+        print("after: ",x.shape)
+        print("====")
         widths.append(x.shape[1])
         new.append(x)
     return new,widths
