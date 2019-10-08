@@ -84,8 +84,8 @@ def createMesh(n,xvals,yvals,fixedgrid="arctic"):
 
 #generate a mesh and remove points in that mesh 
 #which are too far away from locations with observations
-def generateMaskedMesh(x,y,radius=1000,fixedgrid="arctic"):
-    xi,yi = createMesh(30,x,y,fixedgrid=fixedgrid)
+def generateMaskedMesh(x,y,radius=100,fixedgrid="arctic"):
+    xi,yi = createMesh(40,x,y,fixedgrid=fixedgrid)
     final = np.zeros(xi.shape)
     neighbors = []
     for i in range(len(x)):

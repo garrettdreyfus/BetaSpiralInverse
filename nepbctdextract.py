@@ -25,11 +25,13 @@ def nepbCTDExtract(fname,savepath):
     CT = np.asarray(ctddata["CT"]).T
     SA = np.asarray(ctddata["Sint_abs"]).T
     nspres = np.asarray(ctddata["P_gamma"]).T
+    PV = np.asarray(ctddata["PV"]).T
     ns = np.asarray(ctddata["P_gref"])
     profiles = []
     for p in Bar("profile").iter(range(len(lats))):
         data = {}
         knownns = {}
+        knownpv = {}
         if lats[p]>20 and lons[p]<0 or lons[p] > 170:
             data["lat"]=lats[p]
             data["lon"]=lons[p]
@@ -53,7 +55,10 @@ def nepbCTDExtract(fname,savepath):
                     data["pres"].append(singlepres)
             for a in range(len(ns)):
                 knownns[ns[a][0]]=nspres[p][a]
+            for a in range(len(ns)):
+                knownpv[ns[a][0]]=PV[p][a]
             data["knownns"]=knownns
+            data["knownpv"]=knownpv
 
             if len(data["pres"])>4 and max(data["pres"])>1500:
                 eyed=idgenerator()

@@ -187,7 +187,8 @@ def profileInBox(profiles,lonleft,lonright,latbot,lattop,depth):
 ##create an empty surface
 def emptySurface():
     return {"lats":[],"lons":[],"ids":[],\
-            "data":{"pres":[],"t":[],"s":[],"pv":[],"n^2":[],"alpha":[],"beta":[],"nsdiff":[]}}
+            "data":{"pres":[],"t":[],"s":[],"pv":[],"n^2":[],"alpha":[],\
+            "beta":[]}}
 
 ##given a seed profile, finds neutral surfaces by comparing each profile 
 ## to the nearest profile with an identified neutral surface. Only quits
@@ -227,7 +228,7 @@ def peerSearch(profiles,depth,profilechoice,radius=500):
 ## runs the peer search on every neutral surface essentially
 def runPeerSearch(profiles,shallowlimit,deeplimit,surfacestep,profilechoice,radius):
     surfaces = {}
-    for d in range(shallowlimit,deeplimit,surfacestep)[::-1]:
+    for d in range(shallowlimit,deeplimit,surfacestep):
         print("NSearching: ",d)
         surfaces.update(peerSearch(profiles.copy(),d,profilechoice,radius))
     return surfaces
@@ -276,13 +277,12 @@ def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
         monthnegativecount = [0]*13
         for l in range(len(surfaces[k]["lons"])):
             p = getProfileById(profiles,surfaces[k]["ids"][l])
-            above,below = findAboveIndex(surfaces,k,l)
             if p and not np.isnan(p.isals).any() :
-                if (above or below):
-                    pv = p.potentialVorticityBetween(above,below)
-                    t,s = p.betweenPres(above,below)
+                if (surfaces[k]["data"]["pres"][l]+35 in p.ipres and surfaces[k]["data"]["pres"][l]-35 in p.ipres):
+                    pv = p.potentialVorticityAtHautala(surfaces[k]["data"]["pres"][l])
+                    t,s = p.betweenPres(surfaces[k]["data"]["pres"][l]+35,surfaces[k]["data"]["pres"][l]-3)
                 else:
-                    pv = p.potentialVorticityAt(surfaces[k]["data"]["pres"][l])
+                    pv = np.nan
                     t,s = p.atPres(surfaces[k]["data"]["pres"][l])
                 #monthcount[p.time.month]=monthcount[p.time.month]+1
                 if pv and pv<0:
@@ -302,10 +302,6 @@ def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
                     tempSurf["data"]["n^2"].append(pv*(9.8/gsw.f(p.lat)))
                     tempSurf["data"]["alpha"].append(gsw.alpha(s,t,surfaces[k]["data"]["pres"][l]))
                     tempSurf["data"]["beta"].append(gsw.beta(s,t,surfaces[k]["data"]["pres"][l]))
-                    if k in p.knownns.keys():
-                        tempSurf["data"]["nsdiff"].append(p.neutraldepth[k] - p.knownns[k])
-                    else:
-                        tempSurf["data"]["nsdiff"].append(np.nan)
 
 
                     
@@ -317,7 +313,7 @@ def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
         print("############################")
         if len(surfaces[k]["lons"])>0:
             print("ns: ",k," negative count: ",negativecount/len(surfaces[k]["lons"]),"pv mean:" ,np.mean(tempSurf["data"]["pv"]))
-    #tempSurfs = addStreamFunc(tempSurfs,profiles)
+    tempSurfs = addStreamFunc(tempSurfs,profiles)
     return tempSurfs
 
 
@@ -624,7 +620,7 @@ def addStreamFunc(surfaces,profiles):
     refns = []
     refns_p = []
     for k in neutraldepths.keys():
-        if len(neutraldepths[k][0])==18:
+        if len(neutraldepths[k][0])==len(surfaces.keys()):
             p = getProfileById(profiles,k)
             for j in range(len(neutraldepths[k][0])):
                 if ~np.isnan(p.sigma2(neutraldepths[k][1][j])) and neutraldepths[k][0][j] not in refns:
@@ -737,6 +733,14 @@ def addParametersToSurfaces(surfaces,neighbors,distances):
     ptools.saveBathVarTermCache(surfaces,"data/bathVarecco.pickle","nepb")
     surfaces = addK(surfaces,"data/bathVarecco.pickle")
     return surfaces
+
+def artificialPSIRef(surfaces,reflevel = 1700):
+    for k in Bar("artifical ref").iter(surfaces.keys()):
+        surfaces[k]["data"]["psiref"] = np.full_like(surfaces[k]["data"]["pres"],np.nan)
+        for l in range(len(surfaces[k]["ids"])):
+            if surfaces[k]["ids"][l] in surfaces[reflevel]["ids"]:
+                at = np.where(np.asarray(surfaces[reflevel]["ids"]) == surfaces[k]["ids"][l])[0][0]
+                surfaces[k]["data"]["psiref"][l] = surfaces[k]["data"]["psi"][l] - surfaces[reflevel]["data"]["psi"][at]
 
     
 ##this is spicy. it takes a couple mat files and works out the stream function

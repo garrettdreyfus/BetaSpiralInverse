@@ -4,6 +4,7 @@ from interptools import *
 import os
 import datetime
 import git
+import cmocean
 
 ##Graph a given quantity over a transect given a surfaces object
 ## savepath and show control whether the images should be saved and whether graphs should be displayed
@@ -83,25 +84,30 @@ def zoomGraph(m,ax,region):
         urlon = -100
         lllat = 0
         urlat = 60
+    if region != "nepbmerc":
+        xmin, ymin = m(lllon, lllat)
+        xmax, ymax = m(urlon, urlat)
 
-    xmin, ymin = m(lllon, lllat)
-    xmax, ymax = m(urlon, urlat)
+        ax = plt.gca()
 
-    ax = plt.gca()
-
-    ax.set_xlim([xmin, xmax])
-    ax.set_ylim([ymin, ymax])
+        ax.set_xlim([xmin, xmax])
+        ax.set_ylim([ymin, ymax])
 
 def mapSetup(coords,region="arctic",newax=True):
     regions = {"arctic":[90,-60],
-                "nepb":[40,-150]}
+                "nepb":[40,-150],
+                "nepbmerc":[20,60,-170,-120]}
     if newax:
         fig,ax = plt.subplots(1,1)
     else:
         fig=None
         ax=None
-    if region != "auto":
+    if region != "auto" and region != "nepbmerc":
         mapy = Basemap(projection='ortho', lat_0=regions[region][0],lon_0=regions[region][1],area_thresh=10)
+    elif region == "nepbmerc":
+        mapy = Basemap(projection='merc', llcrnrlat=regions[region][0],urcrnrlat=regions[region][1],\
+            llcrnrlon=regions[region][2],urcrnrlon=regions[region][3],lat_ts=40,area_thresh=10)
+
     mapy.drawmapboundary(fill_color='aqua')
     mapy.fillcontinents(color='coral',lake_color='aqua')
     mapy.drawcoastlines()
@@ -146,7 +152,7 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
         except FileExistsError as e:
             print(e)
         writeInfoFile(savepath)
-    for i in surfaces.keys():
+    for i in list(surfaces.keys()):
         if len(surfaces[i]["lons"])>3 and len(surfaces[i]["data"][quantindex])>3:
             fig,ax,mapy = mapSetup(surfaces,region=region)
             mapy.drawparallels(np.linspace(-90,90,19))
@@ -158,16 +164,16 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
             y = np.asarray(y)
             #Plot the surface 
             if contour:
-                plt.tricontourf(x,y,np.asarray(surfaces[i]["data"][quantindex]),cmap="plasma")
+                plt.tricontourf(x,y,np.asarray(surfaces[i]["data"][quantindex]),cmap=cmocean.cm.haline,levels=30)
             else:
-                plt.scatter(x,y,c=d,cmap="plasma")
-                m = np.nanmedian(d)
-                s = np.nanstd(d)
-                print("################")
-                if colorlimit:
-                    plt.clim(m-2*s,m+2*s)
-                    #plt.clim(i-400,i+400)
-                    mapy.colorbar()
+                plt.scatter(x,y,c=d,cmap=cmocean.cm.haline)
+            m = np.nanmedian(d)
+            s = np.nanstd(d)
+            print("################")
+            if colorlimit:
+                plt.clim(m-2*s,m+2*s)
+                #plt.clim(i-400,i+400)
+                mapy.colorbar()
             #map the reference profile
             if profiles and deepestindex:
                 x,y = mapy(profiles[deepestindex].lon,profiles[deepestindex].lat)
