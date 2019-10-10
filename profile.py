@@ -22,6 +22,11 @@ class Profile:
         if "cruise" in data.keys():
             self.cruise = data["cruise"]#+str(self.time.year)
 
+        if "knownns" in data.keys():
+            self.knownns = data["knownns"]
+        else:
+            self.knownns = {}
+
 
         #Temerature Salinity and Pressure
         self.temps = np.asarray(data["temp"])
@@ -79,9 +84,6 @@ class Profile:
         if len(self.pres)>4:
             self.isals = np.interp(self.ipres,self.pres,self.sals)
             self.itemps = np.interp(self.ipres,self.pres,self.temps)
-            if self.knownu.any() and self.knownv.any():
-                self.knownu = np.interp(self.ipres,self.pres,self.knownu)
-                self.knownv = np.interp(self.ipres,self.pres,self.knownv)
             #self.irhos = gsw.rho(self.isals,self.itemps,self.ipres)
             #self.n2 = (9.8/1025.0)*np.gradient(self.irhos,-np.asarray(self.ipres))
 
@@ -305,7 +307,8 @@ class Profile:
         if p2.ipres[p2offset] != self.ipres[selfoffset]:
             print(p2.ipres[p2offset],self.ipres[selfoffset])
     
-        depths =  p2.ipres[p2offset:p2offset+prange]
+        depths =  (np.asarray(p2.ipres[p2offset:p2offset+prange]) +self.ipres[at])/2.0
+        
         p2densities = gsw.rho(p2.isals[p2offset:p2offset+len(depths)],\
                 p2.itemps[p2offset:p2offset+len(depths)],\
                 depths)

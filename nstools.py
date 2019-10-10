@@ -280,7 +280,7 @@ def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
             if p and not np.isnan(p.isals).any() :
                 if (surfaces[k]["data"]["pres"][l]+35 in p.ipres and surfaces[k]["data"]["pres"][l]-35 in p.ipres):
                     pv = p.potentialVorticityAtHautala(surfaces[k]["data"]["pres"][l])
-                    t,s = p.betweenPres(surfaces[k]["data"]["pres"][l]+35,surfaces[k]["data"]["pres"][l]-3)
+                    t,s = p.betweenPres(surfaces[k]["data"]["pres"][l]+35,surfaces[k]["data"]["pres"][l]-35)
                 else:
                     pv = np.nan
                     t,s = p.atPres(surfaces[k]["data"]["pres"][l])
@@ -741,6 +741,15 @@ def artificialPSIRef(surfaces,reflevel = 1700):
             if surfaces[k]["ids"][l] in surfaces[reflevel]["ids"]:
                 at = np.where(np.asarray(surfaces[reflevel]["ids"]) == surfaces[k]["ids"][l])[0][0]
                 surfaces[k]["data"]["psiref"][l] = surfaces[k]["data"]["psi"][l] - surfaces[reflevel]["data"]["psi"][at]
+    return surfaces
+
+def normalizePSI(surfaces,reflevel = 1700):
+    for k in Bar("artifical ref").iter(surfaces.keys()):
+        psimin = np.nanmin(surfaces[k]["data"]["psi"])
+        for l in range(len(surfaces[k]["ids"])):
+            surfaces[k]["data"]["psi"][l] = surfaces[k]["data"]["psi"][l] - psimin
+    return surfaces
+
 
     
 ##this is spicy. it takes a couple mat files and works out the stream function
@@ -764,5 +773,30 @@ def addStreamFuncFromFile(surfaces,profiles,isopycnalfile,referencefile):
             else:
                 surfaces[k]["data"]["psi"].append(np.nan)
     return surfaces
+
+def surfaceSubtract(s1,s2,method="dist"):
+    surfaces = {}
+    if method == "id":
+        for k in s1.keys():
+            if k in s2.keys():
+                tempSurf = emptySurface()
+                for l in range(len(s1[k]["ids"])):
+                    if s1[k]["ids"][l] in s2[k]["ids"]:
+                        j = np.where(np.asarray(s2[k]["ids"]) == s1[k]["ids"][l])[0][0]
+                        tempSurf["lats"].append(s1[k]["lats"][l])
+                        tempSurf["lons"].append(s1[k]["lons"][l])
+                        tempSurf["ids"].append(s1[k]["ids"][l])
+                        for d in s1[k]["data"].keys():
+                            if d in s2[k]["data"].keys():
+                                if d not in tempSurf["data"]:
+                                    tempSurf["data"][d] = []
+                                tempSurf["data"][d].append(s1[k]["data"][d][l] - s2[k]["data"][d][j])
+                surfaces[k] = tempSurf
+    return surfaces
+
+
+                    
+                
+
 
 
