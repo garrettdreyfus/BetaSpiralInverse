@@ -26,6 +26,7 @@ from progress.bar import Bar
 import parametertools as ptools
 from prettytable import PrettyTable
 import pdb
+import interptools
 
 #From a list of filenames extract a bunch of profile objects
 #also returns the profile with the deepestindex because that may be useful
@@ -790,10 +791,32 @@ def surfaceSubtract(s1,s2,method="dist"):
                             if d in s2[k]["data"].keys():
                                 if d not in tempSurf["data"]:
                                     tempSurf["data"][d] = []
-                                tempSurf["data"][d].append(s1[k]["data"][d][l] - s2[k]["data"][d][j])
+                                tempSurf["data"][d].append((s1[k]["data"][d][l] - s2[k]["data"][d][j])/s2[k]["data"][d][j])
                 surfaces[k] = tempSurf
+    if method == "dist":
+        s1 = interptools.addXYToSurfaces(s1)
+        s2 = interptools.addXYToSurfaces(s2)
+        
+        for k in s1.keys():
+            if k in s2.keys():
+                tempSurf = emptySurface()
+                for l in range(len(s1[k]["ids"])):
+                    j = closestPointSurface(s1[k],s2[k],l)
+                    tempSurf["lats"].append(s1[k]["lats"][l])
+                    tempSurf["lons"].append(s1[k]["lons"][l])
+                    tempSurf["ids"].append(s1[k]["ids"][l])
+                    for d in s1[k]["data"].keys():
+                        if d in s2[k]["data"].keys():
+                            if d not in tempSurf["data"]:
+                                tempSurf["data"][d] = []
+                            tempSurf["data"][d].append((s1[k]["data"][d][l] - s2[k]["data"][d][j])/s2[k]["data"][d][j])
+                surfaces[k] = tempSurf
+ 
     return surfaces
 
+def closestPointSurface(s1,s2,index):
+    dists = (s2["x"]-s1["x"][index])**2+(s2["y"]-s1["y"][index])**2
+    return np.argmin(dists)
 
                     
                 

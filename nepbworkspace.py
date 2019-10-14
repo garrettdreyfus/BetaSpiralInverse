@@ -46,14 +46,11 @@ import nepbctdextract
     #pickle.dump([surfaces,profiles],outfile)
 with open('data/nepbsurfaceswithdata.pickle', 'rb') as outfile:
     surfaces,profiles = pickle.load(outfile)
+surfaces = nstools.addStreamFunc(surfaces,profiles)
 #graph.graphSurfaces(surfaces,"nsdiff",region="nepbmerc")
 
 s = nepbctdextract.nepbCTDExtractPointSurfaces("data/newnepbdata.mat")
-for k in s.keys():
-    s[k]["data"]["psi"] = np.asarray(s[k]["data"]["psi"])*0.5
-print(np.nanmax(s[100]["data"]["psi"])-np.nanmin(s[100]["data"]["psi"]))
-print(np.nanmax(surfaces[100]["data"]["psi"])-np.nanmin(surfaces[100]["data"]["psi"]))
-sminus = nstools.surfaceSubtract(nstools.normalizePSI(s),nstools.normalizePSI(surfaces),method="id")
+sminus = nstools.surfaceSubtract(s,surfaces)
 #sminus = nstools.artificialPSIRef(sminus,reflevel=100)
 graph.graphSurfaces(sminus,"psi",region="nepbmerc")
 #graph.graphSurfaces(s,"psi",region="nepbmerc")

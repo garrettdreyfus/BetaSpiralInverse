@@ -1,5 +1,8 @@
 import os
 import numpy as np
+from gsw._utilities import Bunch
+import gsw
+
 
 """
 These functions are all from the deprecated all python version
@@ -71,147 +74,6 @@ def interp_S_T(S, T, z, znew, P=None):
     if P is None:
         return Si, Ti
     return Si, Ti, Pi
-
-class Bunch(dict):
-    """
-    A dictionary that also provides access via attributes.
-
-    Additional methods update_values and update_None provide
-    control over whether new keys are added to the dictionary
-    when updating, and whether an attempt to add a new key is
-    ignored or raises a KeyError.
-
-    The Bunch also prints differently than a normal
-    dictionary, using str() instead of repr() for its
-    keys and values, and in key-sorted order.  The printing
-    format can be customized by subclassing with a different
-    str_ftm class attribute.  Do not assign directly to this
-    class attribute, because that would substitute an instance
-    attribute which would then become part of the Bunch, and
-    would be reported as such by the keys() method.
-
-    To output a string representation with
-    a particular format, without subclassing, use the
-    formatted() method.
-    """
-
-    str_fmt = "{0!s:<{klen}} : {1!s:>{vlen}}\n"
-
-    def __init__(self, *args, **kwargs):
-        """
-        *args* can be dictionaries, bunches, or sequences of
-        key,value tuples.  *kwargs* can be used to initialize
-        or add key, value pairs.
-        """
-        dict.__init__(self)
-        self.__dict__ = self
-        for arg in args:
-            self.update(arg)
-        self.update(kwargs)
-
-    def __str__(self):
-        return self.formatted()
-
-    def formatted(self, fmt=None, types=False):
-        """
-        Return a string with keys and/or values or types.
-
-        *fmt* is a format string as used in the str.format() method.
-
-        The str.format() method is called with key, value as positional
-        arguments, and klen, vlen as kwargs.  The latter are the maxima
-        of the string lengths for the keys and values, respectively,
-        up to respective maxima of 20 and 40.
-        """
-        if fmt is None:
-            fmt = self.str_fmt
-
-        items = list(self.items())
-        items.sort()
-
-        klens = []
-        vlens = []
-        for i, (k, v) in enumerate(items):
-            lenk = len(str(k))
-            if types:
-                v = type(v).__name__
-            lenv = len(str(v))
-            items[i] = (k, v)
-            klens.append(lenk)
-            vlens.append(lenv)
-
-        klen = min(20, max(klens))
-        vlen = min(40, max(vlens))
-        slist = [fmt.format(k, v, klen=klen, vlen=vlen) for k, v in items]
-        return ''.join(slist)
-
-    def from_pyfile(self, filename):
-        """
-        Read in variables from a python code file.
-        """
-        # We can't simply exec the code directly, because in
-        # Python 3 the scoping for list comprehensions would
-        # lead to a NameError.  Wrapping the code in a function
-        # fixes this.
-        d = dict()
-        lines = ["def _temp_func():\n"]
-        with open(filename) as f:
-            lines.extend(["    " + line for line in f])
-        lines.extend(["\n    return(locals())\n",
-                      "_temp_out = _temp_func()\n",
-                      "del(_temp_func)\n"])
-        codetext = "".join(lines)
-        code = compile(codetext, filename, 'exec')
-        exec(code, globals(), d)
-        self.update(d["_temp_out"])
-        return self
-
-    def update_values(self, *args, **kw):
-        """
-        arguments are dictionary-like; if present, they act as
-        additional sources of kwargs, with the actual kwargs
-        taking precedence.
-
-        One reserved optional kwarg is "strict".  If present and
-        True, then any attempt to update with keys that are not
-        already in the Bunch instance will raise a KeyError.
-        """
-        strict = kw.pop("strict", False)
-        newkw = dict()
-        for d in args:
-            newkw.update(d)
-        newkw.update(kw)
-        self._check_strict(strict, newkw)
-        dsub = dict([(k, v) for (k, v) in newkw.items() if k in self])
-        self.update(dsub)
-
-    def update_None(self, *args, **kw):
-        """
-        Similar to update_values, except that an existing value
-        will be updated only if it is None.
-        """
-        strict = kw.pop("strict", False)
-        newkw = dict()
-        for d in args:
-            newkw.update(d)
-        newkw.update(kw)
-        self._check_strict(strict, newkw)
-        dsub = dict([(k, v) for (k, v) in newkw.items()
-                                if k in self and self[k] is None])
-        self.update(dsub)
-
-    def _check_strict(self, strict, kw):
-        if strict:
-            bad = set(kw.keys()) - set(self.keys())
-            if bad:
-                bk = list(bad)
-                bk.sort()
-                ek = list(self.keys())
-                ek.sort()
-                raise KeyError(
-                    "Update keys %s don't match existing keys %s" % (bk, ek))
-
-
 
 class Cache_npz(object):
     def __init__(self):
@@ -325,3 +187,38 @@ def interp_ref_cast(spycnl, A="gn"):
 	    Ci[deeper] = CT_ref[-1]
 	    Pi[deeper] = p_ref[-1]
     return Si, Ci, Pi
+
+def geo_strf_isopycnal(SA,CT,p,p_ref,Neutral_Density,p_Neutral_Density):
+    p = np.abs(np.asarray(p))
+
+    dyn_height = gsw.geo_strf_dyn_height(SA,CT,p,p_ref)
+    
+    p_Neutral_Density, idxs = np.unique(p_Neutral_Density,return_index=True)
+    Neutral_Density = Neutral_Density[idxs]
+
+    filt = np.where(np.isin(p,p_Neutral_Density))
+
+    nsdyn_height = dyn_height[filt]
+    nstemps = CT[filt]
+    nssals = SA[filt]
+
+    db2Pa = 1e4
+    sa_iref_cast,ct_iref_cast,p_iref_cast = interp_ref_cast(Neutral_Density,"s2")
+    cp0 = 3991.86795711963
+    #print("##################")
+    #print("py iref_cast: ",p_iref_cast,ct_iref_cast,sa_iref_cast)
+    #print("py nssal and nstemps: ",nssals,nstemps,ns)
+    part1 = 0.5 *db2Pa*(p_Neutral_Density-p_iref_cast)*(gsw.specvol(nssals,nstemps,p_Neutral_Density)-gsw.specvol(sa_iref_cast,ct_iref_cast,p_Neutral_Density))
+    part2 = 0
+    part3 = (-0.225e-15)*(db2Pa*db2Pa)*(nstemps-ct_iref_cast)*(p_Neutral_Density-p_iref_cast)*(p_Neutral_Density-p_iref_cast)
+    part4 = nsdyn_height - enthalpy_SSO_0(p_Neutral_Density)
+    part5 = gsw.enthalpy(sa_iref_cast,ct_iref_cast,p_Neutral_Density) -cp0*ct_iref_cast
+    #print("specvol delta", (gsw.specvol(nssals,nstemps,ns)-gsw.specvol(sa_iref_cast,ct_iref_cast,ns)))
+    #print("py part1: ",part1+part2)
+    #print("py part2: ",part3)
+    #print("dyn height", nsdyn_height)
+    #print("SS0 enthalpy",  mygsw.enthalpy_SSO_0(ns))
+    #print("py part3: ",part4+part5)
+    #print("result:", part1+part2+part3+part4+part5)
+    #print("##################")
+    return part1 + part2 + part3 + part4 + part5
