@@ -188,7 +188,7 @@ def interp_ref_cast(spycnl, A="gn"):
 	    Pi[deeper] = p_ref[-1]
     return Si, Ci, Pi
 
-def geo_strf_isopycnal(SA,CT,p,p_ref,Neutral_Density,p_Neutral_Density):
+def geo_strf_isopycnal(SA,CT,p,p_ref,Neutral_Density,p_Neutral_Density,A="s2"):
     p = np.abs(np.asarray(p))
 
     dyn_height = gsw.geo_strf_dyn_height(SA,CT,p,p_ref)
@@ -203,7 +203,7 @@ def geo_strf_isopycnal(SA,CT,p,p_ref,Neutral_Density,p_Neutral_Density):
     nssals = SA[filt]
 
     db2Pa = 1e4
-    sa_iref_cast,ct_iref_cast,p_iref_cast = interp_ref_cast(Neutral_Density,"s2")
+    sa_iref_cast,ct_iref_cast,p_iref_cast = interp_ref_cast(Neutral_Density,A)
     cp0 = 3991.86795711963
     #print("##################")
     #print("py iref_cast: ",p_iref_cast,ct_iref_cast,sa_iref_cast)
