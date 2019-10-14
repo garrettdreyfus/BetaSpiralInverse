@@ -205,20 +205,11 @@ def geo_strf_isopycnal(SA,CT,p,p_ref,Neutral_Density,p_Neutral_Density,A="s2"):
     db2Pa = 1e4
     sa_iref_cast,ct_iref_cast,p_iref_cast = interp_ref_cast(Neutral_Density,A)
     cp0 = 3991.86795711963
-    #print("##################")
-    #print("py iref_cast: ",p_iref_cast,ct_iref_cast,sa_iref_cast)
-    #print("py nssal and nstemps: ",nssals,nstemps,ns)
+
     part1 = 0.5 *db2Pa*(p_Neutral_Density-p_iref_cast)*(gsw.specvol(nssals,nstemps,p_Neutral_Density)-gsw.specvol(sa_iref_cast,ct_iref_cast,p_Neutral_Density))
     part2 = 0
     part3 = (-0.225e-15)*(db2Pa*db2Pa)*(nstemps-ct_iref_cast)*(p_Neutral_Density-p_iref_cast)*(p_Neutral_Density-p_iref_cast)
     part4 = nsdyn_height - enthalpy_SSO_0(p_Neutral_Density)
     part5 = gsw.enthalpy(sa_iref_cast,ct_iref_cast,p_Neutral_Density) -cp0*ct_iref_cast
-    #print("specvol delta", (gsw.specvol(nssals,nstemps,ns)-gsw.specvol(sa_iref_cast,ct_iref_cast,ns)))
-    #print("py part1: ",part1+part2)
-    #print("py part2: ",part3)
-    #print("dyn height", nsdyn_height)
-    #print("SS0 enthalpy",  mygsw.enthalpy_SSO_0(ns))
-    #print("py part3: ",part4+part5)
-    #print("result:", part1+part2+part3+part4+part5)
-    #print("##################")
+
     return part1 + part2 + part3 + part4 + part5
