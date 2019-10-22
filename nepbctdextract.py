@@ -107,10 +107,42 @@ def nepbCTDExtractPointSurfaces(fname):
         surfaces[ns[j][0]] = tempSurf
     return surfaces
 
-            
-               
-    #with open(savepath, 'wb') as outfile:
-        #pickle.dump(profiles, outfile)
+def nepbCTDExtractInterpSurfaces(fname):
+    ctddata = sio.loadmat(fname)
+    ##note: any x,y gradients wont be equivalent because of grid,
+    ##			advisable to look at total gradient probably
+    quantmap = {"CT_s":"t","S_s":"s","dQdz_s":"dqdz","dSdz_s":"dsdz",\
+    "d2CTdS2_s":"d2thetads2","alpha_s":"alpha","beta_s":"beta",\
+    "P_s":"pres","Q_s":"pv","d2Qdx2_s":"d2qdx2","d2Qdy2_s":"d2qdy2",\
+    "d2Qdz2_s":"d2qdz2","d2Sdx2_s":"d2sdx2","d2Sdy2_s":"d2sdy2","A_s":"psi"}
+
+    latlist = range(20,60,2)
+    lonlist = list(range(170,180,2))
+    lonlist = lonlist+list(range(-180,-120,2))
+    print(len(latlist))
+    print(len(lonlist))
+
+    ns = np.asarray(ctddata["P_gref"])
+
+    surfaces = {}
+
+    for k in Bar("surface").iter(range(len(ns))):
+        tempSurf = nstools.emptySurface()
+        for j in quantmap.values():
+            tempSurf["data"][j]=[]
+
+        for j in range(len(latlist)):
+            for l in range(len(lonlist)):
+                tempSurf["lats"].append(latlist[j])
+                tempSurf["lons"].append(lonlist[l])
+                tempSurf["ids"].append(j*30+l)
+                for field in ctddata.keys():
+                    if field in quantmap.keys():
+                        tempSurf["data"][quantmap[field]].append(ctddata[field][k][j][l])
+
+        surfaces[ns[k][0]] = tempSurf
+
+    return surfaces
 
 
 #nepbCTDExtract("data/newnepbdata.mat","data/nepbctdprofiles.pickle")

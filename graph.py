@@ -749,7 +749,7 @@ def distanceHist(distances):
         plt.show()
 
 def saveAllQuants(surfaces,savepath,region="arctic"):
-    for d in surfaces[1000]["data"].keys():
+    for d in surfaces[list(surfaces.keys())[0]]["data"].keys():
         graphSurfaces(surfaces,d,show=False,savepath=savepath,region=region)
 
         
