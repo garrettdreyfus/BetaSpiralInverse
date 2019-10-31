@@ -16,7 +16,9 @@ def idgenerator():
     idgenerator.id = idgenerator.id+1
     return idgenerator.id
 
-
+def neutralSurfaces(fname):
+    ctddata = sio.loadmat(fname)
+    return np.asarray(ctddata["P_gref"])[:,0]
 def nepbCTDExtract(fname,savepath):
     ctddata = sio.loadmat(fname)
     lats = np.asarray(ctddata["lat"])[0]
@@ -114,7 +116,8 @@ def nepbCTDExtractInterpSurfaces(fname):
     quantmap = {"CT_s":"t","S_s":"s","dQdz_s":"dqdz","dSdz_s":"dsdz",\
     "d2CTdS2_s":"d2thetads2","alpha_s":"alpha","beta_s":"beta",\
     "P_s":"pres","Q_s":"pv","d2Qdx2_s":"d2qdx2","d2Qdy2_s":"d2qdy2",\
-    "d2Qdz2_s":"d2qdz2","d2Sdx2_s":"d2sdx2","d2Sdy2_s":"d2sdy2","A_s":"psi"}
+    "d2Qdz2_s":"d2qdz2","d2Sdx2_s":"d2sdx2","d2Sdy2_s":"d2sdy2",\
+    "aT":"dalphadtheta","aP":"dalphadp","A_s":"psi","lat_field":"khp"}
 
     latlist = range(20,60,2)
     lonlist = list(range(170,180,2))
@@ -126,6 +129,10 @@ def nepbCTDExtractInterpSurfaces(fname):
 
     surfaces = {}
 
+    for field in ctddata.keys():
+        if field in quantmap.keys():
+            if ctddata[field].shape == (20, 35, 30):
+                ctddata[field] = np.transpose(ctddata[field],(2,0,1))
     for k in Bar("surface").iter(range(len(ns))):
         tempSurf = nstools.emptySurface()
         for j in quantmap.values():

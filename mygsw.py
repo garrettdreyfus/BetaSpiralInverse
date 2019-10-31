@@ -213,3 +213,110 @@ def geo_strf_isopycnal(SA,CT,p,p_ref,Neutral_Density,p_Neutral_Density,A="s2"):
     part5 = gsw.enthalpy(sa_iref_cast,ct_iref_cast,p_Neutral_Density) -cp0*ct_iref_cast
 
     return part1 + part2 + part3 + part4 + part5
+
+
+#def specvol_first_derivatives_CT_exact(SA,CT,p):
+    #SA[SA<0] = 0
+    #pr0 = np.zeros(SA.shape)
+
+    #pt0 = gsw.pt_from_CT(SA,CT)
+    #gsw_T0 = 273.15
+    #gsw_cp0 = 3991.86795711963
+    #rec_abs_pt0 = 1/(gsw_T0 + pt0)
+    #t = gsw.pt_from_t(SA,pt0,pr0,p)
+
+    #rec_gTT = 1/gsw.gibbs(0,2,0,SA,t,p)
+    #gSAP = gsw.gibbs(1,0,1,SA,t,p)
+    #gTP = gsw.gibbs(0,1,1,SA,t,p)
+    #gSAT = gsw.gibbs(1,1,0,SA,t,p)
+    #gSA_pt0 = gsw.gibbs(1,0,0,SA,pt0,pr0)
+    #gPP = gsw.gibbs(0,0,2,SA,t,p)
+
+    #v_CT = -gsw_cp0*gTP*rec_abs_pt0*rec_gTT
+
+    #v_SA = gSAP - gTP*(gSAT - rec_abs_pt0*gSA_pt0)*rec_gTT
+
+    #v_P = gPP - gTP*gTP*rec_gTT
+    #return v_SA,v_CT,v_P
+
+#def specvol_second_derivatives_CT_exact(SA,CT,p):
+    #SA[SA<0] = 0
+    
+    #gsw_T0 = 273.15
+    #gsw_cp0 = 3991.86795711963
+
+    #cp0 = gsw_cp0 
+    #rec_cp0 = 1/cp0
+    #pr0 = np.zeros(SA.shape)
+
+    #pt0 = gsw.pt_from_CT(SA,CT)
+    #rec_abs_pt0 = 1/(gsw_T0 + pt0)
+    #cp0_div_abs_pt0 = cp0*rec_abs_pt0
+
+    #t = gsw.pt_from_t(SA,pt0,pr0,p)
+
+    #gamma = -gsw.gibbs(0,1,1,SA,t,p)/gsw.gibbs(0,2,0,SA,t,p)
+
+    #rec_gTT = 1/gsw.gibbs(0,2,0,SA,t,p)
+    #rec_gTT2 = rec_gTT*rec_gTT
+    #rec_gTT_pt0 = 1/gsw.gibbs(0,2,0,SA,pt0,pr0)
+
+    #gTTP = gsw.gibbs(0,2,1,SA,t,p)
+    #gTTT = gsw.gibbs(0,3,0,SA,t,p)
+    #gSAT = gsw.gibbs(1,1,0,SA,t,p)
+    #gSATP = gsw.gibbs(1,1,1,SA,t,p)
+    #gSATT = gsw.gibbs(1,2,0,SA,t,p)
+    #gSAT_pt0 = gsw.gibbs(1,1,0,SA,pt0,pr0)
+    #gSA_pt0 = gsw.gibbs(1,0,0,SA,pt0,pr0)
+    #gSASA_pt0 = gsw.gibbs(2,0,0,SA,pt0,pr0)
+    #gSASAP = gsw.gibbs(2,0,1,SA,t,p)
+    #gSASAT = gsw.gibbs(2,1,0,SA,t,p)
+    #gSAPP = gsw.gibbs(1,0,2,SA,t,p)
+    #gTPP = gsw.gibbs(0,1,2,SA,t,p)
+
+    #part_a = (gTTP + gamma*gTTT)*rec_gTT2
+    #part_b = (gSATP + gamma*gSATT)*rec_gTT
+    #part_c = (gTPP + gamma*(2*gTTP + gamma*gTTT))*rec_gTT
+
+    #v_CT_CT = (cp0_div_abs_pt0**2)*(gamma*rec_abs_pt0*rec_gTT_pt0 + part_a)
+
+    #v_SA_CT = cp0_div_abs_pt0*( \
+    #gamma*rec_abs_pt0*gSAT_pt0*rec_gTT_pt0 \
+    #- part_b + gSAT*part_a) - gSA_pt0*v_CT_CT*rec_cp0
+
+    #v_SA_SA = gSASAP + gamma*gSASAT \
+    #- gamma*rec_abs_pt0*gSASA_pt0 \
+    #+ gamma*rec_abs_pt0*(gSAT_pt0**2)*rec_gTT_pt0 \
+    #- 2.*gSAT*part_b \
+    #+ (gSAT**2)*part_a \
+    #- 2*gSA_pt0*rec_cp0*v_SA_CT - (gSA_pt0**2)*(rec_cp0**2)*v_CT_CT
+
+    #v_CT_P = -cp0_div_abs_pt0*part_c
+
+    #v_SA_P = gSAPP + gamma*(2*gSATP + gamma*gSATT) \
+    #+ part_c*(gSA_pt0*rec_abs_pt0 - gSAT)
+    #return v_SA_SA, v_SA_CT,v_CT_CT,v_SA_p,v_CT_P
+
+
+#def cabbeling_CT_exact(SA,CT,p):
+    #SA[SA<0] = 0
+    #[v_SA, v_CT, dummy] = specvol_first_derivatives_CT_exact(SA,CT,p)
+    #[v_SA_SA, v_SA_CT, v_CT_CT, dummy,dummy] = specvol_second_derivatives_CT_exact(SA,CT,p)
+    #rho=gsw.rho_CT_exact(SA,CT,p)
+    #alpha_CT = rho*(v_CT_CT - rho*(v_CT**2))
+    #alpha_SA = rho*(v_SA_CT - rho*v_SA*v_CT)
+    #beta_SA = -rho*(v_SA_SA - rho*(v_SA**2))
+    #alpha_on_beta = gsw.alpha_on_beta_CT_exact(SA,CT,p)
+    #cabelling = alpha_CT + alpha_on_beta*(2*alpha_SA - alpha_on_beta*beta_SA)
+    #return cabelling
+
+
+
+#def thermobaric_CT_exact(SA,CT,p):
+    #SA[SA<0] = 0
+    #[v_SA, v_CT, dummy] = gsw.specvol_first_derivatives_CT_exact(SA,CT,p)
+    #[dummy,dummy,dummy,v_SA_P,v_CT_P] = gsw.specvol_second_derivatives_CT_exact(SA,CT,p)
+    #rho=gsw.rho_CT_exact(SA,CT,p)
+    
+    #thermobaric = rho*(v_CT_P - (v_CT/v_SA)*v_SA_P)
+    #return thermobaric

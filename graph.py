@@ -1,6 +1,7 @@
 from nstools import *
 from interptools import *
 
+import matplotlib
 import os
 import datetime
 import git
@@ -116,10 +117,10 @@ def mapSetup(coords,region="arctic",newax=True):
 
 ## analagous to graphSurfaces but you can provide a second surfaces object
 ## usually one which is not interpolated to test interpolation
-def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None):
+def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None,region="arctic"):
     newsurfaces = {}
     for k in surfaces.keys():
-        tempSurf = emptySurface()
+        tempSurf = nstools.emptySurface()
         tempSurf["lons"] = np.concatenate((surfaces[k]["lons"], overlay[k]["lons"]))
         tempSurf["lats"] = np.concatenate((surfaces[k]["lats"],overlay[k]["lats"]))
         for field in surfaces[k]["data"].keys():
@@ -131,7 +132,7 @@ def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=N
             tempSurf["ids"] = np.concatenate((surfaces[k]["ids"],overlay[k]["ids"]))
         newsurfaces[k]=tempSurf
     print(newsurfaces.keys())
-    graphSurfaces(newsurfaces,quantindex,contour,profiles,deepestindex,show,maximize,savepath)
+    graphSurfaces(newsurfaces,quantindex,contour,profiles,deepestindex,show,maximize,savepath,region=region)
 
 ## given a surfaces object, a quantity index, graph quantity
 ## if you really want you can supply a profiles object and a deepest index to display a point
@@ -171,7 +172,7 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
             s = np.nanstd(d)
             print("################")
             if colorlimit:
-                plt.clim(m-2*s,m+2*s)
+                plt.clim(m-1*s,m+1*s)
                 #plt.clim(i-400,i+400)
                 mapy.colorbar()
             #map the reference profile
@@ -194,6 +195,77 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
                 plt.savefig(savepath+quantindex+"/ns"+str(i)+".png")
 
             plt.close()
+
+def graphSurfacesOneContour(surfaces,surfacesnc,quantindex,contour=False,profiles=None,deepestindex=None,\
+        show=True,maximize=True,savepath=None,idlabels=False,colorlimit=True,region="arctic"):
+    quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV",\
+                     "u":"relative U","v":"relative V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X",\
+                    "hy":"Neutral Gradient Y","curl":"Curl","drdt":"Northward Velocity",\
+                    "dthetadt":"Eastward Velocity","ids":"IDS","uabs":"Absolute U","vabs":"Absolute V",\
+                    "uprime":"reference U velocity","vprime":"reference V velocity","h":"Thickness of ",\
+                    "CKVB":"KV term with roughness","CKVO":"KV term without roughness","dsdx":"Salinity X gradient",\
+                    "dsdy":"Salinity Y gradient","d2sdx2":"Salinity X curvature",\
+                    "d2sdy2":"Salinity Y curvature","n^2":"N^2"}
+    if savepath:
+        try:
+            os.makedirs(savepath+quantindex)
+        except FileExistsError as e:
+            print(e)
+        writeInfoFile(savepath)
+    for i in list(surfaces.keys()):
+        if i in surfacesnc.keys() and len(surfacesnc[i]["lons"])>3 and len(surfaces[i]["lons"])>3 and len(surfaces[i]["data"][quantindex])>3:
+            fig,ax,mapy = mapSetup(surfaces,region=region)
+            mapy.drawparallels(np.linspace(-90,90,19))
+            mapy.drawmeridians(np.linspace(-180, 180, 37))
+            x,y = mapy(surfaces[i]["lons"],surfaces[i]["lats"])
+            d = np.asarray(surfaces[i]["data"][quantindex])
+            notnan = ~np.isnan(d)
+            ids = np.asarray(surfaces[i]["ids"])
+            x = np.asarray(x)[notnan]
+            y = np.asarray(y)[notnan]
+            d = d[notnan]
+            xnc,ync = mapy(surfacesnc[i]["lons"],surfacesnc[i]["lats"])
+            dnc = np.asarray(surfacesnc[i]["data"][quantindex])
+            idsnc = np.asarray(surfacesnc[i]["ids"])
+            xnc = np.asarray(xnc)
+            ync = np.asarray(ync)
+
+            #Plot the surface 
+            mean = np.nanmean(np.concatenate((d, dnc)))
+            stdev = np.nanstd(np.concatenate((d,dnc)))
+            mi = mean -stdev
+            ma = mean + stdev
+            norm = matplotlib.colors.Normalize(vmin=mi,vmax=ma)
+            plt.tricontourf(x,y,d,norm=norm,cmap=cmocean.cm.haline,levels=30)
+            plt.scatter(xnc,ync,norm=norm,c=dnc,cmap=cmocean.cm.haline)
+            m = np.nanmedian(d)
+            s = np.nanstd(d)
+            print("################")
+            if colorlimit:
+                #plt.clim(m-2*s,m+2*s)
+                #plt.clim(i-400,i+400)
+                mapy.colorbar()
+            #map the reference profile
+            if profiles and deepestindex:
+                x,y = mapy(profiles[deepestindex].lon,profiles[deepestindex].lat)
+                mapy.scatter(x,y,c="red")
+            if idlabels:
+                for j, eyed in enumerate(ids):
+                    ax.annotate(eyed,(x[j],y[j]))
+            if quantindex in quanttitlehash.keys():
+                fig.suptitle(str(quanttitlehash[quantindex]) + " at NS: "+str(i))
+            else:
+                fig.suptitle(str(quantindex) + " at NS: "+str(i))
+
+            if maximize:
+                fig.set_size_inches(16.5,12)
+            if show:
+                plt.show()
+            if savepath:
+                plt.savefig(savepath+quantindex+"/ns"+str(i)+".png")
+
+            plt.close()
+
 
 ## plots a given cruise and its reference cruise
 def plotCruiseAndRef(cruises,refcruises,show=True,region="arctic"):

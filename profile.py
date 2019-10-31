@@ -1,4 +1,5 @@
 import numpy as np
+import operator
 import gsw 
 from mpl_toolkits.mplot3d import Axes3D
 import datetime
@@ -84,13 +85,13 @@ class Profile:
         if len(self.pres)>4:
             self.isals = np.interp(self.ipres,self.pres,self.sals)
             self.itemps = np.interp(self.ipres,self.pres,self.temps)
-            #self.irhos = gsw.rho(self.isals,self.itemps,self.ipres)
-            #self.n2 = (9.8/1025.0)*np.gradient(self.irhos,-np.asarray(self.ipres))
+            self.ialpha = gsw.alpha(self.isals,self.itemps,self.ipres)
+            self.ibeta = gsw.beta(self.isals,self.itemps,self.ipres)
+            self.idalphadtheta = mygsw.cabbeling_CT_exact(self.isals,self.itemps,self.ipres)
+            self.idalphadp = mygsw.thermobaric_CT_exact(self.isals,self.itemps,self.ipres)
 
             ###using gsw
             self.n2 = gsw.Nsquared(self.isals,self.itemps,self.ipres,self.lat)[0]
-            #tck = interpolate.splrep(self.ipres[:-1],self.n2,s=0.01)
-            #self.n2 = interpolate.splev(self.ipres,tck) 
 
     def calculateDensity(self,s,t,p,p_ref=0):
         return gsw.rho(s,t,p)
@@ -100,33 +101,66 @@ class Profile:
         index = np.where(np.asarray(self.ipres) == depth)[0]
         if index:
             index = index[0]
-            #if self.n2[index] < 0 and debug :
-                #print(self.isals[index],self.itemps[index],self.ipres[index])
                 
             return (self.f/9.8)*np.mean(self.n2[index])
+
     def potentialVorticityAtHautala(self,depth,debug=False,halfdistance=35):
         index = np.where(np.asarray(self.ipres) == depth)[0]
         if index >36:
             index = index[0]
-            densities = gsw.rho(self.isals[index-halfdistance-1:index+halfdistance+1],\
-                    self.itemps[index-halfdistance-1:index+halfdistance+1],\
+            densities = gsw.rho(self.isals,\
+                    self.itemps,\
                     self.ipres[index])
-            if len(densities)<5:
-                print(self.isals[index-halfdistance-1:index+halfdistance+1])
-                print(self.itemps[index-halfdistance-1:index+halfdistance+1])
-                print("what de")
-            try:
-                spl = UnivariateSpline(self.ipres[index-halfdistance-1:index+halfdistance+1],densities)
-            except:
-                print([self.ipres[index-halfdistance-1:index+halfdistance+1],densities])
-                return np.nan
-            drhodz = (spl(self.ipres[index-halfdistance])-spl(self.ipres[index+halfdistance]))/(halfdistance*2)
-            pv = -(self.f/spl(self.ipres[index]))*drhodz
-            #if self.n2[index] < 0 and debug :
-                #print(self.isals[index],self.itemps[index],self.ipres[index])
-                
+
+            drhodz,notvalue = self.dz(depth,densities,35)
+            pv = -(self.f/notvalue)*drhodz
+
             return pv
 
+    def dthetads(self,depth,debug=False,halfdistance=35):
+        index = np.where(np.asarray(self.ipres) == depth)[0]
+        if index >36:
+            index = index[0]
+            dthetads,notvalue = self.dz(depth,self.itemps,35,xvalues=self.isals)
+
+            return dthetads
+
+    def dz(self,depth,values,halfdistance,xvalues=[]):
+        if ~np.any(xvalues): xvalues=self.ipres
+
+        index = np.where(np.asarray(self.ipres) == depth)[0]
+        if index >halfdistance+1:
+            index = index[0]
+            values = values[index-halfdistance-1:index+halfdistance+1]
+            xvalues = xvalues[index-halfdistance-1:index+halfdistance+1]
+
+            L = sorted(zip(xvalues,values), key=operator.itemgetter(0))
+            xvalues, values = zip(*L)
+
+            if len(values)<5:
+                print("what de")
+            try:
+                spl = UnivariateSpline(xvalues,values)
+            except:
+                print("THE SPLINE IS COOKED")
+                print([xvalues,values])
+                return [np.nan,np.nan]
+
+            dvaluedz = (spl(xvalues[0])-spl(xvalues[-1]))/(xvalues[-1]-xvalues[0])
+                
+            return dvaluedz,spl(xvalues[halfdistance])
+        return [np.nan,np.nan]
+
+    def vertGrad(self,depth,quant,halfdistance=35):
+        if quant == "s":
+            values = self.isals
+        if quant == "t":
+            values = self.itemps
+        if quant == "alpha":
+            values = self.ialpha
+        if quant == "beta":
+            values = self.ibeta
+        return self.dz(depth,values,halfdistance)[0]
 
 
     #finds average PV between two depths
@@ -179,9 +213,9 @@ class Profile:
         return pv
     
     ##returns the t s at a pressure
-    def atPres(self,pres):
+    def atPres(self,pres,full=False):
         i = np.where(np.asarray(self.ipres) == int(pres))[0][0]
-        return self.itemps[i], self.isals[i]
+        return self.itemps[i], self.isals[i], self.ialpha[i],self.ibeta[i],self.idalphadtheta[i],self.idalphadp[i]
     
     ##returns the index at pressure
     def presIndex(self,pres):
