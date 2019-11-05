@@ -469,13 +469,13 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",region="arctic",tra
                 bgfield = surfaces[k]["data"][backgroundfield][a]
             else:
                 bgfield = gsw.f(surfaces[k]["lats"][a])/surfaces[k]["data"]["z"][a]
-            plt.tricontourf(xpv,ypv,bgfield,levels=50)
+            plt.tricontourf(xpv,ypv,bgfield,levels=50,cmap="viridis")
             #plt.scatter(xpv,ypv,c=bgfield)
             m = np.nanmedian(bgfield)
             s = np.nanstd(bgfield)
             plt.clim(m-2*s,m+2*s)
             mapy.colorbar()
-            mapy.quiver(x,y,u,v,mag,cmap="cool",width = 0.002)
+            mapy.quiver(x,y,u*2,v*2,mag,cmap="autumn",width = 0.004)
             if savepath:
                 plt.savefig(savepath+key1+key2+"/ns"+str(k)+".png")
 

@@ -200,7 +200,6 @@ def constructBetaRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True)
         Apsirow[columnindexs[2]] = values[2]
         Apsirow[columnindexs[3]] = values[3]
     crow = (-u)*(dqnotdx-x*beta*pv/(f*r))+(-v)*(dqnotdy-y*beta*pv/(f*r))
-    print(u)
     return np.asarray(Apsirow)*Arscale,np.asarray(values)*Arscale,np.asarray(crow)
 
 ## construct row of inverse that conserves salt

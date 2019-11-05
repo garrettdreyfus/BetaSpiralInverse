@@ -5,6 +5,7 @@ import numpy as np
 import itertools
 from geopy.distance import geodesic
 from progress.bar import Bar
+import pdb
 #add x and y to surfaces. x and y necesarry for interpolation
 def addXYToSurfaces(surfaces,debug=True):
     if debug:
@@ -33,7 +34,7 @@ def fillOutEmptyFields(surfaces):
 
 ##sometimes points are too close together and the interpolation
 ## loses it so we just smooth em
-def removeDiscontinuities(surface,radius=10,debug=True):
+def removeDiscontinuities(surface,radius=10,debug=True,inside={}):
     x=np.asarray(surface["x"])
     y=np.asarray(surface["y"])
     z=np.asarray(surface["data"]["pres"])
@@ -41,8 +42,8 @@ def removeDiscontinuities(surface,radius=10,debug=True):
     #print(x)
     for i in Bar("Removing discontinuities: ").iter(range(len(x))):
         if final[i] == False:
-            r = np.sqrt((x- x[i])**2 + (y - y[i])**2)
-            inside = r<radius*1000
+            r = (x- x[i])**2 + (y - y[i])**2
+            inside = r<radius*(10**6)
             inside[i]=False
             s = 0
             counter = 0
@@ -72,15 +73,33 @@ def removeDiscontinuities(surface,radius=10,debug=True):
 ## they should be hardcoded because you want the grid points to 
 ## align vertically throughout the water column
 def createMesh(n,xvals,yvals,fixedgrid="arctic"):
-    preset = {"arctic":{"xmin":-1793163,"xmax":971927,"ymin":-1455096,"ymax":1200385},
-            "nepb":{"xmin":-7626269.8278319035,"xmax":-2637514.7450460778,"ymin":-6070024.08806232,"ymax":-694647.408618841}
-            }
+    preset = {"arctic":{"xmin":-1793163,"xmax":971927,"ymin":-1455096,"ymax":1200385,"cord":"xy"},
+            "nepb":{"xmin":-7626269.8278319035,"xmax":-2637514.7450460778,"ymin":-6070024.08806232,"ymax":-694647.408618841,"cord":"xy"},
+            "hautala":{"cord":"latlon"}}
     if not fixedgrid:
         print(np.min(xvals),np.max(xvals),np.min(yvals),np.max(yvals))
         return np.meshgrid(np.linspace(np.min(xvals),np.max(xvals),n), np.linspace(np.min(yvals),np.max(yvals),n),indexing="xy")
     else:
-        vals = preset[fixedgrid]
-        return np.meshgrid(np.linspace(vals["xmin"],vals["xmax"],n), np.linspace(vals["ymin"],vals["ymax"],n),indexing="xy")
+        if preset[fixedgrid]["cord"] == "xy":
+            vals = preset[fixedgrid]
+            return np.meshgrid(np.linspace(vals["xmin"],vals["xmax"],n), np.linspace(vals["ymin"],vals["ymax"],n),indexing="xy")
+        else:
+            if fixedgrid == "hautala":
+                grd = np.meshgrid(\
+                        np.concatenate((np.linspace(170,180,5),np.linspace(-180,-120,30))),
+                        np.linspace(20,60,20))
+                for i in range(grd[0].shape[0]):
+                    for j in range(grd[0].shape[1]):
+                        x,y = singleXY((grd[0][i][j],grd[1][i][j]))
+                        grd[0][i][j] = x
+                        grd[1][i][j] = y
+
+                return grd
+                pdb.set_trace()
+
+
+
+
 
 #generate a mesh and remove points in that mesh 
 #which are too far away from locations with observations
@@ -118,7 +137,7 @@ def generateMaskedMesh(x,y,radius=500,fixedgrid="arctic"):
             if final[l][k]:
                 finalxi.append(xi[l][k])
                 finalyi.append(yi[l][k])
-                finalids.append(l*125+k)
+                finalids.append(l*final.shape[1]+k)
             if l != final.shape[0]-1 and k != final.shape[1]-1:
                 s = []
                 if final[l][k] and final[l][k+1] and final[l+1][k+1] and final[l+1][k]:
@@ -166,7 +185,7 @@ def interpolateSurface(surface,debug=True,gaminterpolate=True,fixedgrid="arctic"
         for d in Bar("Interpolating: ").iter(surface["data"].keys()):
             notnan = ~np.isnan(surface["data"][d])
             if np.count_nonzero(notnan)>10:
-                gam = pygam.LinearGAM(pygam.te(0,1)).fit(X[notnan],surface["data"][d][notnan])
+                gam = pygam.LinearGAM(pygam.te(0,1)).fit(X[notnan],np.asarray(surface["data"][d])[notnan])
                 Xgrid = np.zeros((yi.shape[0],2))
                 Xgrid[:,0] = xi
                 Xgrid[:,1] = yi
@@ -189,8 +208,8 @@ def interpolateSurfaces(surfaces,fixedgrid,debug=True,gaminterpolate=True):
     neighbors={}
     lookups={}
     for k in surfaces.keys():
-        if ~np.isnan(surfaces[k]["data"]["pres"]).any():
-            surfaces[k] = removeDiscontinuities(surfaces[k],radius=0.1)
+        if (~np.isnan(surfaces[k]["data"]["pres"])).any():
+            #surfaces[k] = removeDiscontinuities(surfaces[k],radius=0.1)
             interpolatedsurfaces[k],neighbors[k] = interpolateSurface(surfaces[k],gaminterpolate=gaminterpolate,fixedgrid=fixedgrid)
             lookups[k] = trueDistanceLookup(interpolatedsurfaces[k],neighbors[k])
     interpolatedsurfaces = fillOutEmptyFields(interpolatedsurfaces)

@@ -72,20 +72,19 @@ def nepbCTDExtract(fname,savepath):
     with open(savepath, 'wb') as outfile:
         pickle.dump(profiles, outfile)
 
-def nepbCTDExtractPointSurfaces(fname):
+def extractPointSurfaces(fname,fields={}):
+    if len(fields.keys())<1:
+        fields = {"lat":"lat","lon":"lon","pres":"P_gamma",\
+            "s":"NS_S","ct":"NS_CT","pv":"PV","psi":"accpo","dthetads":"dCTdS"}
     ctddata = sio.loadmat(fname)
-    lats = np.asarray(ctddata["lat"])[0]
-    lons = np.asarray(ctddata["lon"])[0]
-    pres = np.asarray(ctddata["Pint"]).T[0]
-    sals = np.asarray(ctddata["Sint"]).T
-    thetas = np.asarray(ctddata["Tint"]).T
-    CT = np.asarray(ctddata["CT"]).T
-    SA = np.asarray(ctddata["Sint_abs"]).T
-    nspres = np.asarray(ctddata["P_gamma"]).T
-    PV = np.asarray(ctddata["PV"]).T
-    NS_CT = np.asarray(ctddata["NS_CT"]).T
-    NS_S = np.asarray(ctddata["NS_S"]).T
-    ACCPO = np.asarray(ctddata["accpo"]).T
+    lats = np.asarray(ctddata[fields["lat"]])[0]
+    lons = np.asarray(ctddata[fields["lon"]])[0]
+    nspres = np.asarray(ctddata[fields["pres"]]).T
+    PV = np.asarray(ctddata[fields["pv"]]).T
+    NS_CT = np.asarray(ctddata[fields["ct"]]).T
+    dCTdS = np.asarray(ctddata[fields["dthetads"]]).T
+    NS_S = np.asarray(ctddata[fields["s"]]).T
+    ACCPO = np.asarray(ctddata[fields["psi"]]).T
     ns = np.asarray(ctddata["P_gref"])
     profiles = []
     surfaces = {}
@@ -93,6 +92,9 @@ def nepbCTDExtractPointSurfaces(fname):
     for j in Bar("surface").iter(range(len(ns))):
         tempSurf = nstools.emptySurface()
         tempSurf["data"]["psi"] = []
+        tempSurf["data"]["dthetads"] = []
+        tempSurf["data"]["dalphadp"] = []
+        tempSurf["data"]["dalphadtheta"] = []
         for p in range(len(lats)):
             if lats[p]>20 and lons[p]<0 or lons[p] > 170:
                 tempSurf["lats"].append(lats[p])
@@ -101,13 +103,27 @@ def nepbCTDExtractPointSurfaces(fname):
                 tempSurf["data"]["pres"].append(nspres[p][j])
                 tempSurf["data"]["t"].append(NS_CT[p][j])
                 tempSurf["data"]["s"].append(NS_S[p][j])
-                tempSurf["data"]["psi"].append(ACCPO[p][j])
+                if ns[j][0] <1900:
+                    tempSurf["data"]["psi"].append(ACCPO[p][j])
+                else:
+                    tempSurf["data"]["psi"].append(np.nan)
+
                 tempSurf["data"]["pv"].append(PV[p][j])
                 tempSurf["data"]["n^2"].append(np.nan)
-                tempSurf["data"]["alpha"].append(np.nan)
-                tempSurf["data"]["beta"].append(np.nan)
+                tempSurf["data"]["dalphadp"].append(np.nan)
+                tempSurf["data"]["dalphadtheta"].append(np.nan)
+                tempSurf["data"]["alpha"].append(gsw.alpha(NS_S[p][j],NS_CT[p][j],nspres[p][j]))
+                tempSurf["data"]["beta"].append(gsw.beta(NS_S[p][j],NS_CT[p][j],nspres[p][j]))
+                tempSurf["data"]["dthetads"].append(dCTdS[p][j])
         surfaces[ns[j][0]] = tempSurf
     return surfaces
+
+def floatExtract(fname):
+    fields = {"lat":"F_NS_lat","lon":"F_NS_lon","pres":"F_P_gamma",\
+            "s":"F_NS_S","ct":"F_NS_CT","pv":"F_PV","psi":"F_accpo","dthetads":"F_dCTdS"}
+    return extractPointSurfaces(fname,fields=fields)
+
+
 
 def nepbCTDExtractInterpSurfaces(fname):
     ctddata = sio.loadmat(fname)

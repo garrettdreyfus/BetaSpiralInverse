@@ -22,12 +22,9 @@ def calculateKHP(staggered,k,index):
     dalphadtheta = staggered[k]["data"]["dalphadtheta"][index]
     dalphadp = staggered[k]["data"]["dalphadp"][index]
     dalphads = staggered[k]["data"]["dalphads"][index]
-    dbetads = staggered[k]["data"]["dbetads"][index]
     alpha = staggered[k]["data"]["alpha"][index]
-    dbetadp = staggered[k]["data"]["dbetadp"][index]
-    betaTherm = staggered[k]["data"]["beta"][index]
-    alphat = dalphadtheta+2*(alpha/betaTherm)*dalphads-(alpha**2/betaTherm**2)*dbetads
-    alphap = dalphadp -(alpha/betaTherm)*dbetadp
+    alphat = staggered[k]["data"]["dalphadtheta"][index]
+    alphap = staggered[k]["data"]["dalphadp"][index]
     magct = staggered[k]["data"]["dtdx"][index]**2 + staggered[k]["data"]["dtdy"][index]**2
     cdotp = staggered[k]["data"]["dtdx"][index]*staggered[k]["data"]["dpdx"][index]+staggered[k]["data"]["dtdy"][index]*staggered[k]["data"]["dpdy"][index]
     return alphat*magct+alphap*cdotp
@@ -87,8 +84,6 @@ def kChecker(surfaces,k,found,scales,debug=False):
     dalphadtheta = surfaces[k]["data"]["dalphadtheta"][found] 
     dalphads = surfaces[k]["data"]["dalphads"][found] 
     dalphadp = surfaces[k]["data"]["dalphadp"][found] 
-    dbetadp = surfaces[k]["data"]["dbetadp"][found] 
-    dbetads = surfaces[k]["data"]["dbetads"][found] 
     dtdx = surfaces[k]["data"]["dtdx"][found] 
     dtdy = surfaces[k]["data"]["dtdy"][found] 
     dqnotdx = surfaces[k]["data"]["dqnotdx"][found] 
@@ -102,15 +97,15 @@ def kChecker(surfaces,k,found,scales,debug=False):
     d2qdx2 = surfaces[k]["data"]["d2qdx2"][found] 
     d2qdy2 = surfaces[k]["data"]["d2qdy2"][found] 
     khpdz = surfaces[k]["data"]["khpdz"][found] 
-    alphat = dalphadtheta+2*(alpha/betaTherm)*dalphads-(alpha**2/betaTherm**2)*dbetads
-    alphap = dalphadp -(alpha/betaTherm)*dbetadp
+    alphat = surfaces[k]["data"]["dalphadtheta"][found] 
+    alphap = surfaces[k]["data"]["dalphadp"][found]
     pv =  surfaces[k]["data"]["pv"][found] 
     doublets =  surfaces[k]["data"]["d2thetads2"][found] 
     CKVB =  surfaces[k]["data"]["CKVB"][found] 
     f = gsw.f(surfaces[k]["lats"][found])
     beta = calcBeta(surfaces[k]["lats"][found])
     isitnan = [alpha,betaTherm,dsdz,hx,hy,dsdx,dsdy,pres,d2sdx2,d2sdy2,\
-              dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
+              dalphadtheta,dalphads,dalphadp,dtdx,dtdy,\
               dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
               beta,d2qdx2,d2qdy2,khpdz]
     kvoscale = scales["kvo"]
@@ -234,8 +229,6 @@ def kterms(surfaces,k,found,params,fallback=None):
     dalphadtheta = fetchWithFallback(surfaces,k,"dalphadtheta",found,fallback)
     dalphads = fetchWithFallback(surfaces,k,"dalphads",found,fallback)
     dalphadp = fetchWithFallback(surfaces,k,"dalphadp",found,fallback)
-    dbetadp = fetchWithFallback(surfaces,k,"dbetadp",found,fallback)
-    dbetads = fetchWithFallback(surfaces,k,"dbetads",found,fallback)
     dtdx = fetchWithFallback(surfaces,k,"dtdx",found,fallback)
     dtdy = fetchWithFallback(surfaces,k,"dtdy",found,fallback)
     dqnotdx = fetchWithFallback(surfaces,k,"dqnotdx",found,fallback)
@@ -250,8 +243,8 @@ def kterms(surfaces,k,found,params,fallback=None):
     d2qdy2 = fetchWithFallback(surfaces,k,"d2qdy2",found,fallback)
     khp = fetchWithFallback(surfaces,k,"khp",found,fallback)
     dkhpdz = fetchWithFallback(surfaces,k,"khpdz",found,fallback)
-    alphat = dalphadtheta+2*(alpha/betaTherm)*dalphads-(alpha**2/betaTherm**2)*dbetads
-    alphap = dalphadp -(alpha/betaTherm)*dbetadp
+    alphat = fetchWithFallback(surfaces,k,"dalphadtheta",found,fallback)
+    alphap = fetchWithFallback(surfaces,k,"dalphadp",found,fallback)
     pv = fetchWithFallback(surfaces,k,"pv",found,fallback)
     doublets = fetchWithFallback(surfaces,k,"d2thetads2",found,fallback)
     CKVB = fetchWithFallback(surfaces,k,"CKVB",found,fallback)
@@ -260,11 +253,11 @@ def kterms(surfaces,k,found,params,fallback=None):
     f = gsw.f(surfaces[k]["lats"][found])
     beta = calcBeta(surfaces[k]["lats"][found])
     isitnan = [alpha,betaTherm,dsdz,hx,hy,dsdx,dsdy,pres,d2sdx2,d2sdy2,\
-              dalphadtheta,dalphads,dalphadp,dbetadp,dbetads,dtdx,dtdy,\
+              dalphadtheta,dalphads,dalphadp,dtdx,dtdy,\
               dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
               beta,d2qdx2,d2qdy2,d2qdz2,khp,toph,both,uref,vref]
     isitnanstr = np.asarray(["alpha","betaTherm","dsdz","hx","hy","dsdx","dsdy","pres","d2sdx2","d2sdy2",\
-              "dalphadtheta","dalphads","dalphadp","dbetadp","dbetads","dtdx","dtdy",\
+              "dalphadtheta","dalphads","dalphadp","dtdx","dtdy",\
               "dqnotdx","dqnotdy","dpdx","dpdy","alphat","alphap","pv","doublets","CKVB",\
               "beta","d2qdx2","d2qdy2","d2qdz2","khp","toph","both","uref","vref"])
     kvoscale = scales["kvo"]
