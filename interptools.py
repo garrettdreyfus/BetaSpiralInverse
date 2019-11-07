@@ -86,8 +86,8 @@ def createMesh(n,xvals,yvals,fixedgrid="arctic"):
         else:
             if fixedgrid == "hautala":
                 grd = np.meshgrid(\
-                        np.concatenate((np.linspace(170,180,5),np.linspace(-180,-120,30))),
-                        np.linspace(20,60,20))
+                        np.concatenate((np.linspace(170,178,5),np.linspace(-180,-122,30))),
+                        np.linspace(18,58,21))
                 for i in range(grd[0].shape[0]):
                     for j in range(grd[0].shape[1]):
                         x,y = singleXY((grd[0][i][j],grd[1][i][j]))
@@ -184,8 +184,12 @@ def interpolateSurface(surface,debug=True,gaminterpolate=True,fixedgrid="arctic"
     if gaminterpolate:
         for d in Bar("Interpolating: ").iter(surface["data"].keys()):
             notnan = ~np.isnan(surface["data"][d])
+            #deviation = np.nanstd(surface["data"][d])*1.5
+            #mean = np.nanmean(surface["data"][d])
+            #inbounds = abs(surface["data"][d]-mean) < deviation
+            #notnan = np.logical_and(inbounds,notnan)
             if np.count_nonzero(notnan)>10:
-                gam = pygam.LinearGAM(pygam.te(0,1)).fit(X[notnan],np.asarray(surface["data"][d])[notnan])
+                gam = pygam.LinearGAM(pygam.te(0,1,n_splines=[8,8])).fit(X[notnan],np.asarray(surface["data"][d])[notnan])
                 Xgrid = np.zeros((yi.shape[0],2))
                 Xgrid[:,0] = xi
                 Xgrid[:,1] = yi

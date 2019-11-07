@@ -66,16 +66,26 @@ with open('data/nepbctdprofiles.pickle', 'rb') as outfile:
 with open('data/fullsinterpolated.pickle', 'rb') as outfile:
   surfaces = pickle.load(outfile)
 
-#graph.graphSurfaces(surfaces,"pres",region="nepb")
-surfaces = nstools.removeAleutians(surfaces)
-#graph.graphSurfaces(surfaces,"pres",region="nepb")
+#surfaces = nstools.removeAleutians(surfaces)
+
+#graph.graphSurfacesOneContour(surfaces,fulls,"pres",region="nepb",savepath="refpics/surfaces/gamcomp/python/",show=False)
 
 s = nepbctdextract.nepbCTDExtractInterpSurfaces("data/Run0.new.mat")
 s = nstools.removeAleutians(s)
+#graph.graphSurfacesOneContour(s,fulls,"pres",region="nepb",savepath="refpics/surfaces/gamcomp/matlab/",show=False)
+#graph.graphSurfaces(surfaces,"pres",region="nepb")
+#graph.graphSurfaces(surfaces,"pres",region="nepb")
 
-sminus = nstools.surfaceSubtract(s,surfaces,metric="%")
 
-graph.graphSurfaces(sminus,"pv",region="nepbmerc")
+#for k in surfaces.keys():
+    #surfaces[k]["lons"] = surfaces[k]["lons"]+1
+    #surfaces[k]["data"]["ids"] = surfaces[k]["ids"]
+#for k in s.keys():
+    #s[k]["data"]["ids"] = s[k]["ids"]
+
+sminus = nstools.surfaceSubtract(s,surfaces,metric="-")
+graph.graphSurfaces(sminus,"s",region="nepbmerc")
+
 
 with open('data/readytoaddparamsnepb.pickle', 'wb') as outfile:
   pickle.dump([surfaces,neighbors,distances], outfile)

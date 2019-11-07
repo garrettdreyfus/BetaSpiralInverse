@@ -271,7 +271,7 @@ def findAboveIndex(surfaces,k,l):
 def aleutianFilter(lon,lat):
     if lon > 0: lon=-180-(abs(lon)-180)
     if lon>=np.min(al.lon) and lon<=np.max(al.lon):
-        if lat-np.interp(lon,al.lon,al.lat)>0:
+        if lat-np.interp(lon,al.lon,al.lat)>-2:
             #IN THE ALEUTIANS
             return False
     return True
@@ -855,8 +855,10 @@ def surfaceSubtract(s1,s2,method="dist",metric="%",offset=0):
 
 def closestPointSurface(s1,s2,index,number=1):
     dists = (s2["x"]-s1["x"][index])**2+(s2["y"]-s1["y"][index])**2
-    idx = np.argpartition(dists, number)
-    return idx[:number]
+    #if np.nanmin(dists)>100:
+        #print(s1["lons"][index],s1["lats"][index],np.nanmin(dists))
+    idx = np.argmin(dists)
+    return idx
 
 def depthCopy(ref=None,surfaces={}):
     #template = {"lats":[],"lons":[],"ids":[],"data":{"pres":[]},}
