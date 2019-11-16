@@ -133,13 +133,13 @@ def nepbCTDExtractInterpSurfaces(fname):
     "d2CTdS2_s":"d2thetads2","alpha_s":"alpha","beta_s":"beta",\
     "P_s":"pres","Q_s":"pv","d2Qdx2_s":"d2qdx2","d2Qdy2_s":"d2qdy2",\
     "d2Qdz2_s":"d2qdz2","d2Sdx2_s":"d2sdx2","d2Sdy2_s":"d2sdy2",\
-    "aT":"dalphadtheta","aP":"dalphadp","A_s":"psi","lat_field":"khp"}
+    "aT":"dalphadtheta","aP":"dalphadp","A_s":"psi",\
+    "lat_field":"khp","dCTdS_s":"dthetads","Sx":"dsdx",\
+    "Sy":"dsdy","CTx":"dtdx","CTy":"dtdy","dCTdz_s":"dtdz"}
 
     latlist = range(20,60,2)
     lonlist = list(range(170,180,2))
     lonlist = lonlist+list(range(-180,-120,2))
-    print(len(latlist))
-    print(len(lonlist))
 
     ns = np.asarray(ctddata["P_gref"])
 

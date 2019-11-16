@@ -56,91 +56,63 @@ with open('data/nepbctdprofiles.pickle', 'rb') as outfile:
 #with open('data/fulls.pickle', 'rb') as outfile:
   #fulls = pickle.load(outfile)
 
-#fulls = nstools.removeAleutians(fulls)
+#s = nepbctdextract.nepbCTDExtractInterpSurfaces("data/Run0.new.mat")
+#s = nstools.removeAleutians(s)
+#surfaces = nstools.depthCopy(ref= s,surfaces={})
 
+#surfaces,neighbors,distances = interptools.interpolateSurfaces(surfaces,\
+        #fixedgrid="hautala",gaminterpolate=False)
 
-#surfaces,neighbors,distances = interptools.interpolateSurfaces(fulls,fixedgrid="hautala")
+#with open('data/readytoaddparamsnepb.pickle', 'wb') as outfile:
+  #pickle.dump([surfaces,neighbors,distances], outfile)
+#with open('data/readytoaddparamsnepb.pickle', 'rb') as outfile:
+  #surfaces,neighbors,distances = pickle.load(outfile)
 
-#with open('data/fullsinterpolated.pickle', 'wb') as outfile:
-  #pickle.dump(surfaces, outfile)
-with open('data/fullsinterpolated.pickle', 'rb') as outfile:
-  surfaces = pickle.load(outfile)
+#surfaces = nstools.addParametersToSurfaces(surfaces,neighbors,distances)
 
-#surfaces = nstools.removeAleutians(surfaces)
+##nstools.inverseReady(surfaces)
 
-#graph.graphSurfacesOneContour(surfaces,fulls,"pres",region="nepb",savepath="refpics/surfaces/gamcomp/python/",show=False)
-
-s = nepbctdextract.nepbCTDExtractInterpSurfaces("data/Run0.new.mat")
-s = nstools.removeAleutians(s)
-#graph.graphSurfacesOneContour(s,fulls,"pres",region="nepb",savepath="refpics/surfaces/gamcomp/matlab/",show=False)
-#graph.graphSurfaces(surfaces,"pres",region="nepb")
-#graph.graphSurfaces(surfaces,"pres",region="nepb")
-
-
-#for k in surfaces.keys():
-    #surfaces[k]["lons"] = surfaces[k]["lons"]+1
-    #surfaces[k]["data"]["ids"] = surfaces[k]["ids"]
-#for k in s.keys():
-    #s[k]["data"]["ids"] = s[k]["ids"]
-
-sminus = nstools.surfaceSubtract(s,surfaces,metric="-")
-graph.graphSurfaces(sminus,"s",region="nepbmerc")
-
-
-with open('data/readytoaddparamsnepb.pickle', 'wb') as outfile:
-  pickle.dump([surfaces,neighbors,distances], outfile)
-with open('data/readytoaddparamsnepb.pickle', 'rb') as outfile:
-  surfaces,neighbors,distances = pickle.load(outfile)
-
-surfaces = nstools.addParametersToSurfaces(surfaces,neighbors,distances)
-
-with open('data/ready4inversenepb.pickle', 'wb') as outfile:
-    pickle.dump([surfaces,neighbors,distances], outfile)
+#with open('data/ready4inversenepb.pickle', 'wb') as outfile:
+    #pickle.dump([surfaces,neighbors,distances], outfile)
 
 with open('data/ready4inversenepb.pickle', 'rb') as outfile:
     surfaces,neighbors,distances = pickle.load(outfile)
 
-
 s = nepbctdextract.nepbCTDExtractInterpSurfaces("data/Run0.new.mat")
+s = nstools.removeAleutians(s)
 sminus = nstools.surfaceSubtract(surfaces,s,metric="%")
-
-metricname = {"-":"difference","%":"percentdiff","/":"division"}
-for i in metricname.keys():
-    sminus = nstools.surfaceSubtract(surfaces,s,metric=i)
-    graph.saveAllQuants(sminus,"refpics/surfaces/floats-included/"+metricname[i]+"/",region="nepb")
-
-#graph.graphSurfacesOneContour(surfaces,preinterpsurfaces,"t",region="nepb",savepath="refpics/surfaces/gamcomp/python/",show=False)
-#graph.graphSurfacesOneContour(s,preinterps,"t",region="nepb",savepath="refpics/surfaces/gamcomp/matlab/",show=False)
-##print(nstools.surfaceDiagnostic(s))
-#graph.graphSurfaces(sminus,"dsdz",region="nepbmerc")
+#print(sminus[700]["data"].keys())
+graph.graphSurfaces(sminus,"dqdx",region="nepbmerc")
+#graph.graphSurfaces(sminus,"s",region="nepb")
 
 
-#metricname = {"-":"difference","%":"percentdiff","/":"division"}
-#for i in metricname.keys():
-    #sminus = nstools.surfaceSubtract(surfaces,s,metric=i)
-    #graph.saveAllQuants(sminus,"refpics/surfaces/nepballquantsmetrics/"+metricname[i]+"/",region="nepb")
-#graph.saveAllQuants(sminus,"refpics/surfaces/interpercenterrors/",region="nepb")
 
-#############################################
-##graph.saveAllQuants(surfaces,"refpics/surfaces/nepballquantsnewref/",region="nepb")
-##graph.graphSurfaces(surfaces,"pres",region="nepb")
-params = {"reflevel":1700,"upperbound":1100,"lowerbound":3500,"mixs":{"kvo":False,"kvb":False,"kh":False}}
-nstools.surfaceDiagnostic(surfaces)
+#graph.graphVectorField(surfaces,"u","v","psi",region="nepb",transform=False)
+#graph.graphVectorField(surfaces,"u","v","psi",region="nepbmerc")
+#nstools.inverseReady(surfaces)
+
+##s = nepbctdextract.nepbCTDExtractInterpSurfaces("data/Run0.new.mat")
+##############################################
+#graph.saveAllQuants(sminus,"refpics/surfaces/sminushgrid/",region="nepb")
+###graph.graphSurfaces(surfaces,"pres",region="nepb")
+params = {"reflevel":1700,"upperbound":1100,"lowerbound":3500,"mixs":{"kvo":True,"kvb":True,"kh":True}}
+
+##nstools.surfaceDiagnostic(surfaces)
 out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
 
-#with open('data/inverseout.pickle', 'wb') as outfile:
-    #pickle.dump([out,neighbors,distances], outfile)
-#with open('data/inverseout.pickle', 'rb') as outfile:
-    #[out,neighbors,distances] = pickle.load(outfile)
-#####sensitivity.conditionErrorRefLevel("coupled",surfaces,neighbors,distances)
-##print(out.keys())
+with open('data/inverseout.pickle', 'wb') as outfile:
+    pickle.dump([out,neighbors,distances], outfile)
+with open('data/inverseout.pickle', 'rb') as outfile:
+    [out,neighbors,distances] = pickle.load(outfile)
+######sensitivity.conditionErrorRefLevel("coupled",surfaces,neighbors,distances)
+###print(out.keys())
 inv = nstools.streamFuncToUV(out["surfaces"],neighbors,distances)
-print(out["metadata"])
-######graph.graphSurfaces(inv,"e")
-graph.graphVectorField(inv,"uabs","vabs","pv",\
-        metadata=out["metadata"],region="nepbmerc",savepath="refpics/vectorfields/nomixnepb/pv/",show=False)
+#print(out["metadata"])
+#######graph.graphSurfaces(inv,"e")
 graph.graphVectorField(inv,"uabs","vabs","psi",\
-        metadata=out["metadata"],region="nepbmerc",savepath="refpics/vectorfields/nomixnepb/psi/",show=False)
+        metadata=out["metadata"],region="nepbmerc",savepath="refpics/vectorfields/nomixnepb/pv/",show=False)
+#graph.graphVectorField(inv,"uabs","vabs","psi",\
+        #metadata=out["metadata"],region="nepbmerc",savepath="refpics/vectorfields/nomixnepb/psi/",show=False)
 #graph.graphVectorField(inv,"uabs","vabs","pv",metadata=out["metadata"],\
         #region="nepbmerc",savepath="refpics/vectorfields/nolateralnepb/",show=False)
 

@@ -66,12 +66,14 @@ def graphTransects(surfaces,quantindex,contour=False,profiles=None,deepestindex=
 ##diagnostic tool to show that the calculated nearest points for each
 ## point is correct
 def graphNeighbors(surfaces,neighbors):
+    print("graphing")
     for k in neighbors.keys():
-        for r in neighbors[k].keys():
-            i = neighbors[k][r]
-            plt.scatter(surfaces[k][0][i],surfaces[k][1][i])
-            plt.scatter(surfaces[k][0][r],surfaces[k][1][r],c="red")
-            plt.show()
+        for r in neighbors[k]:
+            plt.scatter(surfaces[k]["lons"][r[0]],surfaces[k]["lats"][r[0]],c="green")
+            plt.scatter(surfaces[k]["lons"][r[1]],surfaces[k]["lats"][r[1]],c="blue")
+            plt.scatter(surfaces[k]["lons"][r[2]],surfaces[k]["lats"][r[2]],c="yellow")
+            plt.scatter(surfaces[k]["lons"][r[3]],surfaces[k]["lats"][r[3]],c="red")
+        plt.show()
 
 ## zoom given map and axis into the arctic.
 def zoomGraph(m,ax,region):
@@ -154,7 +156,9 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
             print(e)
         writeInfoFile(savepath)
     for i in list(surfaces.keys()):
-        if len(surfaces[i]["lons"])>3 and len(surfaces[i]["data"][quantindex])>3:
+        if quantindex in surfaces[i]["data"].keys() and \
+                len(surfaces[i]["lons"])>3 and\
+                len(surfaces[i]["data"][quantindex])>3:
             fig,ax,mapy = mapSetup(surfaces,region=region)
             mapy.drawparallels(np.linspace(-90,90,19))
             mapy.drawmeridians(np.linspace(-180, 180, 37))
@@ -444,13 +448,13 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",region="arctic",tra
             lons.append(surfaces[k]["lons"][p])
             lats.append(surfaces[k]["lats"][p])
 
-        urs.append(0.1)
+        urs.append(0.01)
         uthetas.append(0)
         lons.append(-150)
         lats.append(40)
 
         urs.append(0)
-        uthetas.append(0.1)
+        uthetas.append(0.01)
         lons.append(-150)
         lats.append(40)
 

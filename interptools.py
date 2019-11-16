@@ -85,8 +85,10 @@ def createMesh(n,xvals,yvals,fixedgrid="arctic"):
             return np.meshgrid(np.linspace(vals["xmin"],vals["xmax"],n), np.linspace(vals["ymin"],vals["ymax"],n),indexing="xy")
         else:
             if fixedgrid == "hautala":
+                print("making grid")
                 grd = np.meshgrid(\
                         np.concatenate((np.linspace(170,178,5),np.linspace(-180,-122,30))),
+
                         np.linspace(18,58,21))
                 for i in range(grd[0].shape[0]):
                     for j in range(grd[0].shape[1]):
@@ -94,8 +96,9 @@ def createMesh(n,xvals,yvals,fixedgrid="arctic"):
                         grd[0][i][j] = x
                         grd[1][i][j] = y
 
+                
+                #pdb.set_trace()
                 return grd
-                pdb.set_trace()
 
 
 
@@ -155,14 +158,22 @@ def surfaceSnap(surface,xgrid,ygrid):
     for d in surface["data"].keys():
         interpdata[d]=[np.nan]*len(xgrid)
     for l in range(len(xgrid)):
-        idx = np.argpartition((xgrid[l]-surface["x"])**2 + (ygrid[l]-surface["y"])**2, 4)
+        idx = np.argmin((xgrid[l]-surface["x"])**2 + (ygrid[l]-surface["y"])**2)
         for d in surface["data"].keys():
-            interpdata[d][l] = float(np.mean(surface["data"][d][idx[:4]]))
+            if l < len(surface["data"][d]):
+                interpdata[d][l] = float(surface["data"][d][idx])
 
     for d in surface["data"].keys():
         interpdata[d]=np.asarray(interpdata[d])
 
     return interpdata
+
+def surfacePrune(surfaces):
+    for k in surfaces.keys():
+        for d in surfaces[k]["data"].keys():
+            if d not in ["pres","s","t","pv","psi","alpha","beta"]:
+                del surfaces[k]["data"][d]
+    return surfaces
  
 ##interpolate  a surface
 ## create the mesh, use gam interpolation
@@ -189,7 +200,7 @@ def interpolateSurface(surface,debug=True,gaminterpolate=True,fixedgrid="arctic"
             #inbounds = abs(surface["data"][d]-mean) < deviation
             #notnan = np.logical_and(inbounds,notnan)
             if np.count_nonzero(notnan)>10:
-                gam = pygam.LinearGAM(pygam.te(0,1,n_splines=[8,8])).fit(X[notnan],np.asarray(surface["data"][d])[notnan])
+                gam = pygam.GAM(pygam.te(0,1,n_splines=[8,8])).fit(X[notnan],np.asarray(surface["data"][d])[notnan])
                 Xgrid = np.zeros((yi.shape[0],2))
                 Xgrid[:,0] = xi
                 Xgrid[:,1] = yi
@@ -256,5 +267,8 @@ def trueDistanceLookup(surface,neighbors):
         for edge in itertools.combinations(square,2):
             p = tuple(sorted(edge))
             if p not in lookup.keys():
-                lookup[p] = geodesic((surface["lats"][p[0]],surface["lons"][p[0]]),(surface["lats"][p[1]],surface["lons"][p[1]])).m
+                #lookup[p] = geodesic((surface["lats"][p[0]],surface["lons"][p[0]]),(surface["lats"][p[1]],surface["lons"][p[1]])).m
+                latdist = abs(surface["lats"][p[0]] - surface["lats"][p[1]])*111.0*1000.0
+                londist = abs(surface["lons"][p[0]] - surface["lons"][p[1]]) *np.cos(np.deg2rad(surface["lats"][p[1]]))*111.0*1000.0
+                lookup[p] = latdist+londist 
     return lookup

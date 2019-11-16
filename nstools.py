@@ -189,7 +189,7 @@ def profileInBox(profiles,lonleft,lonright,latbot,lattop,depth):
 def emptySurface():
     return {"lats":[],"lons":[],"ids":[],\
             "data":{"pres":[],"t":[],"s":[],"pv":[],"n^2":[],"alpha":[],\
-            "beta":[],"dalphadp":[],"dalphadtheta":[],"dthetads":[]}}
+            "beta":[],"dalphadp":[],"dalphadtheta":[],"dthetads":[],"psi":[]}}
 
 ##given a seed profile, finds neutral surfaces by comparing each profile 
 ## to the nearest profile with an identified neutral surface. Only quits
@@ -392,7 +392,7 @@ def plotProfile(p):
     plt.show()
     
 #just prints out the percentages of each quantity that are nan along a surface 
-def surfaceDiagnostic(surfaces):
+def surfaceDiagnostic(surfaces,doprint=True):
     diagnostics ={}
     t = PrettyTable(['Property', 'nan%'])
     for k in surfaces.keys():
@@ -405,7 +405,10 @@ def surfaceDiagnostic(surfaces):
         if sum(diagnostics[d])!=0:
             percentage = int(round(diagnostics[d][0]/sum(diagnostics[d]),3)*100)
             t.add_row([d,percentage])
-    print(t)
+    if doprint:
+        print(t)
+    return diagnostics
+
 
 
 ##create a nan copy of a surface
@@ -451,7 +454,6 @@ def quantVertGrad(out,data,depths,k,above,center,below,attr,quantattr,outattr,fa
 ##calculate the height of each neutral surface by the difference in pressures
 ## of each neutral surface
 def addHeight(surfaces):    
-    print(surfaces.keys())
     depths = sorted(list(surfaces.keys()))
     for j in Bar('Adding Heights:   ').iter(range(len(depths))[1:-1]):
         for index in range(len(surfaces[depths[j]]["x"])):
@@ -485,7 +487,6 @@ def addVerticalGrad(surfaces):
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"pv","dqdz",factor=-1)
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"s","dsdz",factor=-1)
                 surfaces = quantVertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"dthetads","s","d2thetads2")
-                print(ptools.calculateKHP(surfaces,depths[j],found))
                 surfaces[depths[j]]["data"]["khp"][found] = ptools.calculateKHP(surfaces,depths[j],found)
                 surfaces[depths[j]]["data"]["khpterm"][found] = ptools.calculateKHP(surfaces,depths[j],found) * surfaces[depths[j]]["data"]["kapredi"][found] 
                 
@@ -504,8 +505,8 @@ def addVerticalGrad(surfaces):
 ## "be in the right places" if you will we need to average
 ## the other quantities like position and t,s,v,h, and pres
 def averageOverNeighbors(staggered,surfaces,k,s):
-    x = np.mean(surfaces[k]["x"][s])
-    y = np.mean(surfaces[k]["y"][s])
+    x = np.mean(surfaces[k]["x"][s[0]])
+    y = np.mean(surfaces[k]["y"][s[0]])
     staggered[k]["x"][s[0]] = x
     staggered[k]["y"][s[0]] = y
     staggered[k]["lats"][s[0]] = 90-np.sqrt(x**2 + y**2)/111000.0
@@ -514,7 +515,8 @@ def averageOverNeighbors(staggered,surfaces,k,s):
         if d in ["t","s","pv","h","pres","knownu","knownv",\
                 "psi","n^2","alpha","beta","toph","dthetads",\
                 "both","kapredi","kapgm","diffkr","dalphadp","dalphadtheta"]:
-            staggered[k]["data"][d][s[0]] = np.mean(surfaces[k]["data"][d][s])
+            #staggered[k]["data"][d][s[0]] = np.mean(surfaces[k]["data"][d][s])
+            staggered[k]["data"][d][s[0]] = surfaces[k]["data"][d][s[0]]
         elif d in staggered[k]["data"].keys():
             staggered[k]["data"][d][s[0]] = staggered[k]["data"][d][s[0]]
     return staggered
@@ -539,6 +541,9 @@ def addHorizontalGrad(surfaces,neighbors,distances,debug=False):
     staggered = nanCopySurfaces(surfaces)
 
     for k in Bar('Adding Horizontal Gradients: ').iter(neighbors.keys()):
+        surfaces[k]["data"]["n^2"] = np.full_like(surfaces[k]["data"]["pv"],np.nan)
+        for j in range(len(surfaces[k]["lats"])):
+            surfaces[k]["data"]["n^2"][j] = surfaces[k]["data"]["pv"][j]*9.8/(gsw.f(surfaces[k]["lats"][j]))
         for s in neighbors[k]:
             s=np.asarray(s)
             if not np.isnan(s).any():
@@ -550,13 +555,28 @@ def addHorizontalGrad(surfaces,neighbors,distances,debug=False):
     return staggered
 
 ##calculate gradient based on neighboring points
-def spatialGrad(surfaces,k,distances,s,attr,factorx=1,factory=1):
+def spatialGrad(surfaces,k,distances,s,attr,factorx=1,factory=1,single=False):
     dx = []
     dy = []
-    dx.append((surfaces[k]["data"][attr][s[1]]-surfaces[k]["data"][attr][s[0]])/distances[k][(s[0],s[1])])
-    dx.append((surfaces[k]["data"][attr][s[3]]-surfaces[k]["data"][attr][s[2]])/distances[k][(s[2],s[3])])
-    dy.append((surfaces[k]["data"][attr][s[2]]-surfaces[k]["data"][attr][s[0]])/distances[k][(s[0],s[2])])
-    dy.append((surfaces[k]["data"][attr][s[3]]-surfaces[k]["data"][attr][s[1]])/distances[k][(s[1],s[3])])
+
+    hautaladist = True
+    if hautaladist:
+        dx.append((surfaces[k]["data"][attr][s[1]]-surfaces[k]["data"][attr][s[0]])/(2*distances[k][(s[0],s[1])]))
+        if not single:
+            dx.append((surfaces[k]["data"][attr][s[3]]-surfaces[k]["data"][attr][s[2]])/(2*distances[k][(s[0],s[1])]))
+    else:
+        dx.append((surfaces[k]["data"][attr][s[1]]-surfaces[k]["data"][attr][s[0]])/(2*distances[k][(s[0],s[1])]))
+        if not single:
+            dx.append((surfaces[k]["data"][attr][s[3]]-surfaces[k]["data"][attr][s[2]])/(2*distances[k][(s[2],s[3])]))
+    if hautaladist:
+        dy.append((surfaces[k]["data"][attr][s[2]]-surfaces[k]["data"][attr][s[0]])/distances[k][(s[0],s[2])])
+        if not single:
+            dy.append((surfaces[k]["data"][attr][s[3]]-surfaces[k]["data"][attr][s[1]])/distances[k][(s[0],s[2])])
+    else:
+        dy.append((surfaces[k]["data"][attr][s[2]]-surfaces[k]["data"][attr][s[0]])/distances[k][(s[0],s[2])])
+        if not single:
+            dy.append((surfaces[k]["data"][attr][s[3]]-surfaces[k]["data"][attr][s[1]])/distances[k][(s[3],s[1])])
+
     dx = np.mean(dx)*factorx
     dy = np.mean(dy)*factory
     return dx,dy
@@ -594,7 +614,7 @@ def attrGrad(out,data,k,s,attry,attrx,outattr):
 def addGradients(staggered,surfaces,k,s,distances):
     #NS thickness slope
     staggered = setSpatialGrad(staggered,surfaces,k,s,distances,"h","hx","hy")
-    staggered = setSpatialGrad(staggered,surfaces,k,s,distances,"psi","v","u",(-1/gsw.f(surfaces[k]["lats"][s[0]])),(1/gsw.f(surfaces[k]["lats"][s[0]])))
+    staggered = setSpatialGrad(staggered,surfaces,k,s,distances,"psi","v","u",(1/gsw.f(surfaces[k]["lats"][s[0]])),(-1/gsw.f(surfaces[k]["lats"][s[0]])))
     staggered = setSpatialGrad(staggered,surfaces,k,s,distances,"psi","dpsidx","dpsidy")
     staggered = setSpatialGrad(staggered,surfaces,k,s,distances,"s","dsdx","dsdy")
     staggered = setSpatialGrad(staggered,surfaces,k,s,distances,"t","dtdx","dtdy")
@@ -830,31 +850,34 @@ def surfaceSubtract(s1,s2,method="dist",metric="%",offset=0):
         s1 = interptools.addXYToSurfaces(s1)
         s2 = interptools.addXYToSurfaces(s2)
         
-        for k in s1.keys():
+        for k in Bar("Subtracting").iter(s1.keys()):
             if k in s2.keys():
                 tempSurf = emptySurface()
                 for l in range(len(s1[k]["ids"])):
-                    j = closestPointSurface(s1[k],s2[k],l,number=1)
                     tempSurf["lats"].append(s1[k]["lats"][l])
                     tempSurf["lons"].append(s1[k]["lons"][l])
                     tempSurf["ids"].append(s1[k]["ids"][l])
                     for d in s1[k]["data"].keys():
-
-                        if d in s2[k]["data"].keys() and np.max(j) <len(s2[k]["data"][d]) and l <len(s1[k]["data"][d]) :
-                            s2value = np.nanmean(np.asarray(s2[k]["data"][d])[j])
-                            if d not in tempSurf["data"]:
-                                tempSurf["data"][d] = []
-                            if metric == "-":
-                                tempSurf["data"][d].append((s1[k]["data"][d][l] -offset- s2value ))
-                            if metric == "%":
-                                tempSurf["data"][d].append((s1[k]["data"][d][l] -offset- s2value)/s2value)
-                            if metric == "/":
-                                tempSurf["data"][d].append((s1[k]["data"][d][l]-offset)/s2value)
+                        if d in s2[k]["data"].keys() and (~np.isnan(s2[k]["data"][d])).any():
+                            j = closestPointSurface(s1[k],s2[k],d,l,number=1)
+                            if d in s2[k]["data"].keys() and np.max(j) <len(s2[k]["data"][d]) and l <len(s1[k]["data"][d]) :
+                                s2value = s2[k]["data"][d][j]
+                                if d not in tempSurf["data"]:
+                                    tempSurf["data"][d] = []
+                                if metric == "-":
+                                    tempSurf["data"][d].append((s1[k]["data"][d][l] -offset- s2value ))
+                                if metric == "%":
+                                    tempSurf["data"][d].append((s1[k]["data"][d][l] -offset- s2value)/s2value)
+                                if metric == "/":
+                                    tempSurf["data"][d].append((s1[k]["data"][d][l]-offset)/s2value)
+                        elif d not in s2[k]["data"].keys() :
+                            print("missing",d)
                 surfaces[k] = tempSurf
+    surfaces = interptools.addXYToSurfaces(surfaces)
     return surfaces
 
-def closestPointSurface(s1,s2,index,number=1):
-    dists = (s2["x"]-s1["x"][index])**2+(s2["y"]-s1["y"][index])**2
+def closestPointSurface(s1,s2,d,index,number=1):
+    dists = (s2["x"][~np.isnan(s2["data"][d])] - s1["x"][index])**2+(s2["y"][~np.isnan(s2["data"][d])]-s1["y"][index])**2
     #if np.nanmin(dists)>100:
         #print(s1["lons"][index],s1["lats"][index],np.nanmin(dists))
     idx = np.argmin(dists)
@@ -863,13 +886,22 @@ def closestPointSurface(s1,s2,index,number=1):
 def depthCopy(ref=None,surfaces={}):
     #template = {"lats":[],"lons":[],"ids":[],"data":{"pres":[]},}
     for k in ref.keys():
-        surfaces[k] = {"lats":[],"lons":[],"ids":[],"data":{"pres":[]}}
+        surfaces[k] = emptySurface()
         for l in range(len(ref[k]["data"]["pres"])):
             if ~np.isnan(ref[k]["data"]["pres"][l]):
                 surfaces[k]["lats"].append(ref[k]["lats"][l])
                 surfaces[k]["lons"].append(ref[k]["lons"][l])
                 surfaces[k]["ids"].append(ref[k]["ids"][l])
                 surfaces[k]["data"]["pres"].append(ref[k]["data"]["pres"][l])
+                surfaces[k]["data"]["t"].append(ref[k]["data"]["t"][l])
+                surfaces[k]["data"]["s"].append(ref[k]["data"]["s"][l])
+                surfaces[k]["data"]["pv"].append(ref[k]["data"]["pv"][l])
+                surfaces[k]["data"]["alpha"].append(ref[k]["data"]["alpha"][l])
+                surfaces[k]["data"]["beta"].append(ref[k]["data"]["beta"][l])
+                surfaces[k]["data"]["dalphadtheta"].append(ref[k]["data"]["dalphadtheta"][l])
+                surfaces[k]["data"]["dalphadp"].append(ref[k]["data"]["dalphadp"][l])
+                surfaces[k]["data"]["dthetads"].append(ref[k]["data"]["dthetads"][l])
+                surfaces[k]["data"]["psi"].append(ref[k]["data"]["psi"][l])
     return surfaces
                     
 def adddSdP(surfaces):
@@ -912,6 +944,26 @@ def surfaceConcat(s1,s2):
         outsurf[k] = tempSurf
     return outsurf
                 
-
-
-
+def inverseReady(surfaces):
+    isitnanstr = np.asarray(["alpha","dsdz","hx","hy","dsdx","dsdy","pres","d2sdx2","d2sdy2",\
+    "dalphadtheta","dalphads","dalphadp","dtdx","dtdy",\
+    "dqnotdx","dqnotdy","dpdx","dpdy","pv","CKVB",\
+    "beta","d2qdx2","d2qdy2","d2qdz2","khp","toph","both","uref","vref"])
+    diagnostics = surfaceDiagnostic(surfaces)
+    fine = True
+    missing = []
+    for d in isitnanstr:
+        if d in diagnostics:
+            percentage = int(round(diagnostics[d][0]/sum(diagnostics[d]),3)*100)
+            if percentage == 100:
+                missing.append(d)
+                fine = False
+        else:
+            missing.append(d)
+            fine = False
+    if fine:
+        print("Hey this is ready!")
+    else:
+        print("Hey I think you forgot a few things")
+        print(missing)
+       
