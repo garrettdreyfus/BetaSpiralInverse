@@ -56,15 +56,21 @@ with open('data/nepbctdprofiles.pickle', 'rb') as outfile:
 #with open('data/fulls.pickle', 'rb') as outfile:
   #fulls = pickle.load(outfile)
 
-s = nepbctdextract.nepbCTDExtractInterpSurfaces("data/Run0.new.mat",calcDeriv=True)
+#s = nepbctdextract.nepbCTDExtractInterpSurfaces("data/Run0.new.mat",calcDeriv=True)
 
-s = nstools.removeAleutians(s)
+#s = nstools.removeAleutians(s)
 #surfaces = nstools.depthCopy(ref= s,surfaces={})
 
+###graph.graphSurfaces(sminus,"dqdy",region="nepbmerc",select=[400,600])
+###graph.graphSurfaces(sminus,"dqdx",region="nepbmerc",select=[400,600])
+###graph.graphSurfaces(sminus,"dsdy",region="nepbmerc",select=[400,600])
+###graph.graphSurfaces(sminus,"dsdx",region="nepbmerc",select=[400,600])
+###graph.graphSurfaces(sminus,"dtdy",region="nepbmerc",select=[400,600])
+###graph.graphSurfaces(sminus,"dtdx",region="nepbmerc",select=[400,600])
 #surfaces,neighbors,distances = interptools.interpolateSurfaces(surfaces,\
         #fixedgrid="hautala",gaminterpolate=False)
 
-###nstools.surfaceDiagnostic(surfaces)
+######nstools.surfaceDiagnostic(surfaces)
 
 #with open('data/readytoaddparamsnepb.pickle', 'wb') as outfile:
   #pickle.dump([surfaces,neighbors,distances], outfile)
@@ -72,7 +78,7 @@ s = nstools.removeAleutians(s)
   #surfaces,neighbors,distances = pickle.load(outfile)
 
 #surfaces = nstools.addParametersToSurfaces(surfaces,\
-        #neighbors,distances,["s","t"])
+        #neighbors,distances,["s","t","pv"])
 
 ##nstools.inverseReady(surfaces)
 
@@ -82,16 +88,32 @@ s = nstools.removeAleutians(s)
 with open('data/ready4inversenepb.pickle', 'rb') as outfile:
     surfaces,neighbors,distances = pickle.load(outfile)
 
-#graph.graphSurfaces(surfaces,"d2sdx2",region="nepbmerc")
-sminus = nstools.surfaceSubtract(surfaces,s,metric="/")
+
+scompare = nepbctdextract.nepbCTDExtractInterpSurfaces("data/Run0.new.mat",calcDeriv=False)
+sminus = nstools.surfaceSubtract(surfaces,scompare,metric="/")
 with open('data/sminus.pickle', 'wb') as outfile:
     pickle.dump(sminus, outfile)
 
 with open('data/sminus.pickle', 'rb') as outfile:
     sminus = pickle.load(outfile)
 
+#graph.graphSurfaces(sminus,"d2sdy2",region="nepbmerc",select=[400,600])#half
+#graph.graphSurfaces(sminus,"d2sdy2",region="nepbmerc",select=[400,600])#half
+#graph.graphSurfaces(sminus,"d2sdx2",region="nepbmerc",select=[400,600])#normal
+graph.graphSurfaces(sminus,"d2qdx2",region="nepbmerc",select=[400,600])#wrong
+graph.graphSurfaces(sminus,"d2qdy2",region="nepbmerc",select=[400,600])#wrong
+graph.graphSurfaces(sminus,"dqdy",region="nepbmerc",select=[400,600])#wrong
+graph.graphSurfaces(sminus,"dqdx",region="nepbmerc",select=[400,600])#wrong
+#graph.graphSurfaces(sminus,"dsdy",region="nepbmerc",select=[400,600])#right
+#graph.graphSurfaces(sminus,"dsdx",region="nepbmerc",select=[400,600])#right
+#graph.graphSurfaces(sminus,"dtdy",region="nepbmerc",select=[400,600])#right
+#graph.graphSurfaces(sminus,"dtdx",region="nepbmerc",select=[400,600])#right
+
+
+
+#graph.graphSurfaces(sminus,"dqdx",region="nepbmerc")
 #print(sminus[700]["data"].keys())
-graph.graphSurfaces(sminus,"d2sdy2",region="nepbmerc")
+#graph.graphSurfaces(sminus,"d2sdy2",region="nepbmerc")
 #graph.graphSurfaces(sminus,"s",region="nepb")
 
 #graph.graphVectorField(surfaces,"u","v","psi",region="nepb",transform=False)

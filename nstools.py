@@ -416,9 +416,9 @@ def nanCopySurfaces(surfaces):
     nancopy = {}
     for k in surfaces.keys():
         nancopy[k]=emptySurface()
-        nancopy[k]["lons"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        nancopy[k]["lons"] = surfaces[k]["lons"]
         nancopy[k]["ids"] = surfaces[k]["ids"]
-        nancopy[k]["lats"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        nancopy[k]["lats"] = surfaces[k]["lats"]
         nancopy[k]["x"] = np.full(len(surfaces[k]["lons"]),np.nan)
         nancopy[k]["y"] = np.full(len(surfaces[k]["lons"]),np.nan)
         datafields = ["u","v","hx","h","CKVB","hy","t","s","pv","pres",\
@@ -566,6 +566,13 @@ def centeredGrad(surfaces,neighbors,k,distances,s,attr,factorx=1,factory=1,singl
         if xneighbors:
             dx = surfaces[k]["data"][attr][xneighbors[0]]-surfaces[k]["data"][attr][s[1]]
             xdist = distances[k][(s[0],s[1])]+distances[k][(xneighbors[0],xneighbors[1])]
+            #print("######")
+            #print("point 1: ",surfaces[k]["lats"][xneighbors[0]],surfaces[k]["lons"][xneighbors[0]])
+            #print(s[0],s[1])
+            #print("point 2: ",surfaces[k]["lats"][s[1]],surfaces[k]["lons"][s[1]])
+            #print("dx: ",surfaces[k]["data"][attr][xneighbors[0]]-surfaces[k]["data"][attr][s[1]])
+            #print("xdist: ",xdist)
+            #pdb.set_trace()
             dx=-2*dx/xdist
         else:
             dx=np.nan
@@ -578,9 +585,9 @@ def centeredGrad(surfaces,neighbors,k,distances,s,attr,factorx=1,factory=1,singl
             if p[2] == s[0]:
                 yneighbors = p
         if yneighbors:
-            dy = surfaces[k]["data"][attr][yneighbors[0]]-surfaces[k]["data"][attr][s[2]]
+            dy = surfaces[k]["data"][attr][s[2]]-surfaces[k]["data"][attr][yneighbors[0]]
             ydist = distances[k][(s[0],s[2])]+distances[k][(yneighbors[0],yneighbors[2])]
-            dy = -2*dy/ydist
+            dy = 2*dy/ydist
         else:
             dy=np.nan
 
@@ -935,6 +942,8 @@ def depthCopy(ref=None,surfaces={}):
         surfaces[k]["data"]["dsdy"]=[]
         surfaces[k]["data"]["dtdx"]=[]
         surfaces[k]["data"]["dtdy"]=[]
+        surfaces[k]["data"]["dqdx"]=[]
+        surfaces[k]["data"]["dqdy"]=[]
         for l in range(len(ref[k]["data"]["pres"])):
             if ~np.isnan(ref[k]["data"]["pres"][l]):
                 surfaces[k]["lats"].append(ref[k]["lats"][l])
@@ -953,6 +962,8 @@ def depthCopy(ref=None,surfaces={}):
                 surfaces[k]["data"]["dsdy"].append(ref[k]["data"]["dsdy"][l])
                 surfaces[k]["data"]["dtdx"].append(ref[k]["data"]["dtdx"][l])
                 surfaces[k]["data"]["dtdy"].append(ref[k]["data"]["dtdy"][l])
+                surfaces[k]["data"]["dqdx"].append(ref[k]["data"]["dqdx"][l])
+                surfaces[k]["data"]["dqdy"].append(ref[k]["data"]["dqdy"][l])
                 surfaces[k]["data"]["psi"].append(ref[k]["data"]["psi"][l])
     return surfaces
                     
