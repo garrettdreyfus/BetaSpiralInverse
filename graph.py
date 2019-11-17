@@ -140,7 +140,8 @@ def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=N
 ## if you really want you can supply a profiles object and a deepest index to display a point
 ## controls to save, graph or maximize
 def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,\
-        show=True,maximize=True,savepath=None,idlabels=False,colorlimit=True,region="arctic"):
+        show=True,maximize=True,savepath=None,idlabels=False,\
+        colorlimit=True,region="arctic",select=[-np.inf,np.inf]):
     quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV",\
                      "u":"relative U","v":"relative V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X",\
                     "hy":"Neutral Gradient Y","curl":"Curl","drdt":"Northward Velocity",\
@@ -156,7 +157,8 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
             print(e)
         writeInfoFile(savepath)
     for i in list(surfaces.keys()):
-        if quantindex in surfaces[i]["data"].keys() and \
+        if abs(i)>select[0] and abs(i) <select[1]\
+            and quantindex in surfaces[i]["data"].keys() and \
                 len(surfaces[i]["lons"])>3 and\
                 len(surfaces[i]["data"][quantindex])>3:
             fig,ax,mapy = mapSetup(surfaces,region=region)
@@ -824,9 +826,9 @@ def distanceHist(distances):
         plt.hist(distances[k].values())
         plt.show()
 
-def saveAllQuants(surfaces,savepath,region="arctic"):
+def saveAllQuants(surfaces,savepath,region="arctic",select=[-np.inf,np.inf]):
     for d in surfaces[list(surfaces.keys())[0]]["data"].keys():
-        graphSurfaces(surfaces,d,show=False,savepath=savepath,region=region)
+        graphSurfaces(surfaces,d,show=False,savepath=savepath,region=region,select=select)
 
         
 

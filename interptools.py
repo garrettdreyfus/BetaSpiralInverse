@@ -267,8 +267,8 @@ def trueDistanceLookup(surface,neighbors):
         for edge in itertools.combinations(square,2):
             p = tuple(sorted(edge))
             if p not in lookup.keys():
-                #lookup[p] = geodesic((surface["lats"][p[0]],surface["lons"][p[0]]),(surface["lats"][p[1]],surface["lons"][p[1]])).m
-                latdist = abs(surface["lats"][p[0]] - surface["lats"][p[1]])*111.0*1000.0
-                londist = abs(surface["lons"][p[0]] - surface["lons"][p[1]]) *np.cos(np.deg2rad(surface["lats"][p[1]]))*111.0*1000.0
-                lookup[p] = latdist+londist 
+                lookup[p] = geodesic((surface["lats"][p[0]],surface["lons"][p[0]]),(surface["lats"][p[1]],surface["lons"][p[1]])).m
+                #latdist = abs(surface["lats"][p[0]] - surface["lats"][p[1]])*111.0*1000.0
+                #londist = abs(surface["lons"][p[0]] - surface["lons"][p[1]]) *np.cos(np.deg2rad(surface["lats"][p[1]]))*111.0*1000.0
+                #lookup[p] = latdist+londist 
     return lookup

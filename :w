@@ -555,36 +555,13 @@ def addHorizontalGrad(surfaces,neighbors,distances,ignore,debug=False):
     return staggered
 
 def centeredGrad(surfaces,neighbors,k,distances,s,attr,factorx=1,factory=1,single=False):
-
-    if s[1] >= len(neighbors[k]) :
-        dx=np.nan
-    else:
-        xneighbors=False
-        for p in neighbors[k]:
-            if p[1] == s[0]:
-                xneighbors = p
-        if xneighbors:
-            dx = surfaces[k]["data"][attr][xneighbors[0]]-surfaces[k]["data"][attr][s[1]]
-            xdist = distances[k][(s[0],s[1])]+distances[k][(xneighbors[0],xneighbors[1])]
-            dx=-2*dx/xdist
-        else:
-            dx=np.nan
-
-    if s[2] >= len(neighbors[k]):
-        dy=np.nan
-    else:
-        yneighbors=False
-        for p in neighbors[k]:
-            if p[2] == s[0]:
-                yneighbors = p
-        if yneighbors:
-            dy = surfaces[k]["data"][attr][yneighbors[0]]-surfaces[k]["data"][attr][s[2]]
-            ydist = distances[k][(s[0],s[2])]+distances[k][(yneighbors[0],yneighbors[2])]
-            dy = -2*dy/ydist
-        else:
-            dy=np.nan
-
-    return dx,dy 
+    xneighbors = neighbors[k][s[1]]
+    yneighbors = neighbors[k][s[2]]
+    dx = surfaces[k]["data"][attr][xneighbors[1]]-surfaces[k]["data"][attr][s[0]]
+    dy = surfaces[k]["data"][attr][xneighbors[2]]-surfaces[k]["data"][attr][s[0]]
+    xdist = distances[k][(s[0],s[1])]+distances[k][(xneighbors[0],xneighbors[1])]
+    ydist = distances[k][(s[0],s[2])]+distances[k][(yneighbors[0],yneighbors[2])]
+    return dx/xdist,dy/ydist
     #lets find this center derivative boys
 
 ##calculate gradient based on neighboring points
@@ -679,11 +656,11 @@ def addDoubleGradients(staggered,neighbors,k,s,distances):
     d2qdx2,bop = centeredGrad(staggered,neighbors,k,distances,s,"dqdx")
     bop,d2qdy2 = centeredGrad(staggered,neighbors,k,distances,s,"dqdy")
 
-    staggered[k]["data"]["d2sdx2"][s[0]] = d2sdx2
-    staggered[k]["data"]["d2sdy2"][s[0]] = d2sdy2
+    staggered[k]["data"]["d2sdx2"][s[1]] = d2sdx2
+    staggered[k]["data"]["d2sdy2"][s[2]] =  d2sdy2
 
-    staggered[k]["data"]["d2qdx2"][s[0]] = d2qdx2
-    staggered[k]["data"]["d2qdy2"][s[0]] = d2qdy2
+    staggered[k]["data"]["d2qdx2"][s[1]] = d2qdx2
+    staggered[k]["data"]["d2qdy2"][s[2]] =  d2qdy2
 
     return staggered
 
@@ -914,8 +891,8 @@ def surfaceSubtract(s1,s2,method="dist",metric="%",offset=0):
                                     tempSurf["data"][d].append((s1[k]["data"][d][l] -offset- s2value)/s2value)
                                 if metric == "/":
                                     tempSurf["data"][d].append((s1[k]["data"][d][l]-offset)/s2value)
-                        #elif d not in s2[k]["data"].keys() :
-                            #print("missing",d)
+                        elif d not in s2[k]["data"].keys() :
+                            print("missing",d)
                 surfaces[k] = tempSurf
     surfaces = interptools.addXYToSurfaces(surfaces)
     return surfaces
