@@ -412,15 +412,15 @@ def surfaceDiagnostic(surfaces,doprint=True):
 
 
 ##create a nan copy of a surface
-def nanCopySurfaces(surfaces):
+def nanCopySurfaces(surfaces,simple=False):
     nancopy = {}
     for k in surfaces.keys():
         nancopy[k]=emptySurface()
         nancopy[k]["lons"] = surfaces[k]["lons"]
         nancopy[k]["ids"] = surfaces[k]["ids"]
         nancopy[k]["lats"] = surfaces[k]["lats"]
-        nancopy[k]["x"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        nancopy[k]["y"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        nancopy[k]["x"] = np.full_like(surfaces[k]["lons"],np.nan)
+        nancopy[k]["y"] = np.full_like(surfaces[k]["lons"],np.nan)
         datafields = ["u","v","hx","h","CKVB","hy","t","s","pv","pres",\
                      "curl","uabs","vabs","uprime","vprime","dsdx","dsdz","dsdy",\
                     "d2sdx2","d2sdy2","dtdx","dtdy","dpdx","dpdy","n^2",\
@@ -429,9 +429,13 @@ def nanCopySurfaces(surfaces):
                     "psi","psinew","dqdz","dqdx","dqdy",\
                     "d2qdz2","d2qdx2","d2qdy2","khp","khpterm","khpdz","toph",\
                     "both","dpsidx","dpsidy","ssh","ids","z","knownu"\
-                    ,"knownv","diffkr","kapgm","kapredi","nsdiff","dthetads"]
-        for d in datafields:
-            nancopy[k]["data"][d] = np.full(len(surfaces[k]["lons"]),np.nan)
+                    ,"knownv","diffkr","kapgm","kapredi","nsdiff","dthetads","bathvar"]
+        if simple:
+            for d in surfaces[k]["data"].keys():
+                nancopy[k]["data"][d] = np.full_like(surfaces[k]["data"][d],np.nan,dtype=np.float)
+        else:
+            for d in datafields:
+                nancopy[k]["data"][d] = np.full_like(surfaces[k]["lons"],np.nan,dtype=np.float)
     return nancopy
 #perform a vertical gradient of a quantity of a surface
 #WITH RESPECT TO PRESSURE NOT Z
@@ -525,14 +529,16 @@ def averageOverNeighbors(staggered,surfaces,k,s):
 def addK(surfaces,cachename=None):
     for k in Bar("adding CKVB: ").iter(surfaces.keys()):
         surfaces[k]["data"]["CKVB"] = np.full(len(surfaces[k]["lons"]),np.nan)
-        surfaces[k]["data"]["CKVO"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        surfaces[k]["data"]["bathvar"] = np.full(len(surfaces[k]["lons"]),np.nan)
         for i in range(len(surfaces[k]["lons"])):
             lat = surfaces[k]["lats"][i]
             lon = surfaces[k]["lons"][i]
             if not (np.isnan(lat) or np.isnan(lon)):
                 pv = surfaces[k]["data"]["pv"][i]
                 pres = surfaces[k]["data"]["pres"][i]
-                surfaces[k]["data"]["CKVB"][i] = ptools.Kv(lat,lon,pv,pres,cachename)
+                CKVB, bathvar = ptools.Kv(lat,lon,pv,pres,cachename)
+                surfaces[k]["data"]["CKVB"][i] = CKVB
+                surfaces[k]["data"]["bathvar"][i] = bathvar
     return surfaces
             
 #add all the horizontal gradients, and then the double gradients 
@@ -831,7 +837,7 @@ def addParametersToSurfaces(surfaces,neighbors,distances,ignore=[]):
     surfaces = addHorizontalGrad(surfaces,neighbors,distances,ignore)
     surfaces = addBathAndMask(surfaces,neighbors,"nepb")
     surfaces = addVerticalGrad(surfaces)
-    ptools.saveBathVarTermCache(surfaces,"data/bathVarecco.pickle","nepb")
+    ptools.saveBathVarTermCache(surfaces,"data/bathVarecco.pickle","nepbmatlab")
     surfaces = addK(surfaces,"data/bathVarecco.pickle")
     return surfaces
 
@@ -944,6 +950,8 @@ def depthCopy(ref=None,surfaces={}):
         surfaces[k]["data"]["dtdy"]=[]
         surfaces[k]["data"]["dqdx"]=[]
         surfaces[k]["data"]["dqdy"]=[]
+        surfaces[k]["data"]["dqnotdx"]=[]
+        surfaces[k]["data"]["dqnotdy"]=[]
         for l in range(len(ref[k]["data"]["pres"])):
             if ~np.isnan(ref[k]["data"]["pres"][l]):
                 surfaces[k]["lats"].append(ref[k]["lats"][l])
@@ -964,6 +972,8 @@ def depthCopy(ref=None,surfaces={}):
                 surfaces[k]["data"]["dtdy"].append(ref[k]["data"]["dtdy"][l])
                 surfaces[k]["data"]["dqdx"].append(ref[k]["data"]["dqdx"][l])
                 surfaces[k]["data"]["dqdy"].append(ref[k]["data"]["dqdy"][l])
+                surfaces[k]["data"]["dqnotdx"].append(ref[k]["data"]["dqnotdx"][l])
+                surfaces[k]["data"]["dqnotdy"].append(ref[k]["data"]["dqnotdy"][l])
                 surfaces[k]["data"]["psi"].append(ref[k]["data"]["psi"][l])
     return surfaces
                     
@@ -1030,3 +1040,22 @@ def inverseReady(surfaces):
         print("Hey I think you forgot a few things")
         print(missing)
        
+def domainChop(surfaces):
+    chopped={}
+    for k in surfaces.keys():
+        chopped[k]={"lats":[],"x":[],"y":[],\
+                "lons":[],"ids":[],"data":{}}
+        for d in surfaces[k]["data"].keys():
+            chopped[k]["data"][d] = []
+        for l in range(len(surfaces[k]["lons"])):
+            if  0>surfaces[k]["lons"][l] >-170:
+                chopped[k]["lons"].append(surfaces[k]["lons"][l])
+                chopped[k]["lats"].append(surfaces[k]["lats"][l])
+                chopped[k]["x"].append(surfaces[k]["x"][l])
+                chopped[k]["y"].append(surfaces[k]["y"][l])
+                chopped[k]["ids"].append(surfaces[k]["ids"][l])
+                for d in surfaces[k]["data"].keys():
+                    chopped[k]["data"][d].append(surfaces[k]["data"][d][l])
+    return chopped
+                
+    

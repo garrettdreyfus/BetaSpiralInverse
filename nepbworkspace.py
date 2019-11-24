@@ -57,16 +57,15 @@ with open('data/nepbctdprofiles.pickle', 'rb') as outfile:
   #fulls = pickle.load(outfile)
 
 #s = nepbctdextract.nepbCTDExtractInterpSurfaces("data/Run0.new.mat",calcDeriv=True)
-
 #s = nstools.removeAleutians(s)
 #surfaces = nstools.depthCopy(ref= s,surfaces={})
 
-###graph.graphSurfaces(sminus,"dqdy",region="nepbmerc",select=[400,600])
-###graph.graphSurfaces(sminus,"dqdx",region="nepbmerc",select=[400,600])
-###graph.graphSurfaces(sminus,"dsdy",region="nepbmerc",select=[400,600])
-###graph.graphSurfaces(sminus,"dsdx",region="nepbmerc",select=[400,600])
-###graph.graphSurfaces(sminus,"dtdy",region="nepbmerc",select=[400,600])
-###graph.graphSurfaces(sminus,"dtdx",region="nepbmerc",select=[400,600])
+####graph.graphSurfaces(sminus,"dqdy",region="nepbmerc",select=[400,600])
+####graph.graphSurfaces(sminus,"dqdx",region="nepbmerc",select=[400,600])
+####graph.graphSurfaces(sminus,"dsdy",region="nepbmerc",select=[400,600])
+####graph.graphSurfaces(sminus,"dsdx",region="nepbmerc",select=[400,600])
+####graph.graphSurfaces(sminus,"dtdy",region="nepbmerc",select=[400,600])
+####graph.graphSurfaces(sminus,"dtdx",region="nepbmerc",select=[400,600])
 #surfaces,neighbors,distances = interptools.interpolateSurfaces(surfaces,\
         #fixedgrid="hautala",gaminterpolate=False)
 
@@ -78,7 +77,7 @@ with open('data/nepbctdprofiles.pickle', 'rb') as outfile:
   #surfaces,neighbors,distances = pickle.load(outfile)
 
 #surfaces = nstools.addParametersToSurfaces(surfaces,\
-        #neighbors,distances,["s","t","pv"])
+        #neighbors,distances,["s","t","pv","n^2"])
 
 ##nstools.inverseReady(surfaces)
 
@@ -88,67 +87,48 @@ with open('data/nepbctdprofiles.pickle', 'rb') as outfile:
 with open('data/ready4inversenepb.pickle', 'rb') as outfile:
     surfaces,neighbors,distances = pickle.load(outfile)
 
+#scompare = nepbctdextract.nepbCTDExtractInterpSurfaces("data/Run0.new.mat",calcDeriv=False)
+##scompare = nstools.domainChop(scompare)
+##surfaces = nstools.domainChop(surfaces)
+#sminus = nstools.surfaceSubtract(surfaces,scompare,metric="/")
+#surfaces = artificialPSIRef(surfaces):
+#graph.graphSurfaces(sminus,"dqnotdy",region="nepb",select=[400,600])
+##graph.graphSurfaces(scompare,"bathvar",region="nepb",select=[400,600])
+#surfaces = nstools.domainChop(surfaces)
+###with open('data/sminus.pickle', 'wb') as outfile:
+    ###pickle.dump(sminus, outfile)
 
-scompare = nepbctdextract.nepbCTDExtractInterpSurfaces("data/Run0.new.mat",calcDeriv=False)
-sminus = nstools.surfaceSubtract(surfaces,scompare,metric="/")
-with open('data/sminus.pickle', 'wb') as outfile:
-    pickle.dump(sminus, outfile)
+##with open('data/sminus.pickle', 'rb') as outfile:
+    ##sminus = pickle.load(outfile)
 
-with open('data/sminus.pickle', 'rb') as outfile:
-    sminus = pickle.load(outfile)
+##graph.graphVectorField(surfaces,"u","v","psi",region="nepb",transform=False)
+##graph.graphVectorField(surfaces,"u","v","psi",region="nepbmerc")
+##nstools.inverseReady(surfaces)
 
-#graph.graphSurfaces(sminus,"d2sdy2",region="nepbmerc",select=[400,600])#half
-#graph.graphSurfaces(sminus,"d2sdy2",region="nepbmerc",select=[400,600])#half
-#graph.graphSurfaces(sminus,"d2sdx2",region="nepbmerc",select=[400,600])#normal
-graph.graphSurfaces(sminus,"d2qdx2",region="nepbmerc",select=[400,600])#wrong
-graph.graphSurfaces(sminus,"d2qdy2",region="nepbmerc",select=[400,600])#wrong
-graph.graphSurfaces(sminus,"dqdy",region="nepbmerc",select=[400,600])#wrong
-graph.graphSurfaces(sminus,"dqdx",region="nepbmerc",select=[400,600])#wrong
-#graph.graphSurfaces(sminus,"dsdy",region="nepbmerc",select=[400,600])#right
-#graph.graphSurfaces(sminus,"dsdx",region="nepbmerc",select=[400,600])#right
-#graph.graphSurfaces(sminus,"dtdy",region="nepbmerc",select=[400,600])#right
-#graph.graphSurfaces(sminus,"dtdx",region="nepbmerc",select=[400,600])#right
+###s = nepbctdextract.nepbCTDExtractInterpSurfaces("data/Run0.new.mat")
+###############################################
+##graph.saveAllQuants(sminus,"refpics/surfaces/sminushgrid/",
+        ##region="nepb",select = [200,1000])
+####graph.graphSurfaces(surfaces,"pres",region="nepb")
 
+params = {"reflevel":1700,"upperbound":1100,"lowerbound":3500,"mixs":{"kvo":True,"kvb":True,"kh":True},"3point":False}
 
+####nstools.surfaceDiagnostic(surfaces)
+out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
 
-#graph.graphSurfaces(sminus,"dqdx",region="nepbmerc")
-#print(sminus[700]["data"].keys())
-#graph.graphSurfaces(sminus,"d2sdy2",region="nepbmerc")
-#graph.graphSurfaces(sminus,"s",region="nepb")
-
-#graph.graphVectorField(surfaces,"u","v","psi",region="nepb",transform=False)
-#graph.graphVectorField(surfaces,"u","v","psi",region="nepbmerc")
-#nstools.inverseReady(surfaces)
-
-##s = nepbctdextract.nepbCTDExtractInterpSurfaces("data/Run0.new.mat")
-##############################################
-graph.saveAllQuants(sminus,"refpics/surfaces/sminushgrid/",
-        region="nepb",select = [200,1000])
-###graph.graphSurfaces(surfaces,"pres",region="nepb")
-
-#params = {"reflevel":1700,"upperbound":1100,"lowerbound":3500,"mixs":{"kvo":True,"kvb":True,"kh":True}}
-
-###nstools.surfaceDiagnostic(surfaces)
-#out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
-
-#with open('data/inverseout.pickle', 'wb') as outfile:
-    #pickle.dump([out,neighbors,distances], outfile)
-#with open('data/inverseout.pickle', 'rb') as outfile:
-    #[out,neighbors,distances] = pickle.load(outfile)
-#######sensitivity.conditionErrorRefLevel("coupled",surfaces,neighbors,distances)
-####print(out.keys())
-#inv = nstools.streamFuncToUV(out["surfaces"],neighbors,distances)
-##print(out["metadata"])
-########graph.graphSurfaces(inv,"e")
-#graph.graphVectorField(inv,"uabs","vabs","psi",\
-        #metadata=out["metadata"],region="nepbmerc",savepath="refpics/vectorfields/nomixnepb/pv/",show=False)
-#graph.graphVectorField(inv,"uabs","vabs","psi",\
-        #metadata=out["metadata"],region="nepbmerc",savepath="refpics/vectorfields/nomixnepb/psi/",show=False)
-#graph.graphVectorField(inv,"uabs","vabs","pv",metadata=out["metadata"],\
-        #region="nepbmerc",savepath="refpics/vectorfields/nolateralnepb/",show=False)
-
-
-
-##graph.graphSurfaces(surfaces,"pres",region="nepb")
-##graph.graphSurfaces(surfaces,"t",region="nepb")
+with open('data/inverseout.pickle', 'wb') as outfile:
+    pickle.dump([out,neighbors,distances], outfile)
+with open('data/inverseout.pickle', 'rb') as outfile:
+    [out,neighbors,distances] = pickle.load(outfile)
+#print(out["metadata"])
+inv = nstools.streamFuncToUV(out["surfaces"],neighbors,distances)
+##graph.graphSurfaces(inv,"psinew",region="nepb",select=[1400,np.inf])
+##graph.graphSurfaces(inv,"psi",region="nepb",select=[1400,np.inf])
+##graph.velocityHeatMap(inv,"uabs",167)
+graph.graphVectorField(inv,"uabs","vabs","psi",\
+        metadata=out["metadata"],region="nepb",\
+        transform=False,select=[1400,np.inf])
+#graph.graphVectorField(inv,"uabs","vabs","pv",\
+        #metadata=out["metadata"],region="nepbmerc",\
+        #savepath="refpics/vectorfields/nomixnepb/pv/",show=False,transform=False)
 

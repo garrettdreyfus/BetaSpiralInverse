@@ -2,6 +2,9 @@ from netCDF4 import Dataset
 import xarray as xr
 import numpy as np
 from functools import partial
+import scipy
+import scipy.io as sio
+import pdb
 
 #Return depth at certain lat lon
 def arcticSearchBath(bathDataset,lat,lon):
@@ -28,41 +31,44 @@ def nepbSearchBath(bathDataset,lat,lon):
     else:
         return f
 
+def nepbMatlabSearchBath(bathDataset,lat,lon,includeindex=False):
+    lati = np.abs(bathDataset["lat_SRTM"]-lat).argmin()
+    loni = np.abs(bathDataset["lon_SRTM"]-lon).argmin()
+    #print("---")
+    #print(lati,loni)
+    if includeindex:
+        return bathDataset["z_SRTM"][lati][loni], lati, loni
+    else:
+        return bathDataset["z_SRTM"][lati][loni]
+
+
+
 ## return the depths within a box
 ##this has a lot of finagling to deal with the wrap around
-def bathBox(lat,lon,region,length=28,spacing=0.1):
-    dlat = length/111.0
-    dlon = length/(np.cos(np.deg2rad(lat))*111.0)
+def bathBox(lat,lon,region,length=0.125,spacing=0.008333333,boxmethod="deg"):
+    if boxmethod == "m":
+        dlat = length/111.0
+        dlon = length/(np.cos(np.deg2rad(lat))*111.0)
+    if boxmethod == "deg":
+        dlat = length
+        dlon = length
+    if lon >0: lon = -(180-lon) + -180
     dlon = min(dlon,170)
     botleftlat = lat-dlat
     botleftlon = lon-dlon
     toprightlat= min(lat+dlat,90)
     toprightlon = lon+dlon
-    if botleftlon < -180:
-        botleftlon = (botleftlon+360)
-        flip = np.arange(botleftlon,180,spacing*30)
-        normal = np.arange(-180,toprightlon,spacing*30)
-        gridlons = np.concatenate((normal,flip))
-    elif toprightlon >180:
-        toprightlon = toprightlon-360
-        normal = np.arange(botleftlon,180,spacing*30)
-        flip = np.arange(-180,toprightlon,spacing*30)
-        gridlons = np.concatenate((normal,flip))
-    else:
-        gridlons = np.arange(botleftlon,toprightlon,spacing)
-    gridlats = np.arange(botleftlat,toprightlat,spacing)
-    idx = np.round(np.linspace(0, len(gridlons) - 1, 10)).astype(int)
-    gridlons = gridlons[idx]
-    idx = np.round(np.linspace(0, len(gridlats) - 1, 10)).astype(int)
-    gridlats = gridlats[idx]
+    gridlons = np.linspace(botleftlon,toprightlon,29)
+    gridlats = np.linspace(botleftlat,toprightlat,29)
     latindexs = []
     lonindexs = []
     depths = []
     for i in gridlats:
         for j in gridlons:
-            z = searchBath(i,j,region)
+            z= searchBath(i,j,region)
             if not np.isnan(z):
                 depths.append(z)
+    #pdb.set_trace()
     return depths
 
 ## given a surfaces object add depth information to each point
@@ -90,11 +96,13 @@ def addBathToSurface(surface,region):
     return surface
 
 def searchBath(lat,lon,region):
-    regionToFunction = {"arctic":arcticSearchBath,"nepb":nepbSearchBath}
+    regionToFunction = {"arctic":arcticSearchBath,\
+            "nepb":nepbSearchBath,"nepbmatlab":nepbMatlabSearchBath}
     return regionToFunction[region](lat,lon)
 
 
 #simplify functions so that they already have the bathymetry file loaded
 arcticSearchBath =partial(arcticSearchBath,Dataset("data/ver1_netcdf_geo.nc"))
 nepbSearchBath =partial(nepbSearchBath,xr.open_dataset('data/nepbbath.nc',decode_times=False))
+nepbMatlabSearchBath =partial(nepbMatlabSearchBath,sio.loadmat("data/Run0.new.mat"))
 

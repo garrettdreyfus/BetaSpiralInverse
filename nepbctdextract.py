@@ -136,7 +136,8 @@ def nepbCTDExtractInterpSurfaces(fname,calcDeriv = False):
     "aT":"dalphadtheta","aP":"dalphadp","A_s":"psi",\
     "lat_field":"khp","dCTdS_s":"dthetads","Sx":"dsdx",\
     "Sy":"dsdy","CTx":"dtdx","CTy":"dtdy","dCTdz_s":"dtdz",\
-    "Qx":"dqdx","Qy":"dqdy"}
+    "Qx":"dqdx","Qy":"dqdy","Hvar":"bathvar",\
+    "Q0x":"dqnotdx","Q0y":"dqnotdy"}
 
     latlist = range(20,60,2)
     lonlist = list(range(170,180,2))
@@ -147,7 +148,8 @@ def nepbCTDExtractInterpSurfaces(fname,calcDeriv = False):
     surfaces = {}
 
     for field in ctddata.keys():
-        if field in list(quantmap.keys())+["F_Ssmooth","F_CTsmooth","F_Qsmooth"]:
+        if field in list(quantmap.keys())+["F_Ssmooth",\
+                "F_CTsmooth","F_Qsmooth","F_N2smooth"]:
             if ctddata[field].shape == (20, 35, 30):
                 ctddata[field] = np.transpose(ctddata[field],(2,0,1))
             if ctddata[field].shape == (41, 71, 30):
@@ -163,6 +165,9 @@ def nepbCTDExtractInterpSurfaces(fname,calcDeriv = False):
         tempSurf["data"]["dtdy"]=[]
         tempSurf["data"]["dqdx"]=[]
         tempSurf["data"]["dqdy"]=[]
+        tempSurf["data"]["dqnotdx"]=[]
+        tempSurf["data"]["dqnotdy"]=[]
+        tempSurf["data"]["bathvar"]=[]
 
         for j in range(len(latlist)):
             for l in range(len(lonlist)):
@@ -171,10 +176,14 @@ def nepbCTDExtractInterpSurfaces(fname,calcDeriv = False):
                 tempSurf["ids"].append(j*30+l)
                 for field in ctddata.keys():
                     if field in quantmap.keys():
-                        if calcDeriv and (field not in ["CTx","CTy","Sx","Sy","Qx","Qy"]):
-                            tempSurf["data"][quantmap[field]].append(ctddata[field][k][j][l])
-                        elif not calcDeriv:
-                            tempSurf["data"][quantmap[field]].append(ctddata[field][k][j][l])
+                        if field == "Hvar":
+                            tempSurf["data"]["bathvar"].append(ctddata[field][j*2][l*2])
+                        else:
+                            if calcDeriv and (field not in ["CTx","CTy",\
+                                    "Sx","Sy","Qx","Qy","Q0x","Q0y"]):
+                                tempSurf["data"][quantmap[field]].append(ctddata[field][k][j][l])
+                            elif not calcDeriv:
+                                tempSurf["data"][quantmap[field]].append(ctddata[field][k][j][l])
 
                     if calcDeriv and field == "F_Ssmooth":
 
@@ -228,6 +237,22 @@ def nepbCTDExtractInterpSurfaces(fname,calcDeriv = False):
                         tempSurf["data"]["dqdx"].append(dx/(2*xdist))
                         tempSurf["data"]["dqdy"].append(dy/(2*ydist))
 
+                    if calcDeriv and field == "F_N2smooth":
+
+                        if j == len(latlist)-1 or l == len(lonlist)-1: 
+                            ydist = ((latlist[j] - latlist[j-1])/2.0)*111.0*1000.0
+                            xdist = ydist *np.cos(np.deg2rad(latlist[j]+1))
+                        else: 
+                            ydist = ((latlist[j+1] - latlist[j])/2.0)*111.0*1000.0
+                            xdist =ydist * np.cos(np.deg2rad(latlist[j]+1))
+
+                        dx = ctddata[field][k][j*2][l*2+1] -  ctddata[field][k][j*2][l*2]
+                        dx += ctddata[field][k][j*2+1][l*2+1] -  ctddata[field][k][j*2+1][l*2]
+                        dy = ctddata[field][k][j*2+1][l*2] -  ctddata[field][k][j*2][l*2]
+                        dy += ctddata[field][k][j*2+1][l*2+1] -  ctddata[field][k][j*2][l*2+1]
+
+                        tempSurf["data"]["dqnotdx"].append(gsw.f(latlist[j])*dx/(9.81*2*xdist))
+                        tempSurf["data"]["dqnotdy"].append(gsw.f(latlist[j])*dy/(9.81*2*ydist))
 
 
         surfaces[ns[k][0]] = tempSurf

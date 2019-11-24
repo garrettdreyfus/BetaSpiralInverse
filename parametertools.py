@@ -15,6 +15,7 @@ def calcBeta(lat):
 def bathVarTerm(lat,lon,region):
     d=bathtools.bathBox(lat,lon,region)
     dnot = 750
+    print("box",d)
     return (np.var(d)/dnot)**(0.25)
 
 #one of the mixing terms is a mess and this calculates that
@@ -60,10 +61,10 @@ def bathVarTermCache(lat,lon,filename):
 ## calulate the Kvb bathvar coefficient
 def Kv(lat,lon,pv,pres,cachename=None):
     if cachename:
-       bVT = bathVarTermCache(lat,lon,cachename) 
+        bVT = bathVarTermCache(lat,lon,cachename) 
     else:
         bVT = bathVarTerm(lat,lon)
-    return bVT*np.exp(-(abs(bathtools.searchBath(lat,lon,"nepb"))-abs(pres))/500)
+    return bVT*np.exp(-(abs(bathtools.searchBath(lat,lon,"nepbmatlab"))-abs(pres))/500),(bVT**4)*750
 
 #function for exploring k mixing term values
 def kChecker(surfaces,k,found,scales,debug=False):

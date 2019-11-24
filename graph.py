@@ -171,7 +171,9 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
             y = np.asarray(y)
             #Plot the surface 
             if contour:
-                plt.tricontourf(x,y,np.asarray(surfaces[i]["data"][quantindex]),cmap=cmocean.cm.haline,levels=30)
+                a = tuple([(abs(surfaces[i]["lats"]-90)>0.5) & (~np.isnan(surfaces[i]["data"][quantindex]))])
+                if np.count_nonzero(a)>4:
+                    plt.tricontourf(x,y,np.asarray(surfaces[i]["data"][quantindex][a]),cmap=cmocean.cm.haline,levels=30)
             else:
                 plt.scatter(x,y,c=d,cmap=cmocean.cm.haline)
             m = np.nanmedian(d)
@@ -414,7 +416,8 @@ def graphStaggeredSurface(surfaces,neighbors,debug=False):
 
 ## graph a vector field given a surfaces object on a map
 ## any quantity can be supplied as a background field
-def graphVectorField(surfaces,key1,key2,backgroundfield="pv",region="arctic",transform=True,savepath=False,show=True,metadata={}):
+def graphVectorField(surfaces,key1,key2,backgroundfield="pv",select=[-np.inf,np.inf],\
+        region="arctic",transform=True,savepath=False,show=True,metadata={},contour=True):
 
     if savepath:
         try:
@@ -423,70 +426,74 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",region="arctic",tra
             print(e)
         writeInfoFile(savepath,metadata)
     for k in surfaces.keys():
-        fig,ax,mapy = mapSetup([],region=region)
-        urs=[]
-        uthetas=[]
-        lons = []
-        lats = []
-        for p in range(0,len(surfaces[k]["data"][key1])):
-            u = surfaces[k]["data"][key1][p] 
-            v = surfaces[k]["data"][key2][p]
-            x = surfaces[k]["x"][p]
-            y = surfaces[k]["y"][p]
-            if transform:
-                theta = np.deg2rad(surfaces[k]["lons"][p])
-                #ur = u*np.cos(theta) + v*np.sin(theta)
-                r = np.sqrt(x**2+y**2)
-                ur = -(x*u +y*v)/r
+        if select[1]>k>select[0]:
+            fig,ax,mapy = mapSetup([],region=region)
+            urs=[]
+            uthetas=[]
+            lons = []
+            lats = []
+            for p in range(0,len(surfaces[k]["data"][key1])):
+                u = surfaces[k]["data"][key1][p] 
+                v = surfaces[k]["data"][key2][p]
+                x = surfaces[k]["x"][p]
+                y = surfaces[k]["y"][p]
+                if transform:
+                    theta = np.deg2rad(surfaces[k]["lons"][p])
+                    #ur = u*np.cos(theta) + v*np.sin(theta)
+                    r = np.sqrt(x**2+y**2)
+                    ur = -(x*u +y*v)/r
 
-                #utheta = v*np.cos(theta) - v*np.sin(theta)
-                utheta = r*(x*v-y*u)/(r**2)
+                    #utheta = v*np.cos(theta) - v*np.sin(theta)
+                    utheta = r*(x*v-y*u)/(r**2)
 
-                urs.append(ur)
-                uthetas.append(utheta)
-            else:
-                urs.append(v)
-                uthetas.append(u)
-            lons.append(surfaces[k]["lons"][p])
-            lats.append(surfaces[k]["lats"][p])
+                    urs.append(ur)
+                    uthetas.append(utheta)
+                else:
+                    urs.append(v)
+                    uthetas.append(u)
+                lons.append(surfaces[k]["lons"][p])
+                lats.append(surfaces[k]["lats"][p])
 
-        urs.append(0.01)
-        uthetas.append(0)
-        lons.append(-150)
-        lats.append(40)
+            urs.append(0.01)
+            uthetas.append(0)
+            lons.append(-150)
+            lats.append(40)
 
-        urs.append(0)
-        uthetas.append(0.01)
-        lons.append(-150)
-        lats.append(40)
+            urs.append(0)
+            uthetas.append(0.01)
+            lons.append(-150)
+            lats.append(40)
 
-        fig.suptitle(key1+"," + key2 + " NS: "+str(k))
-        urs = np.asarray(urs)
-        uthetas = np.asarray(uthetas)
-        lons = np.asarray(lons)
-        lats = np.asarray(lats)
-        u,v,x,y = mapy.rotate_vector(uthetas,urs,lons,lats,returnxy=True)
-        mag = np.sqrt(u**2+v**2)
-        fig.set_size_inches(16.5,12)
-        a = tuple([(abs(surfaces[k]["lats"]-90)>0.5) & (~np.isnan(surfaces[k]["data"][backgroundfield]))])
-        if np.count_nonzero(a)>4:
-            xpv,ypv = mapy(surfaces[k]["lons"][a],surfaces[k]["lats"][a])
-            if backgroundfield != "f/h":
-                bgfield = surfaces[k]["data"][backgroundfield][a]
-            else:
-                bgfield = gsw.f(surfaces[k]["lats"][a])/surfaces[k]["data"]["z"][a]
-            plt.tricontourf(xpv,ypv,bgfield,levels=50,cmap="viridis")
-            #plt.scatter(xpv,ypv,c=bgfield)
-            m = np.nanmedian(bgfield)
-            s = np.nanstd(bgfield)
-            plt.clim(m-2*s,m+2*s)
-            mapy.colorbar()
-            mapy.quiver(x,y,u*2,v*2,mag,cmap="autumn",width = 0.004)
-            if savepath:
-                plt.savefig(savepath+key1+key2+"/ns"+str(k)+".png")
+            fig.suptitle(key1+"," + key2 + " NS: "+str(k))
+            urs = np.asarray(urs)
+            uthetas = np.asarray(uthetas)
+            lons = np.asarray(lons)
+            lats = np.asarray(lats)
+            u,v,x,y = mapy.rotate_vector(uthetas,urs,lons,lats,returnxy=True)
+            mag = np.sqrt(u**2+v**2)
+            fig.set_size_inches(16.5,12)
+            a = tuple([(abs(surfaces[k]["lats"]-90)>0.5) & (~np.isnan(surfaces[k]["data"][backgroundfield]))])
+            if np.count_nonzero(a)>4:
+                xpv,ypv = mapy(surfaces[k]["lons"][a],surfaces[k]["lats"][a])
+                if backgroundfield != "f/h":
+                    bgfield = surfaces[k]["data"][backgroundfield][a]
+                else:
+                    bgfield = gsw.f(surfaces[k]["lats"][a])/surfaces[k]["data"]["z"][a]
+                if contour:
+                    plt.tricontourf(xpv,ypv,bgfield,levels=50,cmap="viridis")
+                else:
+                    plt.scatter(xpv,ypv,c=bgfield,cmap="viridis")
+                #plt.scatter(xpv,ypv,c=bgfield)
+                m = np.nanmedian(bgfield)
+                s = np.nanstd(bgfield)
+                plt.clim(m-2*s,m+2*s)
+                mapy.colorbar()
+                mapy.quiver(x,y,u*2,v*2,mag,cmap="autumn",width = 0.004)
+                if savepath:
+                    plt.savefig(savepath+key1+key2+"/ns"+str(k)+".png")
 
-            if show:
-                plt.show()
+                if show:
+                    plt.show()
         plt.close()
 
 
@@ -788,14 +795,14 @@ def graphProfilesVectorField(profiles,depths=range(200,4000,200),savepath=False,
                 lats.append(p.lat)
                 bgfield.append(p.atPres(p.ipres[i])[1])
 
-        urs.append(0.1)
+        urs.append(0.01)
         uthetas.append(0)
         lons.append(89)
         lats.append(89)
         bgfield.append(np.nan)
 
         urs.append(0)
-        uthetas.append(0.1)
+        uthetas.append(0.01)
         lons.append(89)
         lats.append(89)
         bgfield.append(np.nan)
@@ -829,6 +836,38 @@ def distanceHist(distances):
 def saveAllQuants(surfaces,savepath,region="arctic",select=[-np.inf,np.inf]):
     for d in surfaces[list(surfaces.keys())[0]]["data"].keys():
         graphSurfaces(surfaces,d,show=False,savepath=savepath,region=region,select=select)
+
+def velocityHeatMap(surfaces,uvel,lon):
+    depth=[]
+    lat = []
+    u = []
+    for k in surfaces.keys():
+        depthrow=np.asarray([-int(k)]*20,dtype=np.double)
+        latrow=np.asarray(range(20,60,2),dtype=np.double)
+        urow =np.asarray([np.nan]*20,dtype=np.double)
+        for l in range(len(surfaces[k]["lons"])):
+            if surfaces[k]["lons"][l] == -168:
+                i = int(round((surfaces[k]["lats"][l]-20)/2))
+                print(i,surfaces[k]["lats"][l])
+                #print(i)
+                depthrow[i] = -surfaces[k]["data"]["pres"][l]
+                latrow[i] = surfaces[k]["lats"][l]
+                urow[i] = surfaces[k]["data"][uvel][l]
+        depth.append(np.asarray(depthrow))
+        lat.append(np.asarray(latrow))
+        u.append(np.asarray(urow))
+    #print(np.asarray(depth).shape)
+    #print(np.asarray(lat).shape)
+    #print(np.asarray(u).shape)
+    #plt.contourf(lat,depth,u,levels=60,cmap="Spectral_r"\
+            #,vmin=-10**-3,vmax=10**-3)
+    plt.imshow(u,vmin=-3*10**-3,vmax=3*10**-3)
+    ax = plt.gca()
+    xticks = range(20,60,2)
+    depths = sorted(surfaces.keys())
+    yticks = list(range(depths[0],depths[-1],1000))
+    plt.colorbar()
+    plt.show()
 
         
 

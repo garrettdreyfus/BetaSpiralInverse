@@ -141,7 +141,7 @@ def generateWhiteList(surfaces,neighbors,lowlevel,highlevel):
 
 ## construct row of inverse that conserves PV, threepoint determines whether a 
 ## threepoint or four point grid setup will be used
-def constructBetaRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True):
+def constructBetaRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True,latlongrid=True):
     Arscale = scales["Ar"]
     Apsirow = [0]*(max(columnindexs)+1)
 
@@ -158,7 +158,7 @@ def constructBetaRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True)
     r = np.sqrt(x**2 + y**2)
     #use mean gradient instead
     ## (-1/f)dAr/dy*dQnotdx
-    if threepoint:
+    if threepoint and not latlongrid:
         values = [0]*3
         d01 = distances[(s[0],s[1])]
         d02 = distances[(s[0],s[2])]
@@ -175,8 +175,9 @@ def constructBetaRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True)
         Apsirow[columnindexs[0]] = values[0]
         Apsirow[columnindexs[1]] = values[1]
         Apsirow[columnindexs[2]] = values[2]
+        crow = (-u)*(dqnotdx-x*beta*pv/(f*r))+(-v)*(dqnotdy-y*beta*pv/(f*r))
  
-    else:
+    elif not threepoint and not latlongrid:
         values = [0]*4
         d01 = distances[(s[0],s[1])]
         d02 = distances[(s[0],s[2])]
@@ -199,7 +200,31 @@ def constructBetaRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True)
         Apsirow[columnindexs[1]] = values[1]
         Apsirow[columnindexs[2]] = values[2]
         Apsirow[columnindexs[3]] = values[3]
-    crow = (-u)*(dqnotdx-x*beta*pv/(f*r))+(-v)*(dqnotdy-y*beta*pv/(f*r))
+        crow = (-u)*(dqnotdx-x*beta*pv/(f*r))+(-v)*(dqnotdy-y*beta*pv/(f*r))
+    elif not threepoint and latlongrid:
+        values = [0]*4
+        d01 = distances[(s[0],s[1])]
+        d02 = distances[(s[0],s[2])]
+        d23 = distances[(s[2],s[3])]
+        d13 = distances[(s[1],s[3])]
+
+        values[0] = (-1/(2*f*d02))*(dqnotdx)\
+                                   + (1/(2*f*d01))*(dqnotdy+beta*pv/(f))
+
+        values[1] = (-1/(2*f*d01))*(dqnotdy+beta*pv/(f))+(-1/(2*f*d13))*(dqnotdx)\
+                                  
+
+        values[2] = (1/(2*f*d02))*(dqnotdx)\
+                                   + (1/(2*f*d23))*(dqnotdy+beta*pv/(f))
+        ## (-1/f)dAr/dx*dQnotdx
+        values[3] = (1/(2*f*d13))*(dqnotdx)\
+                                  + (-1/(2*f*d23))*(dqnotdy+beta*pv/(f))
+
+        Apsirow[columnindexs[0]] = -values[0]
+        Apsirow[columnindexs[1]] = -values[1]
+        Apsirow[columnindexs[2]] = -values[2]
+        Apsirow[columnindexs[3]] = -values[3]
+        crow = (-u)*(dqnotdx)+(-v)*(dqnotdy+beta*pv/(f)) 
     return np.asarray(Apsirow)*Arscale,np.asarray(values)*Arscale,np.asarray(crow)
 
 ## construct row of inverse that conserves salt
@@ -224,9 +249,9 @@ def constructSalRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True):
 
         values[2] = (1/(2*f*d02))*dsdx\
 
-        Apsirow[columnindexs[0]] = values[0]
-        Apsirow[columnindexs[1]] = values[1]
-        Apsirow[columnindexs[2]] = values[2]
+        Apsirow[columnindexs[0]] = -values[0]
+        Apsirow[columnindexs[1]] = -values[1]
+        Apsirow[columnindexs[2]] = -values[2]
     else: 
         values = [0]*4
         d01 = distances[(s[0],s[1])]
@@ -248,10 +273,10 @@ def constructSalRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True):
         values[3] = (1/(2*f*d13))*dsdx\
                                   + (-1/(2*f*d23))*dsdy
 
-        Apsirow[columnindexs[0]] = values[0]
-        Apsirow[columnindexs[1]] = values[1]
-        Apsirow[columnindexs[2]] = values[2]
-        Apsirow[columnindexs[3]] = values[3]
+        Apsirow[columnindexs[0]] = -values[0]
+        Apsirow[columnindexs[1]] = -values[1]
+        Apsirow[columnindexs[2]] = -values[2]
+        Apsirow[columnindexs[3]] = -values[3]
     crow = -((u)*dsdx+(v)*dsdy)
     return np.asarray(Apsirow)*Arscale,np.asarray(values)*Arscale,np.asarray(crow)
 
@@ -263,7 +288,6 @@ def fillDefault(params):
     params.setdefault("reflevel",1000)
     params.setdefault("mixs",{"kvh":True,"kvb":False,"kvo":True})
     params.setdefault("scalecoeffs",{"Ar":0.05,"kvo":5*10**-6,"kvb":5*10**-5,"kh":500})
-    #params.setdefault("scalecoeffs",{"Ar":1,"kvo":1,"kvb":1,"kh":1})
     params.setdefault("3point",True)
     params.setdefault("edgeguard",True)
     params.setdefault("modelmixing",False)
@@ -447,11 +471,11 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
     us = us[:m]
 
     if params["mixs"]["kh"] and params["mixs"]["kvb"] and params["mixs"]["kvo"]:
-        A,widths = combineAs([m,m,18,1],[1,2],Apsi,Akvb,Akh,Akvo)
+        A,widths = combineAs([m,m,len(surfaces.keys()),1],[1,2],Apsi,Akvb,Akh,Akvo)
         print("ALL ON")
     elif params["mixs"]["kh"] and not params["mixs"]["kvb"] and params["mixs"]["kvo"]:
         print("ALL KVO, Kh")
-        A,widths = combineAs([m,18,1],[1],Apsi,Akh,Akvo)
+        A,widths = combineAs([m,len(surfaces.keys()),1],[1],Apsi,Akh,Akvo)
     elif not params["mixs"]["kh"] and not params["mixs"]["kvb"] and params["mixs"]["kvo"]:
         print("ALL KVO")
         A,widths = combineAs([m,1],[],Apsi,Akvo)
