@@ -381,4 +381,6 @@ class Profile:
     ## so I stole those functions and made a frankenstein that is like
     ## 100000 times faster than the matlab geostrophic function thing ;)
     def geoIsopycnal(self,ns,nsdensref):
-        return mygsw.geo_strf_isopycnal(self.isals,self.itemps,self.ipres,1800,nsdensref,ns)
+        if 1800 in self.ipres :
+            return mygsw.geo_strf_isopycnal(self.isals,self.itemps,self.ipres,1800,nsdensref,ns)
+        return [np.nan]*len(ns)

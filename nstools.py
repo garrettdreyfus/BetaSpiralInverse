@@ -579,7 +579,7 @@ def centeredGrad(surfaces,neighbors,k,distances,s,attr,factorx=1,factory=1,singl
             #print("dx: ",surfaces[k]["data"][attr][xneighbors[0]]-surfaces[k]["data"][attr][s[1]])
             #print("xdist: ",xdist)
             #pdb.set_trace()
-            dx=-2*dx/xdist
+            dx=-dx/xdist
         else:
             dx=np.nan
 

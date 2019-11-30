@@ -74,15 +74,20 @@ def removeDiscontinuities(surface,radius=10,debug=True,inside={}):
 ## align vertically throughout the water column
 def createMesh(n,xvals,yvals,fixedgrid="arctic"):
     preset = {"arctic":{"xmin":-1793163,"xmax":971927,"ymin":-1455096,"ymax":1200385,"cord":"xy"},
-            "nepb":{"xmin":-7626269.8278319035,"xmax":-2637514.7450460778,"ymin":-6070024.08806232,"ymax":-694647.408618841,"cord":"xy"},
+            "nepb":{"botleft":(-144,3),"topright":(155,63),"cord":"xy"},
             "hautala":{"cord":"latlon"}}
     if not fixedgrid:
-        print(np.min(xvals),np.max(xvals),np.min(yvals),np.max(yvals))
         return np.meshgrid(np.linspace(np.min(xvals),np.max(xvals),n), np.linspace(np.min(yvals),np.max(yvals),n),indexing="xy")
     else:
         if preset[fixedgrid]["cord"] == "xy":
             vals = preset[fixedgrid]
-            return np.meshgrid(np.linspace(vals["xmin"],vals["xmax"],n), np.linspace(vals["ymin"],vals["ymax"],n),indexing="xy")
+            x1,y1 = singleXY(vals["botleft"])
+            x2,y2 = singleXY(vals["topright"])
+            xmin = min(x1,x2)
+            xmax = max(x1,x2)
+            ymin = min(y1,y2)
+            ymax = max(y1,y2)
+            return np.meshgrid(np.linspace(xmin,xmax,n), np.linspace(ymin,ymax,n),indexing="xy")
         else:
             if fixedgrid == "hautala":
                 print("making grid")
@@ -252,9 +257,13 @@ def homemadeXY(lon,lat):
 
 #after interpolation everything is in x and y so we need to convert back 
 # to latitude and longitude
+def xyToLatLon(x,y):
+    lat = 90-(np.sqrt((x**2+y**2))/111000.0)
+    lon = np.degrees(np.arctan2(y,x))
+    return lat,lon
+    
 def addLatLonToSurface(surface,debug = True):
-    lat = 90-(np.sqrt((surface["x"]**2+surface["y"]**2))/111000.0)
-    lon = np.degrees(np.arctan2(surface["y"],surface["x"]))
+    lat,lon = xyToLatLon(surface["x"],surface["y"])
     #print("lat: ",lat, " lon: ",lon)
     surface["lons"]=lon
     surface["lats"]=lat

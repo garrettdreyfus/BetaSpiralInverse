@@ -103,15 +103,12 @@ def extractPointSurfaces(fname,fields={}):
                 tempSurf["data"]["pres"].append(nspres[p][j])
                 tempSurf["data"]["t"].append(NS_CT[p][j])
                 tempSurf["data"]["s"].append(NS_S[p][j])
-                if ns[j][0] <1900:
-                    tempSurf["data"]["psi"].append(ACCPO[p][j])
-                else:
-                    tempSurf["data"]["psi"].append(np.nan)
+                tempSurf["data"]["psi"].append(ACCPO[p][j])
 
                 tempSurf["data"]["pv"].append(PV[p][j])
                 tempSurf["data"]["n^2"].append(np.nan)
-                tempSurf["data"]["dalphadp"].append(np.nan)
-                tempSurf["data"]["dalphadtheta"].append(np.nan)
+                tempSurf["data"]["dalphadp"].append(gsw.thermobaric(NS_S[p][j],NS_CT[p][j],nspres[p][j]))
+                tempSurf["data"]["dalphadtheta"].append(gsw.cabbeling(NS_S[p][j],NS_CT[p][j],nspres[p][j]))
                 tempSurf["data"]["alpha"].append(gsw.alpha(NS_S[p][j],NS_CT[p][j],nspres[p][j]))
                 tempSurf["data"]["beta"].append(gsw.beta(NS_S[p][j],NS_CT[p][j],nspres[p][j]))
                 tempSurf["data"]["dthetads"].append(dCTdS[p][j])

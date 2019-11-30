@@ -141,7 +141,7 @@ def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=N
 ## controls to save, graph or maximize
 def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,\
         show=True,maximize=True,savepath=None,idlabels=False,\
-        colorlimit=True,region="arctic",select=[-np.inf,np.inf]):
+        colorlimit=True,region="arctic",select=range(0,10000)):
     quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV",\
                      "u":"relative U","v":"relative V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X",\
                     "hy":"Neutral Gradient Y","curl":"Curl","drdt":"Northward Velocity",\
@@ -157,7 +157,7 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
             print(e)
         writeInfoFile(savepath)
     for i in list(surfaces.keys()):
-        if abs(i)>select[0] and abs(i) <select[1]\
+        if abs(i) in select\
             and quantindex in surfaces[i]["data"].keys() and \
                 len(surfaces[i]["lons"])>3 and\
                 len(surfaces[i]["data"][quantindex])>3:
@@ -416,7 +416,7 @@ def graphStaggeredSurface(surfaces,neighbors,debug=False):
 
 ## graph a vector field given a surfaces object on a map
 ## any quantity can be supplied as a background field
-def graphVectorField(surfaces,key1,key2,backgroundfield="pv",select=[-np.inf,np.inf],\
+def graphVectorField(surfaces,key1,key2,backgroundfield="pv",select=range(0,10000),\
         region="arctic",transform=True,savepath=False,show=True,metadata={},contour=True):
 
     if savepath:
@@ -426,7 +426,7 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",select=[-np.inf,np.
             print(e)
         writeInfoFile(savepath,metadata)
     for k in surfaces.keys():
-        if select[1]>k>select[0]:
+        if k in select:
             fig,ax,mapy = mapSetup([],region=region)
             urs=[]
             uthetas=[]

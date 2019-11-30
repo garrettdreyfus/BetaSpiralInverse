@@ -141,7 +141,7 @@ def generateWhiteList(surfaces,neighbors,lowlevel,highlevel):
 
 ## construct row of inverse that conserves PV, threepoint determines whether a 
 ## threepoint or four point grid setup will be used
-def constructBetaRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True,latlongrid=True):
+def constructBetaRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True,latlongrid=False):
     Arscale = scales["Ar"]
     Apsirow = [0]*(max(columnindexs)+1)
 

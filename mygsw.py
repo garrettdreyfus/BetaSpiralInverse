@@ -191,7 +191,13 @@ def interp_ref_cast(spycnl, A="gn"):
 def geo_strf_isopycnal(SA,CT,p,p_ref,Neutral_Density,p_Neutral_Density,A="s2"):
     p = np.abs(np.asarray(p))
 
-    dyn_height = gsw.geo_strf_dyn_height(SA,CT,p,p_ref)
+    try:
+        dyn_height = gsw.geo_strf_dyn_height(SA,CT,p,p_ref)
+    except:
+        print("something wrong")
+        print(SA,CT,p,p_ref)
+        return np.nan
+
     
     p_Neutral_Density, idxs = np.unique(p_Neutral_Density,return_index=True)
     Neutral_Density = Neutral_Density[idxs]
