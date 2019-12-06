@@ -172,9 +172,9 @@ def constructBetaRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True,
         values[2] = (1/(2*f*d02))*(dqnotdx-x*beta*pv/(f*r))\
 
         ## (-1/f)dAr/dx*dQnotdx
-        Apsirow[columnindexs[0]] = values[0]
-        Apsirow[columnindexs[1]] = values[1]
-        Apsirow[columnindexs[2]] = values[2]
+        Apsirow[columnindexs[0]] = -values[0]
+        Apsirow[columnindexs[1]] = -values[1]
+        Apsirow[columnindexs[2]] = -values[2]
         crow = (-u)*(dqnotdx-x*beta*pv/(f*r))+(-v)*(dqnotdy-y*beta*pv/(f*r))
  
     elif not threepoint and not latlongrid:
@@ -196,10 +196,10 @@ def constructBetaRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True,
         values[3] = (1/(2*f*d13))*(dqnotdx-x*beta*pv/(f*r))\
                                   + (-1/(2*f*d23))*(dqnotdy-y*beta*pv/(f*r))
 
-        Apsirow[columnindexs[0]] = values[0]
-        Apsirow[columnindexs[1]] = values[1]
-        Apsirow[columnindexs[2]] = values[2]
-        Apsirow[columnindexs[3]] = values[3]
+        Apsirow[columnindexs[0]] = -values[0]
+        Apsirow[columnindexs[1]] = -values[1]
+        Apsirow[columnindexs[2]] = -values[2]
+        Apsirow[columnindexs[3]] = -values[3]
         crow = (-u)*(dqnotdx-x*beta*pv/(f*r))+(-v)*(dqnotdy-y*beta*pv/(f*r))
     elif not threepoint and latlongrid:
         values = [0]*4

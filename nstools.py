@@ -429,7 +429,8 @@ def nanCopySurfaces(surfaces,simple=False):
                     "psi","psinew","dqdz","dqdx","dqdy",\
                     "d2qdz2","d2qdx2","d2qdy2","khp","khpterm","khpdz","toph",\
                     "both","dpsidx","dpsidy","ssh","ids","z","knownu"\
-                    ,"knownv","diffkr","kapgm","kapredi","nsdiff","dthetads","bathvar"]
+                    ,"knownv","diffkr","kapgm","kapredi",\
+                    "nsdiff","dthetads","bathvar","depthmean","kvbdiagnostic"]
         if simple:
             for d in surfaces[k]["data"].keys():
                 nancopy[k]["data"][d] = np.full_like(surfaces[k]["data"][d],np.nan,dtype=np.float)
@@ -530,15 +531,25 @@ def addK(surfaces,cachename=None):
     for k in Bar("adding CKVB: ").iter(surfaces.keys()):
         surfaces[k]["data"]["CKVB"] = np.full(len(surfaces[k]["lons"]),np.nan)
         surfaces[k]["data"]["bathvar"] = np.full(len(surfaces[k]["lons"]),np.nan)
+        surfaces[k]["data"]["depthmean"] = np.full(len(surfaces[k]["lons"]),np.nan)
         for i in range(len(surfaces[k]["lons"])):
             lat = surfaces[k]["lats"][i]
             lon = surfaces[k]["lons"][i]
             if not (np.isnan(lat) or np.isnan(lon)):
                 pv = surfaces[k]["data"]["pv"][i]
                 pres = surfaces[k]["data"]["pres"][i]
-                CKVB, bathvar = ptools.Kv(lat,lon,pv,pres,cachename)
+                CKVB, bathvar,depthmean = ptools.Kv(lat,lon,pv,pres,cachename)
                 surfaces[k]["data"]["CKVB"][i] = CKVB
                 surfaces[k]["data"]["bathvar"][i] = bathvar
+                surfaces[k]["data"]["depthmean"][i] = depthmean
+
+    for k in Bar("adding CKVB: ").iter(surfaces.keys()):
+        bathvarmean = np.nanmean(surfaces[k]["data"]["bathvar"])
+        depthmeanmean = np.nanmean(surfaces[k]["data"]["depthmean"])
+        for i in range(len(surfaces[k]["lons"])):
+            surfaces[k]["data"]["kvbdiagnostic"][i] = (depthmeanmean)* (surfaces[k]["data"]["bathvar"][i]-bathvarmean)
+            #surfaces[k]["data"]["kvbdiagnostic"][i] = (depthmeanmean)* (bathvarmean)
+
     return surfaces
             
 #add all the horizontal gradients, and then the double gradients 

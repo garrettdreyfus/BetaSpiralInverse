@@ -16,7 +16,7 @@ def bathVarTerm(lat,lon,region):
     d=bathtools.bathBox(lat,lon,region)
     dnot = 750
     print("box",d)
-    return (np.var(d)/dnot)**(0.25)
+    return (np.var(d)/dnot)**(0.25),np.mean(d)
 
 #one of the mixing terms is a mess and this calculates that
 def calculateKHP(staggered,k,index):
@@ -43,7 +43,7 @@ def saveBathVarTermCache(surfaces,outfilename,region):
         if not (np.isnan(p[0]) and np.isnan(p[1])):
             d=bathtools.bathBox(p[1],p[0],region)
             dnot = 750
-            bathVar[p] = (np.var(d)/dnot)**(0.25)
+            bathVar[p] = ((np.var(d)/dnot)**(0.25),np.mean(d))
     with open(outfilename, 'wb') as outfile:
         pickle.dump(bathVar, outfile)
 
@@ -61,10 +61,10 @@ def bathVarTermCache(lat,lon,filename):
 ## calulate the Kvb bathvar coefficient
 def Kv(lat,lon,pv,pres,cachename=None):
     if cachename:
-        bVT = bathVarTermCache(lat,lon,cachename) 
+        bVT,mean = bathVarTermCache(lat,lon,cachename) 
     else:
-        bVT = bathVarTerm(lat,lon)
-    return bVT*np.exp(-(abs(bathtools.searchBath(lat,lon,"nepbmatlab"))-abs(pres))/500),(bVT**4)*750
+        bVT,mean = bathVarTerm(lat,lon)
+    return bVT*np.exp(-(abs(mean)-abs(pres))/5500),bVT,np.exp(-(abs(mean)-abs(pres))/5500)
 
 #function for exploring k mixing term values
 def kChecker(surfaces,k,found,scales,debug=False):
