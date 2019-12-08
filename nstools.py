@@ -543,12 +543,12 @@ def addK(surfaces,cachename=None):
                 surfaces[k]["data"]["bathvar"][i] = bathvar
                 surfaces[k]["data"]["depthmean"][i] = depthmean
 
-    for k in Bar("adding CKVB: ").iter(surfaces.keys()):
-        bathvarmean = np.nanmean(surfaces[k]["data"]["bathvar"])
-        depthmeanmean = np.nanmean(surfaces[k]["data"]["depthmean"])
-        for i in range(len(surfaces[k]["lons"])):
-            surfaces[k]["data"]["kvbdiagnostic"][i] = (depthmeanmean)* (surfaces[k]["data"]["bathvar"][i]-bathvarmean)
-            #surfaces[k]["data"]["kvbdiagnostic"][i] = (depthmeanmean)* (bathvarmean)
+    #for k in Bar("adding CKVB: ").iter(surfaces.keys()):
+        #bathvarmean = np.nanmean(surfaces[k]["data"]["bathvar"])
+        #depthmeanmean = np.nanmean(surfaces[k]["data"]["depthmean"])
+        #for i in range(len(surfaces[k]["lons"])):
+            #surfaces[k]["data"]["kvbdiagnostic"][i] = (depthmeanmean)* (surfaces[k]["data"]["bathvar"][i]-bathvarmean)
+            ##surfaces[k]["data"]["kvbdiagnostic"][i] = (depthmeanmean)* (bathvarmean)
 
     return surfaces
             
@@ -657,6 +657,7 @@ def setSpatialGrad(out,data,k,s,distances,attr,attrx,\
         out[k]["data"][attrx][s[0]] = dx*factorx
         out[k]["data"][attry][s[0]] = dy*factory
     if centered:
+        print(centered)
         dx,dy = centeredGrad(data,k,distances,s,attr)
         out[k]["data"][attrx][s[0]] = dx*factorx
         out[k]["data"][attry][s[0]] = dy*factory
@@ -697,11 +698,11 @@ def addGradients(staggered,surfaces,k,s,distances,ignore):
 ##add all non-vertical double gradients
 def addDoubleGradients(staggered,neighbors,k,s,distances):
     #NS thickness slope
-    d2sdx2,bop = centeredGrad(staggered,neighbors,k,distances,s,"dsdx")
-    bop,d2sdy2 = centeredGrad(staggered,neighbors,k,distances,s,"dsdy")
+    d2sdx2,bop = spatialGrad(staggered,k,distances,s,"dsdx")
+    bop,d2sdy2 = spatialGrad(staggered,k,distances,s,"dsdy")
 
-    d2qdx2,bop = centeredGrad(staggered,neighbors,k,distances,s,"dqdx")
-    bop,d2qdy2 = centeredGrad(staggered,neighbors,k,distances,s,"dqdy")
+    d2qdx2,bop = spatialGrad(staggered,k,distances,s,"dqdx")
+    bop,d2qdy2 = spatialGrad(staggered,k,distances,s,"dqdy")
 
     staggered[k]["data"]["d2sdx2"][s[0]] = d2sdx2
     staggered[k]["data"]["d2sdy2"][s[0]] = d2sdy2
@@ -1032,7 +1033,7 @@ def inverseReady(surfaces):
     isitnanstr = np.asarray(["alpha","dsdz","hx","hy","dsdx","dsdy","pres","d2sdx2","d2sdy2",\
     "dalphadtheta","dalphads","dalphadp","dtdx","dtdy",\
     "dqnotdx","dqnotdy","dpdx","dpdy","pv","CKVB",\
-    "beta","d2qdx2","d2qdy2","d2qdz2","khp","toph","both","uref","vref"])
+    "beta","d2qdx2","d2qdy2","d2qdz2","khp","toph","both"])
     diagnostics = surfaceDiagnostic(surfaces)
     fine = True
     missing = []
@@ -1068,5 +1069,11 @@ def domainChop(surfaces):
                 for d in surfaces[k]["data"].keys():
                     chopped[k]["data"][d].append(surfaces[k]["data"][d][l])
     return chopped
-                
+
+def highlightNAN(surfaces,quant):
+    for k in surfaces.keys():
+        surfaces[k]["data"][quant][~np.isnan(surfaces[k]["data"][quant])] = 0
+        surfaces[k]["data"][quant][np.isnan(surfaces[k]["data"][quant])] = 1
+    return surfaces
+
     

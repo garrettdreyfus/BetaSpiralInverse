@@ -108,53 +108,128 @@ def createMesh(n,xvals,yvals,fixedgrid="arctic"):
 
 
 
+def indexBoolMatrix(boolmatrix):
+    indexcount = np.full(boolmatrix.shape,np.nan)
+    count = 0
+    for i in range(boolmatrix.shape[0]):
+        for j in range(boolmatrix.shape[1]):
+            if boolmatrix[i][j]:
+                indexcount[i][j] = count
+                count+=1
+    return indexcount
+
+def geoMask(gridx,gridy,datax,datay,radius):
+    mask = np.zeros(gridx.shape)
+    for i in range(len(datax)):
+        r = np.sqrt((gridx- datax[i])**2 + (gridy - datay[i])**2)
+        inside = r<radius*1000
+        mask = mask+inside
+    return mask
+
+## neigbor in "x" direction
+def findRowNeighbor(row,col,mask,indexcount):
+    for i in range(1,6):
+        if col+i < len(mask[row]) and mask[row][col+i]:
+            if ~np.isnan(indexcount[row][col+i]):
+                return int(indexcount[row][col+i])
+    return False
+## neigbor in "x" direction
+def findColumnNeighbor(row,col,mask,indexcount):
+    for i in range(1,6):
+        if row+i < len(mask) and mask[row+i][col]:
+            if ~np.isnan(indexcount[row+i][col]):
+                return int(indexcount[row+i][col])
+    return False
+#find neighbor in corner
+def findCornerNeighbor(row,col,mask,indexcount):
+    for i in range(1,6):
+        if col+i < len(mask[row]) and row+i < len(mask) and mask[row][col+i]:
+            if ~np.isnan(indexcount[row+i][col+i]):
+                return int(indexcount[row+i][col+i])
+    return False
 
 #generate a mesh and remove points in that mesh 
 #which are too far away from locations with observations
 def generateMaskedMesh(x,y,radius=500,fixedgrid="arctic"):
     xi,yi = createMesh(25,x,y,fixedgrid=fixedgrid)
-    final = np.zeros(xi.shape)
-    neighbors = []
-    for i in range(len(x)):
-        r = np.sqrt((xi- x[i])**2 + (yi - y[i])**2)
-        inside = r<radius*1000
-        if np.count_nonzero(final) == 0  :
-            final =inside
-        else:
-            final = final+inside
-    for i in range(len(final[0])):
-        if final[0][i] > 4:
-            final[0][i]=True
-        else:
-            final[0][i] = False
-
-    indexcount = np.full(final.shape,np.nan)
-    count = 0
-    for i in range(final.shape[0]):
-        for j in range(final.shape[1]):
-            if final[i][j]:
-                indexcount[i][j] = count
-                count+=1
-
+    #Make sure grid points are within original data point
+    mask = geoMask(xi,yi,x,y,radius)
+    indexcount = indexBoolMatrix(mask)
     finalxi=[]
     finalyi=[]
-    finalneighbors = []
-    finalids=[]
-    for l in range(final.shape[0]):
-        for k in range(final.shape[1]):
-            if final[l][k]:
-                finalxi.append(xi[l][k])
-                finalyi.append(yi[l][k])
-                finalids.append(l*final.shape[1]+k)
-            if l != final.shape[0]-1 and k != final.shape[1]-1:
-                s = []
-                if final[l][k] and final[l][k+1] and final[l+1][k+1] and final[l+1][k]:
-                    s.append(int(indexcount[l][k]))
-                    s.append(int(indexcount[l][k+1]))
-                    s.append(int(indexcount[l+1][k]))
-                    s.append(int(indexcount[l+1][k+1]))
-                    finalneighbors.append(tuple(s))
-    return np.asarray(finalxi),np.asarray(finalyi),finalneighbors,finalids
+    neighbors = []
+    ids=[]
+    for row in range(mask.shape[0]):
+        for col in range(mask.shape[1]):
+            if ~np.isnan(mask[row][col]) and ~np.isnan(indexcount[row][col]):
+                finalxi.append(xi[row][col])
+                finalyi.append(yi[row][col])
+                ids.append(row*mask.shape[1]+col)
+                rowneighbor = findRowNeighbor(row,col,mask,indexcount)
+                columnneighbor = findColumnNeighbor(row,col,mask,indexcount)
+                cornerneighbor = findCornerNeighbor(row,col,mask,indexcount)
+                if rowneighbor and columnneighbor and cornerneighbor:
+                    neighbors.append(tuple((int(indexcount[row][col]),\
+                            rowneighbor,columnneighbor,cornerneighbor)))
+    return np.asarray(finalxi),np.asarray(finalyi),neighbors,ids
+
+def isGridPointIsolated(row,col,mask,radius):
+    for r in range(max(row-radius,0),min(row+radius,mask.shape[0]-1)):
+        for c in range(max(col-radius,0),min(col+radius,mask.shape[1]-1)):
+            if r != row and c != col and mask[r][c]:
+                return False
+    return True
+
+
+
+def bathVarMask(gridx,gridy,mask=[]):
+    if np.isnan(mask).any():
+        mask = np.invert(np.zeros(gridx.shape))
+    for row in Bar("Bath var Masking: ").iter(range(mask.shape[0])):
+        for col in range(mask.shape[1]):
+            if mask[row][col]:
+                if row%2 == 0 and col%2 ==0:
+                    mask[row][col]=True
+
+                elif col!=49 and row != 49:
+                    lat,lon = xyToLatLon(gridx[row][col],gridy[row][col])
+                    lat2,lon2 = xyToLatLon(gridx[row][col+1],gridy[row][col+1])
+                    lat3,lon3 = xyToLatLon(gridx[row+1][col],gridy[row+1][col])
+                    xbathchange = abs(bathtools.searchBath(lat,lon,"nepb")-bathtools.searchBath(lat2,lon2,"nepb"))
+                    ybathchange = abs(bathtools.searchBath(lat,lon,"nepb")-bathtools.searchBath(lat3,lon3,"nepb"))
+                    if xbathchange<450 and ybathchange < 450:
+                        mask[row][col]=False
+
+    return mask
+
+
+#generate a mesh and remove points in that mesh 
+#which are too far away from locations with observations
+def smartMesh(x,y,radius=500,fixedgrid="arctic"):
+    xi,yi = createMesh(50,x,y,fixedgrid=fixedgrid)
+    #Make sure grid points are within original data point
+    mask = geoMask(xi,yi,x,y,radius)
+    mask = bathVarMask(xi,yi,mask)
+    indexcount = indexBoolMatrix(mask)
+    finalxi=[]
+    finalyi=[]
+    neighbors = []
+    ids=[]
+    for row in range(mask.shape[0]):
+        for col in range(mask.shape[1]):
+            if ~np.isnan(mask[row][col]) and ~np.isnan(indexcount[row][col]):
+                finalxi.append(xi[row][col])
+                finalyi.append(yi[row][col])
+                ids.append(row*mask.shape[1]+col)
+                rowneighbor = findRowNeighbor(row,col,mask,indexcount)
+                columnneighbor = findColumnNeighbor(row,col,mask,indexcount)
+                cornerneighbor = findCornerNeighbor(row,col,mask,indexcount)
+                if rowneighbor and columnneighbor and cornerneighbor:
+                    neighbors.append(tuple((int(indexcount[row][col]),\
+                            rowneighbor,columnneighbor,cornerneighbor)))
+    return np.asarray(finalxi),np.asarray(finalyi),neighbors,ids
+
+
 
 ## snap points from profiles onto
 ## closest surface point
@@ -190,7 +265,7 @@ def interpolateSurface(surface,debug=True,gaminterpolate=True,fixedgrid="arctic"
     X = np.zeros((len(surface["x"]),2))
     X[:,0]=surface["x"]
     X[:,1]=surface["y"]
-    xi,yi,neighbors,finalids = generateMaskedMesh(surface["x"],surface["y"],fixedgrid=fixedgrid)
+    xi,yi,neighbors,finalids = smartMesh(surface["x"],surface["y"],fixedgrid=fixedgrid)
     interpdata={}
     interpsurf["x"] =xi
     interpsurf["y"] =yi

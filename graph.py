@@ -69,10 +69,17 @@ def graphNeighbors(surfaces,neighbors):
     print("graphing")
     for k in neighbors.keys():
         for r in neighbors[k]:
-            plt.scatter(surfaces[k]["lons"][r[0]],surfaces[k]["lats"][r[0]],c="green")
-            plt.scatter(surfaces[k]["lons"][r[1]],surfaces[k]["lats"][r[1]],c="blue")
-            plt.scatter(surfaces[k]["lons"][r[2]],surfaces[k]["lats"][r[2]],c="yellow")
-            plt.scatter(surfaces[k]["lons"][r[3]],surfaces[k]["lats"][r[3]],c="red")
+            #plt.scatter(surfaces[k]["lons"][r[0]],surfaces[k]["lats"][r[0]],c="green")
+            #plt.scatter(surfaces[k]["lons"][r[1]],surfaces[k]["lats"][r[1]],c="blue")
+            #plt.scatter(surfaces[k]["lons"][r[2]],surfaces[k]["lats"][r[2]],c="yellow")
+            #plt.scatter(surfaces[k]["lons"][r[3]],surfaces[k]["lats"][r[3]],c="red")
+            s=[]
+            s.append((surfaces[k]["x"][r[0]],surfaces[k]["y"][r[0]]))
+            s.append((surfaces[k]["x"][r[1]],surfaces[k]["y"][r[1]]))
+            s.append((surfaces[k]["x"][r[2]],surfaces[k]["y"][r[2]]))
+            s.append((surfaces[k]["x"][r[3]],surfaces[k]["y"][r[3]]))
+            plt.plot(s)
+
         plt.show()
 
 ## zoom given map and axis into the arctic.
@@ -868,6 +875,7 @@ def velocityHeatMap(surfaces,uvel,lon):
     yticks = list(range(depths[0],depths[-1],1000))
     plt.colorbar()
     plt.show()
+
 
         
 
