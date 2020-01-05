@@ -10,7 +10,7 @@ from geopy.distance import geodesic
 from geopy.distance import great_circle
 from profile import Profile
 import random
-from scipy.interpolate import Rbf
+from scipy.interpolate import Rbf, griddata
 import pyproj
 import bathtools
 import graph
@@ -20,6 +20,7 @@ import pickle
 #from gswmatlab.pyinterface import geo_strf_isopycnal
 import scipy.io as sio
 import itertools
+from scipy.linalg import svd
 from scipy.linalg import svd
 from sklearn.decomposition import TruncatedSVD
 from progress.bar import Bar
@@ -616,15 +617,15 @@ def spatialGrad(surfaces,k,distances,s,attr,factorx=1,factory=1,single=False):
     dx = []
     dy = []
 
-    hautaladist = True
+    hautaladist = False
     if hautaladist:
-        dx.append((surfaces[k]["data"][attr][s[1]]-surfaces[k]["data"][attr][s[0]])/(2*distances[k][(s[0],s[1])]))
+        dx.append((surfaces[k]["data"][attr][s[1]]-surfaces[k]["data"][attr][s[0]])/(distances[k][(s[0],s[1])]))
         if not single:
-            dx.append((surfaces[k]["data"][attr][s[3]]-surfaces[k]["data"][attr][s[2]])/(2*distances[k][(s[0],s[1])]))
+            dx.append((surfaces[k]["data"][attr][s[3]]-surfaces[k]["data"][attr][s[2]])/(distances[k][(s[0],s[1])]))
     else:
-        dx.append((surfaces[k]["data"][attr][s[1]]-surfaces[k]["data"][attr][s[0]])/(2*distances[k][(s[0],s[1])]))
+        dx.append((surfaces[k]["data"][attr][s[1]]-surfaces[k]["data"][attr][s[0]])/(distances[k][(s[0],s[1])]))
         if not single:
-            dx.append((surfaces[k]["data"][attr][s[3]]-surfaces[k]["data"][attr][s[2]])/(2*distances[k][(s[2],s[3])]))
+            dx.append((surfaces[k]["data"][attr][s[3]]-surfaces[k]["data"][attr][s[2]])/(distances[k][(s[2],s[3])]))
     if hautaladist:
         dy.append((surfaces[k]["data"][attr][s[2]]-surfaces[k]["data"][attr][s[0]])/distances[k][(s[0],s[2])])
         if not single:
@@ -632,10 +633,10 @@ def spatialGrad(surfaces,k,distances,s,attr,factorx=1,factory=1,single=False):
     else:
         dy.append((surfaces[k]["data"][attr][s[2]]-surfaces[k]["data"][attr][s[0]])/distances[k][(s[0],s[2])])
         if not single:
-            dy.append((surfaces[k]["data"][attr][s[3]]-surfaces[k]["data"][attr][s[1]])/distances[k][(s[3],s[1])])
+            dy.append((surfaces[k]["data"][attr][s[3]]-surfaces[k]["data"][attr][s[1]])/distances[k][(s[1],s[3])])
 
-    dx = np.mean(dx)*factorx
-    dy = np.mean(dy)*factory
+    dx = np.nanmean(dx)*factorx
+    dy = np.nanmean(dy)*factory
     return dx,dy
 
 ##double derivative of conservative temperature with respect to salinity

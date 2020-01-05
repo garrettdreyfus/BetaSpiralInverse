@@ -72,6 +72,19 @@ def removeDiscontinuities(surface,radius=10,debug=True,inside={}):
 ## here I put in my favorite x and y coordinates for the arctic
 ## they should be hardcoded because you want the grid points to 
 ## align vertically throughout the water column
+def hautalaGrid():
+    grd = np.meshgrid(\
+            np.concatenate((np.linspace(170,178,5),np.linspace(-180,-122,30))),
+
+            np.linspace(18,58,21))
+    for i in range(grd[0].shape[0]):
+        for j in range(grd[0].shape[1]):
+            x,y = singleXY((grd[0][i][j],grd[1][i][j]))
+            grd[0][i][j] = x
+            grd[1][i][j] = y
+    return grd
+
+
 def createMesh(n,xvals,yvals,fixedgrid="arctic"):
     preset = {"arctic":{"xmin":-1793163,"xmax":971927,"ymin":-1455096,"ymax":1200385,"cord":"xy"},
             "nepb":{"botleft":(-144,3),"topright":(155,63),"cord":"xy"},
@@ -90,22 +103,7 @@ def createMesh(n,xvals,yvals,fixedgrid="arctic"):
             return np.meshgrid(np.linspace(xmin,xmax,n), np.linspace(ymin,ymax,n),indexing="xy")
         else:
             if fixedgrid == "hautala":
-                print("making grid")
-                grd = np.meshgrid(\
-                        np.concatenate((np.linspace(170,178,5),np.linspace(-180,-122,30))),
-
-                        np.linspace(18,58,21))
-                for i in range(grd[0].shape[0]):
-                    for j in range(grd[0].shape[1]):
-                        x,y = singleXY((grd[0][i][j],grd[1][i][j]))
-                        grd[0][i][j] = x
-                        grd[1][i][j] = y
-
-                
-                #pdb.set_trace()
-                return grd
-
-
+                return hautalaGrid() 
 
 
 def indexBoolMatrix(boolmatrix):
@@ -181,6 +179,12 @@ def isGridPointIsolated(row,col,mask,radius):
     return True
 
 
+def bathVarCacheWrapper(lat,lon):
+    if not hasattr(bathVarCacheWrapper,"bvardict"):
+        bathVarCacheWrapper.bvardict={}
+    if (lat,lon) not in bathVarCacheWrapper.bvardict.keys():
+        bathVarCacheWrapper.bvardict[(lat,lon)] = np.var(bathtools.bathBox(lat,lon,"nepbmatlab"))
+    return np.abs(bathVarCacheWrapper.bvardict[(lat,lon)])
 
 def bathVarMask(gridx,gridy,mask=[]):
     if np.isnan(mask).any():
@@ -190,14 +194,18 @@ def bathVarMask(gridx,gridy,mask=[]):
             if mask[row][col]:
                 if row%2 == 0 and col%2 ==0:
                     mask[row][col]=True
+                #else:
+                    #mask[row][col]=False
 
-                elif col!=49 and row != 49:
+                elif col!=mask.shape[1]-1 and row != mask.shape[0]-1:
                     lat,lon = xyToLatLon(gridx[row][col],gridy[row][col])
-                    lat2,lon2 = xyToLatLon(gridx[row][col+1],gridy[row][col+1])
-                    lat3,lon3 = xyToLatLon(gridx[row+1][col],gridy[row+1][col])
-                    xbathchange = abs(bathtools.searchBath(lat,lon,"nepb")-bathtools.searchBath(lat2,lon2,"nepb"))
-                    ybathchange = abs(bathtools.searchBath(lat,lon,"nepb")-bathtools.searchBath(lat3,lon3,"nepb"))
-                    if xbathchange<450 and ybathchange < 450:
+                    #lat2,lon2 = xyToLatLon(gridx[row][col+1],gridy[row][col+1])
+                    #lat3,lon3 = xyToLatLon(gridx[row+1][col],gridy[row+1][col])
+                    #xbathchange = abs(bathtools.searchBath(lat,lon,"nepb")-bathtools.searchBath(lat2,lon2,"nepb"))
+                    #ybathchange = abs(bathtools.searchBath(lat,lon,"nepb")-bathtools.searchBath(lat3,lon3,"nepb"))
+                    #if xbathchange<300 and ybathchange < 300:
+                    bvar = bathVarCacheWrapper(lat,lon)
+                    if bvar < 15000:
                         mask[row][col]=False
 
     return mask
@@ -259,22 +267,26 @@ def surfacePrune(surfaces):
 ## create the mesh, use gam interpolation
 ##also returns neighboring points for each points
 ## and the distance between those points
-def interpolateSurface(surface,debug=True,gaminterpolate=True,fixedgrid="arctic"):
+def interpolateSurface(surface,debug=True,interpmethod="gam",fixedgrid="arctic",smart=True):
     #print("######")
     interpsurf={}
     X = np.zeros((len(surface["x"]),2))
     X[:,0]=surface["x"]
     X[:,1]=surface["y"]
-    xi,yi,neighbors,finalids = smartMesh(surface["x"],surface["y"],fixedgrid=fixedgrid)
+    if smart:
+        xi,yi,neighbors,finalids = smartMesh(surface["x"],surface["y"],fixedgrid=fixedgrid)
+    else:
+        xi,yi,neighbors,finalids = generateMaskedMesh(surface["x"],surface["y"],fixedgrid=fixedgrid)
+
     interpdata={}
     interpsurf["x"] =xi
     interpsurf["y"] =yi
     interpsurf["ids"] =finalids
     if len(xi) != len(finalids):
         print("OH NOOOOOO")
-    if gaminterpolate:
+    if interpmethod=="gam":
         for d in Bar("Interpolating: ").iter(surface["data"].keys()):
-            notnan = ~np.isnan(surface["data"][d])
+            notnan = (~np.isnan(surface["data"][d]) & ~np.isnan(X[:,0]) & ~np.isnan(X[:,1]))
             #deviation = np.nanstd(surface["data"][d])*1.5
             #mean = np.nanmean(surface["data"][d])
             #inbounds = abs(surface["data"][d]-mean) < deviation
@@ -287,6 +299,22 @@ def interpolateSurface(surface,debug=True,gaminterpolate=True,fixedgrid="arctic"
                 interpdata[d] = gam.predict(Xgrid)
             else:
                 interpdata[d] = np.asarray([np.nan]*len(xi))
+    if interpmethod=="linear":
+        for d in Bar("Interpolating: ").iter(surface["data"].keys()):
+            notnan = (~np.isnan(surface["data"][d]) & ~np.isnan(X[:,0]) & ~np.isnan(X[:,1]))
+            #deviation = np.nanstd(surface["data"][d])*1.5
+            #mean = np.nanmean(surface["data"][d])
+            #inbounds = abs(surface["data"][d]-mean) < deviation
+            #notnan = np.logical_and(inbounds,notnan)
+            if np.count_nonzero(notnan)>10:
+                Xgrid = np.zeros((yi.shape[0],2))
+                Xgrid[:,0] = xi
+                Xgrid[:,1] = yi
+                f = nstools.griddata(X[notnan],np.asarray(surface["data"][d])[notnan],Xgrid)
+                interpdata[d] = f
+            else:
+                interpdata[d] = np.asarray([np.nan]*len(xi))
+
     else:
         interpdata = surfaceSnap(surface,xi,yi)
  
@@ -297,7 +325,7 @@ def interpolateSurface(surface,debug=True,gaminterpolate=True,fixedgrid="arctic"
 
 ## interpolate all the surfaces vertically and store
 ## neighbors, and distances as well
-def interpolateSurfaces(surfaces,fixedgrid,debug=True,gaminterpolate=True):
+def interpolateSurfaces(surfaces,fixedgrid,debug=True,interpmethod="gam",smart=False):
     surfaces = addXYToSurfaces(surfaces)
     interpolatedsurfaces = {}
     neighbors={}
@@ -305,7 +333,7 @@ def interpolateSurfaces(surfaces,fixedgrid,debug=True,gaminterpolate=True):
     for k in surfaces.keys():
         if (~np.isnan(surfaces[k]["data"]["pres"])).any():
             #surfaces[k] = removeDiscontinuities(surfaces[k],radius=0.1)
-            interpolatedsurfaces[k],neighbors[k] = interpolateSurface(surfaces[k],gaminterpolate=gaminterpolate,fixedgrid=fixedgrid)
+            interpolatedsurfaces[k],neighbors[k] = interpolateSurface(surfaces[k],interpmethod=interpmethod,fixedgrid=fixedgrid,smart=smart)
             lookups[k] = trueDistanceLookup(interpolatedsurfaces[k],neighbors[k])
     interpolatedsurfaces = fillOutEmptyFields(interpolatedsurfaces)
     return interpolatedsurfaces,neighbors,lookups
@@ -352,7 +380,10 @@ def trueDistanceLookup(surface,neighbors):
             p = tuple(sorted(edge))
             if p not in lookup.keys():
                 lookup[p] = geodesic((surface["lats"][p[0]],surface["lons"][p[0]]),(surface["lats"][p[1]],surface["lons"][p[1]])).m
+                lookup[p[::-1]] = lookup[p]
                 #latdist = abs(surface["lats"][p[0]] - surface["lats"][p[1]])*111.0*1000.0
                 #londist = abs(surface["lons"][p[0]] - surface["lons"][p[1]]) *np.cos(np.deg2rad(surface["lats"][p[1]]))*111.0*1000.0
                 #lookup[p] = latdist+londist 
     return lookup
+
+
