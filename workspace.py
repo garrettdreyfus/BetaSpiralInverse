@@ -21,7 +21,34 @@ fileObject = open("data/1500NoNorwegian.pickle",'rb')
 ###profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
 profilechoice = nstools.getProfileById(profiles,"286364")
 #graph.plotProfiles(profiles,"UDASH DATA",nstools.getProfileById(profiles,"286364"))
-surfaces = nstools.runPeerSearch(profiles,200,4000,200,profilechoice,1000)
+preinterpsurfaces = nstools.runPeerSearch(profiles,200,4000,200,profilechoice,1000)
+
+with open('data/preinterparctic.pickle', 'wb') as outfile:
+    pickle.dump([preinterpsurfaces,profiles],outfile)
+with open('data/preinterparctic.pickle', 'rb') as outfile:
+    preinterpsurfaces,profiles = pickle.load(outfile)
+
+surfaces = nstools.addDataToSurfaces(profiles,preinterpsurfaces,2)
+
+surfaces,neighbors,distances = interptools.interpolateSurfaces(preinterpsurfaces,\
+        fixedgrid="arctic",gaminterpolate=True)
+
+with open('data/postinterparctic.pickle', 'wb') as outfile:
+    pickle.dump([surfaces,neighbors,distances], outfile)
+
+with open('data/postinterparctic.pickle', 'rb') as outfile:
+    surfaces,neighbors,distances = pickle.load(outfile)
+
+surfaces = nstools.addParametersToSurfaces(surfaces,\
+        neighbors,distances,[])
+
+with open('data/ready4inversearctic.pickle', 'wb') as outfile:
+    pickle.dump([surfaces,neighbors,distances], outfile)
+
+with open('data/ready4inversearctic.pickle', 'rb') as outfile:
+    surfaces,neighbors,distances = pickle.load(outfile)
+
+
 
 #with open('data/annotatedprofiles.pickle', 'wb') as outfile:
     #pickle.dump(profiles, outfile)
@@ -56,8 +83,8 @@ surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
 #ptools.saveBathVarTermCache(surfaces,"data/bathVar.pickle")
 #surfaces = nstools.addK(surfaces,"data/bathVar.pickle")
 
-with open('data/ready4inverse.pickle', 'rb') as outfile:
-    [surfaces,neighbors,distances]=pickle.load(outfile)
+#with open('data/ready4inverse.pickle', 'rb') as outfile:
+    #[surfaces,neighbors,distances]=pickle.load(outfile)
 
 #nstools.surfaceDiagnostic(surfaces)
 #with open('data/ready4inverse.pickle', 'wb') as outfile:
