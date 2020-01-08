@@ -94,12 +94,19 @@ def createMesh(n,xvals,yvals,fixedgrid="arctic"):
     else:
         if preset[fixedgrid]["cord"] == "xy":
             vals = preset[fixedgrid]
-            x1,y1 = singleXY(vals["botleft"])
-            x2,y2 = singleXY(vals["topright"])
-            xmin = min(x1,x2)
-            xmax = max(x1,x2)
-            ymin = min(y1,y2)
-            ymax = max(y1,y2)
+            if "botleft" in vals.keys():
+                x1,y1 = singleXY(vals["botleft"])
+                x2,y2 = singleXY(vals["topright"])
+                xmin = min(x1,x2)
+                xmax = max(x1,x2)
+                ymin = min(y1,y2)
+                ymax = max(y1,y2)
+            else:
+                xmin = vals["xmin"]
+                xmax = vals["xmax"]
+                ymin = vals["ymin"]
+                ymax = vals["ymax"]
+
             return np.meshgrid(np.linspace(xmin,xmax,n), np.linspace(ymin,ymax,n),indexing="xy")
         else:
             if fixedgrid == "hautala":

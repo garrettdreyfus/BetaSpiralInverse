@@ -276,6 +276,12 @@ def kterms(surfaces,k,found,params,fallback=None):
             print("NO")
             pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv - f*dkhpdz/(surfaces[k]["data"]["kapredi"][found])
         else:
+            if pv == 0:
+                print("wut pv")
+            if toph==0:
+                print("toph")
+            if both==0:
+                print("both")
             pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv -((1.0/both-1.0/toph)*f*khp)
         skvo = -alpha*f*(1/pv)*(dsdz**3)*doublets
         skvb = skvo*CKVB

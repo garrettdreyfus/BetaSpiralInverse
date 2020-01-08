@@ -225,6 +225,8 @@ def constructBetaRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True,
         Apsirow[columnindexs[2]] = -values[2]
         Apsirow[columnindexs[3]] = -values[3]
         crow = (-u)*(dqnotdx)+(-v)*(dqnotdy+beta*pv/(f)) 
+    if np.count_nonzero(np.isnan(Apsirow)) or np.count_nonzero(np.isnan(values)) or np.count_nonzero(np.isnan(values)):
+        print("boop")
     return np.asarray(Apsirow)*Arscale,np.asarray(values)*Arscale,np.asarray(crow)
 
 ## construct row of inverse that conserves salt
@@ -655,6 +657,7 @@ def rectAndWidths(maxlengths,totrim,arrays):
         print("after: ",x.shape)
         print("====")
         widths.append(x.shape[1])
+        print("Apsi nancount: ",np.count_nonzero(~np.isnan(x)))
         new.append(x)
     return new,widths
 

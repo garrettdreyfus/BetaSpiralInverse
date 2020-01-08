@@ -87,8 +87,8 @@ class Profile:
             self.itemps = np.interp(self.ipres,self.pres,self.temps)
             self.ialpha = gsw.alpha(self.isals,self.itemps,self.ipres)
             self.ibeta = gsw.beta(self.isals,self.itemps,self.ipres)
-            self.idalphadtheta = mygsw.cabbeling_CT_exact(self.isals,self.itemps,self.ipres)
-            self.idalphadp = mygsw.thermobaric_CT_exact(self.isals,self.itemps,self.ipres)
+            self.idalphadtheta = gsw.cabbeling(self.isals,self.itemps,self.ipres)
+            self.idalphadp = gsw.thermobaric(self.isals,self.itemps,self.ipres)
 
             ###using gsw
             self.n2 = gsw.Nsquared(self.isals,self.itemps,self.ipres,self.lat)[0]

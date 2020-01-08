@@ -21,17 +21,24 @@ fileObject = open("data/1500NoNorwegian.pickle",'rb')
 ###profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
 profilechoice = nstools.getProfileById(profiles,"286364")
 #graph.plotProfiles(profiles,"UDASH DATA",nstools.getProfileById(profiles,"286364"))
-preinterpsurfaces = nstools.runPeerSearch(profiles,200,4000,200,profilechoice,1000)
+preinterpsurfaces = nstools.runPeerSearch(profiles,range(200,3001,200),profilechoice,1000)
 
 with open('data/preinterparctic.pickle', 'wb') as outfile:
     pickle.dump([preinterpsurfaces,profiles],outfile)
 with open('data/preinterparctic.pickle', 'rb') as outfile:
     preinterpsurfaces,profiles = pickle.load(outfile)
 
-surfaces = nstools.addDataToSurfaces(profiles,preinterpsurfaces,2)
+#graph.graphSurfaces(preinterpsurfaces,"pres",region="arctic")
+preinterpsurfaces = nstools.addDataToSurfaces(profiles,preinterpsurfaces,2)
+
 
 surfaces,neighbors,distances = interptools.interpolateSurfaces(preinterpsurfaces,\
-        fixedgrid="arctic",gaminterpolate=True)
+        fixedgrid="arctic",interpmethod="gam")
+
+
+nstools.surfaceDiagnostic(surfaces)
+#graph.graphSurfaces(surfaces,"pres",region="arctic")
+
 
 with open('data/postinterparctic.pickle', 'wb') as outfile:
     pickle.dump([surfaces,neighbors,distances], outfile)
@@ -40,7 +47,7 @@ with open('data/postinterparctic.pickle', 'rb') as outfile:
     surfaces,neighbors,distances = pickle.load(outfile)
 
 surfaces = nstools.addParametersToSurfaces(surfaces,\
-        neighbors,distances,[])
+        neighbors,distances,"arctic",[])
 
 with open('data/ready4inversearctic.pickle', 'wb') as outfile:
     pickle.dump([surfaces,neighbors,distances], outfile)
@@ -70,19 +77,6 @@ with open('data/ready4inversearctic.pickle', 'rb') as outfile:
 
 ##with open('data/286364new.pickle', 'rb') as outfile:
   ##surfaces=pickle.load(outfile)
-
-surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
-#surfaces = nstools.addStreamFunc(surfaces,profiles)
-
-#surfaces,neighbors,distances = interptools.interpolateSurfaces(surfaces)
-#surfaces = nstools.fillOutEmptyFields(surfaces)
-#surfaces = nstools.addHeight(surfaces)
-#surfaces = nstools.addHorizontalGrad(surfaces,neighbors,distances)
-#surfaces = nstools.addVerticalGrad(surfaces)
-#surfaces = nstools.addBathAndMask(surfaces,neighbors)
-#ptools.saveBathVarTermCache(surfaces,"data/bathVar.pickle")
-#surfaces = nstools.addK(surfaces,"data/bathVar.pickle")
-
 #with open('data/ready4inverse.pickle', 'rb') as outfile:
     #[surfaces,neighbors,distances]=pickle.load(outfile)
 
@@ -91,15 +85,23 @@ surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
     #pickle.dump([surfaces,neighbors,distances], outfile)
 #for q in surfaces[1000]["data"].keys():
     #graph.graphSurfaces(surfaces,q,savepath="refpics/allquants1000/",show=False)
-nstools.surfaceDiagnostic(surfaces)
-#sensitivity.mixSens("coupled",staggeredsurfaces,neighbors,distances,savepath="refpics/fullmixexplore/")
-#sensitivity.conditionErrorRefLevel("coupled",surfaces,neighbors,distances)
-#sensitivity.conditionError("coupled",staggeredsurfaces,neighbors,distances)
-#graph.graphSurfaces(surfaces,"khp")
-params = {"reflevel":1000,"upperbound":1000,"lowerbound":2000,"mixs":{"kvo":True,"kvb":False,"kh":True},"debug":True}
+
+params = {"reflevel":1600,"upperbound":1000,"lowerbound":3500,\
+        "mixs":{"kvo":True,"kvb":True,"kh":True},"debug":False,\
+        "3point":True,"edgeguard":False}
+
+
 out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
 
+with open('data/inverseout.pickle', 'wb') as outfile:
+    pickle.dump([out,neighbors,distances], outfile)
+with open('data/inverseout.pickle', 'rb') as outfile:
+    [out,neighbors,distances] = pickle.load(outfile)
+
+###print(out["metadata"])
+#graph.graphSurfaces(out["surfaces"],"pres",region="nepb")
 inv = nstools.streamFuncToUV(out["surfaces"],neighbors,distances)
+
 
 #graph.graphSurfaces(inv,"e")
 graph.graphVectorField(inv,"uabs","vabs","z",metadata=out["metadata"])
