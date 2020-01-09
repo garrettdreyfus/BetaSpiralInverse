@@ -463,13 +463,13 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",select=range(0,1000
 
             urs.append(0.01)
             uthetas.append(0)
-            lons.append(0)
-            lats.append(90)
+            lons.append(-150)
+            lats.append(40)
 
             urs.append(0)
             uthetas.append(0.01)
-            lons.append(0)
-            lats.append(90)
+            lons.append(-150)
+            lats.append(40)
 
             fig.suptitle(key1+"," + key2 + " NS: "+str(k))
             urs = np.asarray(urs)

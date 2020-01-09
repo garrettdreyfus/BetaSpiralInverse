@@ -301,7 +301,7 @@ def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
             p = getProfileById(profiles,surfaces[k]["ids"][l])
             lon = surfaces[k]["lons"][l]
             lat = surfaces[k]["lats"][l]
-            if p and not np.isnan(p.isals).any() :#and aleutianFilter(lon,lat):
+            if p and not np.isnan(p.isals).any() and aleutianFilter(lon,lat):
                 if (surfaces[k]["data"]["pres"][l]+35 in p.ipres and surfaces[k]["data"]["pres"][l]-35 in p.ipres):
                     pv = p.potentialVorticityAtHautala(surfaces[k]["data"]["pres"][l])
                     dthetads = p.dthetads(surfaces[k]["data"]["pres"][l])
@@ -313,7 +313,7 @@ def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
                     t,s,alpha,beta,dalphadtheta,dalphadp = p.atPres(surfaces[k]["data"]["pres"][l],full=True)
                 #monthcount[p.time.month]=monthcount[p.time.month]+1
                 if (pv and pv<0) or pv==0:
-                    pv=np.nan
+                    pv=0
                     #monthnegativecount[p.time.month]=monthnegativecount[p.time.month]+1
                     negativecount +=1 
                 if type(pv) == type(None):
@@ -472,8 +472,6 @@ def addHeight(surfaces):
                 foundabove = foundabove[0][0]
                 tophalf = abs(surfaces[depths[j-1]]["data"]["pres"][foundabove]-surfaces[depths[j]]["data"]["pres"][found])/2.0
                 bothalf = abs(surfaces[depths[j]]["data"]["pres"][found]-surfaces[depths[j+1]]["data"]["pres"][foundbelow])/2.0
-                if tophalf==0 or bothalf==0:
-                    print(depths[j],surfaces[depths[j]]["data"]["pres"][found],surfaces[depths[j]]["lats"][found],surfaces[depths[j]]["lons"][found])
                 surfaces[depths[j]]["data"]["h"][found] = tophalf + bothalf
                 surfaces[depths[j]]["data"]["toph"][found] = tophalf
                 surfaces[depths[j]]["data"]["both"][found] = bothalf

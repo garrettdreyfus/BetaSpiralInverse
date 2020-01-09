@@ -9,22 +9,22 @@ import pickle
 import sensitivity
 import random
     
-profiles,deepestindex = nstools.extractProfilesBox(["data/1500mprofiles.json"],-180,180,65,90)
-profiles,deepestindex = nstools.removeNorwegianSea(profiles)
+#profiles,deepestindex = nstools.extractProfilesBox(["data/1500mprofiles.json"],-180,180,65,90)
+#profiles,deepestindex = nstools.removeNorwegianSea(profiles)
 
-fileObject = open("data/1500NoNorwegian.pickle",'rb')  
-#offsets,badfiles,beepestindex = pickle.load(fileObject)
+#fileObject = open("data/1500NoNorwegian.pickle",'rb')  
+##offsets,badfiles,beepestindex = pickle.load(fileObject)
 
-##profiles = nstools.filterCruises(profiles,offsets.keys())
-##profiles = saloffset.applyOffsets(profiles,offsets)
+###profiles = nstools.filterCruises(profiles,offsets.keys())
+###profiles = saloffset.applyOffsets(profiles,offsets)
 
-###profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
-profilechoice = nstools.getProfileById(profiles,"286364")
-#graph.plotProfiles(profiles,"UDASH DATA",nstools.getProfileById(profiles,"286364"))
-preinterpsurfaces = nstools.runPeerSearch(profiles,range(200,3001,200),profilechoice,1000)
+####profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
+#profilechoice = nstools.getProfileById(profiles,"286364")
+##graph.plotProfiles(profiles,"UDASH DATA",nstools.getProfileById(profiles,"286364"))
+#preinterpsurfaces = nstools.runPeerSearch(profiles,range(200,3001,200),profilechoice,1000)
 
-with open('data/preinterparctic.pickle', 'wb') as outfile:
-    pickle.dump([preinterpsurfaces,profiles],outfile)
+#with open('data/preinterparctic.pickle', 'wb') as outfile:
+    #pickle.dump([preinterpsurfaces,profiles],outfile)
 with open('data/preinterparctic.pickle', 'rb') as outfile:
     preinterpsurfaces,profiles = pickle.load(outfile)
 

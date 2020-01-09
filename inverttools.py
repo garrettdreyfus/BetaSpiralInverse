@@ -657,7 +657,6 @@ def rectAndWidths(maxlengths,totrim,arrays):
         print("after: ",x.shape)
         print("====")
         widths.append(x.shape[1])
-        print("Apsi nancount: ",np.count_nonzero(~np.isnan(x)))
         new.append(x)
     return new,widths
 
