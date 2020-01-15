@@ -116,6 +116,7 @@ def applyPrime(staggeredsurfaces,prime,coldict,params,widths,mixing=False):
             if eyed in coldict.keys():
                 staggeredsurfaces[k]["data"]["psinew"][i] = staggeredsurfaces[k]["data"]["psiref"][i] + prime[coldict[eyed]]*scales["Ar"]
                 staggeredsurfaces[k]["data"]["psisol"][i] = prime[coldict[eyed]]*scales["Ar"]
+                #staggeredsurfaces[k]["data"]["kvb"][i] = prime[widths[0]+coldict[eyed]]*scales["kvb"]
                 #if params["mixs"] == [True,True,True]:
                     #staggeredsurfaces[k]["data"]["kvb"][i] = prime[widths[0]+coldict[eyed]]
                     #staggeredsurfaces[k]["data"]["kh"][i] = prime[widths[0]+widths[1]+]

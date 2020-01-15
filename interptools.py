@@ -141,14 +141,14 @@ def isGridPointIsolated(row,col,mask,radius):
     return True
 
 
-def bathVarCacheWrapper(lat,lon):
+def bathVarCacheWrapper(lat,lon,region):
     if not hasattr(bathVarCacheWrapper,"bvardict"):
         bathVarCacheWrapper.bvardict={}
     if (lat,lon) not in bathVarCacheWrapper.bvardict.keys():
-        bathVarCacheWrapper.bvardict[(lat,lon)] = np.var(bathtools.bathBox(lat,lon,"nepbmatlab"))
+        bathVarCacheWrapper.bvardict[(lat,lon)] = np.var(bathtools.bathBox(lat,lon,region))
     return np.abs(bathVarCacheWrapper.bvardict[(lat,lon)])
 
-def bathVarMask(gridx,gridy,mask=[]):
+def bathVarMask(gridx,gridy,region,mask=[]):
     if np.isnan(mask).any():
         mask = np.invert(np.zeros(gridx.shape))
     for row in Bar("Bath var Masking: ").iter(range(mask.shape[0])):
@@ -166,7 +166,7 @@ def bathVarMask(gridx,gridy,mask=[]):
                     #xbathchange = abs(bathtools.searchBath(lat,lon,"nepb")-bathtools.searchBath(lat2,lon2,"nepb"))
                     #ybathchange = abs(bathtools.searchBath(lat,lon,"nepb")-bathtools.searchBath(lat3,lon3,"nepb"))
                     #if xbathchange<300 and ybathchange < 300:
-                    bvar = bathVarCacheWrapper(lat,lon)
+                    bvar = bathVarCacheWrapper(lat,lon,region)
                     if bvar < 15000:
                         mask[row][col]=False
 
@@ -176,10 +176,10 @@ def bathVarMask(gridx,gridy,mask=[]):
 #generate a mesh and remove points in that mesh 
 #which are too far away from locations with observations
 def smartMesh(x,y,region,coord,radius=500):
-    xi,yi = region["createMesh"](50,x,y,coord)
+    xi,yi = region["createMesh"](55,x,y,coord)
     #Make sure grid points are within original data point
     mask = geoMask(xi,yi,x,y,radius)
-    mask = bathVarMask(xi,yi,mask)
+    mask = bathVarMask(xi,yi,region,mask)
     indexcount = indexBoolMatrix(mask)
     finalxi=[]
     finalyi=[]
@@ -279,7 +279,7 @@ def interpolateSurface(surface,region,coord="xy",debug=True,interpmethod="gam",s
 
 ## interpolate all the surfaces vertically and store
 ## neighbors, and distances as well
-def interpolateSurfaces(surfaces,region,coord="xy",debug=True,interpmethod="gam",smart=False):
+def interpolateSurfaces(surfaces,region,coord="xy",debug=True,interpmethod="gam",smart=True):
     surfaces = addXYToSurfaces(surfaces)
     interpolatedsurfaces = {}
     neighbors={}

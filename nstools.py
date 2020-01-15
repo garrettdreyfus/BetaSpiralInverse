@@ -1,4 +1,5 @@
 import csv
+import regions
 from mpl_toolkits.basemap import Basemap
 from numpy import linspace
 import matplotlib.pyplot as plt
@@ -196,7 +197,7 @@ def emptySurface():
 ## to the nearest profile with an identified neutral surface. Only quits
 ## when all remaining profiles either are not close enough to a profile with a 
 ## known NS or a NS is not able to be determined for them
-def peerSearch(profiles,depth,profilechoice,radius=500):
+def peerSearch(profiles,depth,profilechoice,radius=500,peer=True):
     surfaces = {}
     surfaces[depth]= emptySurface()
     profilechoice.neutraldepth[depth] = depth
@@ -218,7 +219,8 @@ def peerSearch(profiles,depth,profilechoice,radius=500):
                     surfaces[depth]["ids"].append(p.eyed)
                     profiles.remove(p)
                     foundcounter +=1
-                    #references.append(p)
+                    if peer:
+                        references.append(p)
         if foundcounter ==0:
             break
 
@@ -228,12 +230,20 @@ def peerSearch(profiles,depth,profilechoice,radius=500):
     return surfaces
 
 ## runs the peer search on every neutral surface essentially
-def runPeerSearch(profiles,ns,profilechoice,radius):
+def runPeerSearch(profiles,ns,profilechoice,peer,radius):
     surfaces = {}
     for d in ns:
         print("NSearching: ",d)
-        surfaces.update(peerSearch(profiles.copy(),d,profilechoice,radius))
+        surfaces.update(peerSearch(profiles.copy(),d,profilechoice,radius,peer))
     return surfaces
+
+def findNeutralSurfaces(profiles,ns,profilechoice,peer,radius=500):
+    if peer:
+        runPeerSearch(profiles,ns,profilechoice,peer,radius)
+    else:
+        runPeerSearch(profiles,ns,profilechoice,peer,radius=10**10)
+
+    
 
 ## faultyway of finding neutral surfaces in the arctic
 def search(profiles,deepestindex):
@@ -268,19 +278,10 @@ def findAboveIndex(surfaces,k,l):
             return abs(above+middle)/2,abs(below+middle)/2
     return None,None
 
-
-def aleutianFilter(lon,lat):
-    if lon > 0: lon=-180-(abs(lon)-180)
-    if lon>=np.min(al.lon) and lon<=np.max(al.lon):
-        if lat-np.interp(lon,al.lon,al.lat)>-2:
-            #IN THE ALEUTIANS
-            return False
-    return True
-
 def removeAleutians(surfaces):
     for k in surfaces.keys():
         for l in range(len(surfaces[k]["lats"])):
-            if not aleutianFilter(surfaces[k]["lons"][l],surfaces[k]["lats"][l]):
+            if not regions.aleutianFilter(surfaces[k]["lons"][l],surfaces[k]["lats"][l]):
                 for d in surfaces[k]["data"].keys():
                     if l<len(surfaces[k]["data"][d]):
                         surfaces[k]["data"][d][l]=np.nan
@@ -289,7 +290,7 @@ def removeAleutians(surfaces):
     #return True
 ## calculates data throughout neutral surfaces, and some that require calculation 
 ## shoots that all into a new surfaces object and returns it
-def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
+def addDataToSurfaces(profiles,surfaces,region,debug=True):
     tempSurfs = {}
     for k in Bar("Adding data to: ").iter(surfaces.keys()):
         negativecount = 0
@@ -301,7 +302,7 @@ def addDataToSurfaces(profiles,surfaces,stdevs,debug=True):
             p = getProfileById(profiles,surfaces[k]["ids"][l])
             lon = surfaces[k]["lons"][l]
             lat = surfaces[k]["lats"][l]
-            if p and not np.isnan(p.isals).any() and aleutianFilter(lon,lat):
+            if p and not np.isnan(p.isals).any() and region["geofilter"](lon,lat):
                 if (surfaces[k]["data"]["pres"][l]+35 in p.ipres and surfaces[k]["data"]["pres"][l]-35 in p.ipres):
                     pv = p.potentialVorticityAtHautala(surfaces[k]["data"]["pres"][l])
                     dthetads = p.dthetads(surfaces[k]["data"]["pres"][l])
@@ -859,7 +860,7 @@ def addParametersToSurfaces(surfaces,neighbors,distances,region,ignore=[]):
     surfaces = addVerticalGrad(surfaces)
     #print("after vertical grad")
     #surfaceDiagnostic(surfaces)
-    ptools.saveBathVarTermCache(surfaces,"data/bathVarecco.pickle","nepbmatlab")
+    ptools.saveBathVarTermCache(surfaces,"data/bathVarecco.pickle",region)
     #print("after bath var term")
     #surfaceDiagnostic(surfaces)
     surfaces = addK(surfaces,"data/bathVarecco.pickle")

@@ -5,44 +5,6 @@ from functools import partial
 import scipy
 import scipy.io as sio
 import pdb
-
-#Return depth at certain lat lon
-def arcticSearchBath(bathDataset,lat,lon):
-    spacing = bathDataset.variables["spacing"][0]
-    startlon = bathDataset.variables["x_range"][0]
-    ret = bathDataset.variables["dimension"][:][0]
-    z = bathDataset.variables["z"]
-    if np.isnan(lat) or np.isnan(lon):
-        return np.nan
-    i = int((90-lat)/spacing)
-    j = int((lon-startlon)/spacing)
-    if np.isnan(z[j+i*ret]):
-        return 0
-    else:
-        return float(z[j+i*ret])
-
-#Return depth at certain lat lon
-def nepbSearchBath(bathDataset,lat,lon):
-    if np.isnan(lon) or np.isnan(lat):
-        return np.nan
-    f = bathDataset.sel(lon=lon, lat=lat, method='nearest')
-    if ~np.isnan(f):
-        return float(-f.elevation.values)
-    else:
-        return f
-
-def nepbMatlabSearchBath(bathDataset,lat,lon,includeindex=False):
-    lati = np.abs(bathDataset["lat_SRTM"]-lat).argmin()
-    loni = np.abs(bathDataset["lon_SRTM"]-lon).argmin()
-    #print("---")
-    #print(lati,loni)
-    if includeindex:
-        return bathDataset["z_SRTM"][lati][loni], lati, loni
-    else:
-        return bathDataset["z_SRTM"][lati][loni]
-
-
-
 ## return the depths within a box
 ##this has a lot of finagling to deal with the wrap around
 def bathBox(lat,lon,region,length=0.125,spacing=0.008333333,boxmethod="deg"):
@@ -65,7 +27,7 @@ def bathBox(lat,lon,region,length=0.125,spacing=0.008333333,boxmethod="deg"):
     depths = []
     for i in gridlats:
         for j in gridlons:
-            z= searchBath(i,j,region)
+            z= region["searchBath"](i,j)
             if not np.isnan(z):
                 depths.append(z)
     #pdb.set_trace()
@@ -80,7 +42,7 @@ def addBathToSurfaces(surfaces,region):
             lat = surfaces[k]["lats"][l]
             lon = surfaces[k]["lons"][l]
             if (lat,lon) not in dumbcache.keys():
-                dumbcache[(lat,lon)]=searchBath(lat,lon,region)
+                dumbcache[(lat,lon)]=region["searchBath"](lat,lon)
             surfaces[k]["data"]["z"][l] = dumbcache[(lat,lon)]
     return surfaces
 
@@ -91,18 +53,9 @@ def addBathToSurface(surface,region):
         lat = surface["lats"][l]
         lon = surface["lons"][l]
         if (lat,lon) not in dumbcache.keys():
-            dumbcache[(lat,lon)]=searchBath(lat,lon,region)
+            dumbcache[(lat,lon)]=region["searchBath"](lat,lon)
         surface["data"]["z"][l] = dumbcache[(lat,lon)]
     return surface
 
-def searchBath(lat,lon,region):
-    regionToFunction = {"arctic":arcticSearchBath,\
-            "nepb":nepbSearchBath,"nepbmatlab":nepbMatlabSearchBath}
-    return regionToFunction[region](lat,lon)
-
-
 #simplify functions so that they already have the bathymetry file loaded
-arcticSearchBath =partial(arcticSearchBath,Dataset("data/ver1_netcdf_geo.nc"))
-nepbSearchBath =partial(nepbSearchBath,xr.open_dataset('data/nepbbath.nc',decode_times=False))
-nepbMatlabSearchBath =partial(nepbMatlabSearchBath,sio.loadmat("data/Run0.new.mat"))
 

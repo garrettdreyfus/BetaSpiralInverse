@@ -5,3 +5,4 @@ geoisopycnal.mat
 *.mat
 ecco/
 refpics/
+__pycache__/

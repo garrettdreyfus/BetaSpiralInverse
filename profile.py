@@ -328,7 +328,10 @@ class Profile:
         prange = pupperbound - plowerbound
         p2offset = p2.ipres[0] - plowerbound
         selfoffset = self.ipres[0] - plowerbound
-        if self.ipres[0] < p2.ipres[0]:
+        #print(self.ipres,p2.ipres)
+        if self.ipres[-1] < p2.ipres[0] or p2.ipres[-1] <self.ipres[0]:
+            return None
+        if self.ipres[0] < p2.ipres[0] :
             p2offset = 0
             selfoffset = np.where(np.asarray(self.ipres) == p2.ipres[0])[0][0]
         elif p2.ipres[0] < self.ipres[0]:
