@@ -5,34 +5,6 @@ from functools import partial
 import scipy
 import scipy.io as sio
 import pdb
-## return the depths within a box
-##this has a lot of finagling to deal with the wrap around
-def bathBox(lat,lon,region,length=0.125,spacing=0.008333333,boxmethod="deg"):
-    if boxmethod == "m":
-        dlat = length/111.0
-        dlon = length/(np.cos(np.deg2rad(lat))*111.0)
-    if boxmethod == "deg":
-        dlat = length
-        dlon = length
-    if lon >0: lon = -(180-lon) + -180
-    dlon = min(dlon,170)
-    botleftlat = lat-dlat
-    botleftlon = lon-dlon
-    toprightlat= min(lat+dlat,90)
-    toprightlon = lon+dlon
-    gridlons = np.linspace(botleftlon,toprightlon,29)
-    gridlats = np.linspace(botleftlat,toprightlat,29)
-    latindexs = []
-    lonindexs = []
-    depths = []
-    for i in gridlats:
-        for j in gridlons:
-            z= region["searchBath"](i,j)
-            if not np.isnan(z):
-                depths.append(z)
-    #pdb.set_trace()
-    return depths
-
 ## given a surfaces object add depth information to each point
 def addBathToSurfaces(surfaces,region):
     dumbcache = {}
@@ -42,7 +14,7 @@ def addBathToSurfaces(surfaces,region):
             lat = surfaces[k]["lats"][l]
             lon = surfaces[k]["lons"][l]
             if (lat,lon) not in dumbcache.keys():
-                dumbcache[(lat,lon)]=region["searchBath"](lat,lon)
+                dumbcache[(lat,lon)]=searchBath(lat,lon)
             surfaces[k]["data"]["z"][l] = dumbcache[(lat,lon)]
     return surfaces
 
@@ -53,9 +25,33 @@ def addBathToSurface(surface,region):
         lat = surface["lats"][l]
         lon = surface["lons"][l]
         if (lat,lon) not in dumbcache.keys():
-            dumbcache[(lat,lon)]=region["searchBath"](lat,lon)
+            dumbcache[(lat,lon)]=searchBath(lat,lon)
         surface["data"]["z"][l] = dumbcache[(lat,lon)]
     return surface
+
+#Return depth at certain lat lon
+def searchBath(bathDataset,lat,lon):
+    #lons = bathDataset.variables["lon"]
+    #lats = bathDataset.variables["lat"]
+    #loni = int(86400*(lon+180)/360.0)
+    #lati = int(43200*(lat+90)/180.0)
+    f = bathDataset.sel(lon=lon,lat=lat,method="nearest")
+    if ~np.isnan(f):
+        return float(f.z.values)
+    else:
+        return f
+
+def bathBox(bathDataset,lat,lon):
+    f = bathDataset.sel(lon=slice(lon-0.1,lon+0.1),lat=slice(lat-0.1,lat+0.1))
+
+    if ~np.isnan(f):
+        return np.ndarray.flatten(f.z.values)
+    else:
+        return f
+
+searchBath = partial(searchBath,xr.open_dataset("data/SRTM.nc"))
+bathBox = partial(bathBox,xr.open_dataset("data/SRTM.nc"))
+
 
 #simplify functions so that they already have the bathymetry file loaded
 

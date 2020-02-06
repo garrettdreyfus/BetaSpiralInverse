@@ -19,9 +19,11 @@ class Profile:
         self.gamma = (9.8)/(self.f*1025.0)
         self.lon = data["lon"]
         if "time" in data.keys():
-            self.time = self.processDate(data["time"])
+            self.time = data["time"]
         if "cruise" in data.keys():
             self.cruise = data["cruise"]#+str(self.time.year)
+        if "station" in data.keys():
+            self.station = data["station"]#+str(self.time.year)
 
         if "knownns" in data.keys():
             self.knownns = data["knownns"]
@@ -32,7 +34,7 @@ class Profile:
         #Temerature Salinity and Pressure
         self.temps = np.asarray(data["temp"])
         self.sals = np.asarray(data["sal"])
-        self.pres = np.asarray(data["pres"])
+        self.pres = np.abs(np.asarray(data["pres"]))
         if not abssal:
             self.sals = gsw.SA_from_SP(self.sals,self.pres,self.lon,self.lat)
         if not ct:
@@ -70,6 +72,8 @@ class Profile:
             result = datetime.datetime(y,m,d)
             print(datestring,result)
         return result
+    def presInRange(self,pres):
+        return pres < np.max(self.ipres)
     ##apply a salinty offset 
     def applyOffset(self,offset):
         self.sals =self.sals +offset
@@ -115,7 +119,8 @@ class Profile:
             drhodz,notvalue = self.dz(depth,densities,35)
             pv = -(self.f/notvalue)*drhodz
 
-            return pv
+            return pv,drhodz
+        return None,None
 
     def dthetads(self,depth,debug=False,halfdistance=35):
         index = np.where(np.asarray(self.ipres) == depth)[0]

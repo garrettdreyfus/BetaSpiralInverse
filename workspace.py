@@ -10,35 +10,36 @@ import sensitivity
 import random
 import regions
     
-profiles,deepestindex = nstools.extractProfilesBox(["data/1500mprofiles.json"],-180,180,65,90)
-profiles,deepestindex = nstools.removeNorwegianSea(profiles)
+#profiles,deepestindex = nstools.extractProfilesBox(["data/1500mprofiles.json"],-180,180,65,90)
+#profiles,deepestindex = nstools.removeNorwegianSea(profiles)
 
-#fileObject = open("data/1500NoNorwegian.pickle",'rb')  
-##offsets,badfiles,beepestindex = pickle.load(fileObject)
+##fileObject = open("data/1500NoNorwegian.pickle",'rb')  
+###offsets,badfiles,beepestindex = pickle.load(fileObject)
 
-###profiles = nstools.filterCruises(profiles,offsets.keys())
-###profiles = saloffset.applyOffsets(profiles,offsets)
+####profiles = nstools.filterCruises(profiles,offsets.keys())
+####profiles = saloffset.applyOffsets(profiles,offsets)
 
-####profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
-profilechoice = nstools.getProfileById(profiles,"286364")
-#graph.plotProfiles(profiles,"UDASH DATA",nstools.getProfileById(profiles,"286364"))
-preinterpsurfaces = nstools.runPeerSearch(profiles,range(200,3001,200),profilechoice,False,10**10)
+#####profilechoice = random.choice(nstools.profileInBox(profiles,-180,180,85,90))
+#profilechoice = nstools.getProfileById(profiles,"286364")
+##graph.plotProfiles(profiles,"UDASH DATA",nstools.getProfileById(profiles,"286364"))
+#preinterpsurfaces = nstools.runPeerSearch(profiles,range(200,3001,200),profilechoice,False,10**10)
 
-with open('data/preinterparctic.pickle', 'wb') as outfile:
-    pickle.dump([preinterpsurfaces,profiles],outfile)
+#with open('data/preinterparctic.pickle', 'wb') as outfile:
+    #pickle.dump([preinterpsurfaces,profiles],outfile)
 with open('data/preinterparctic.pickle', 'rb') as outfile:
     preinterpsurfaces,profiles = pickle.load(outfile)
 
-graph.graphSurfaces(preinterpsurfaces,"pres",region="arctic",select=[2000,2200])
+##graph.graphSurfaces(preinterpsurfaces,"pres",region="arctic",select=[2000,2200])
 preinterpsurfaces = nstools.addDataToSurfaces(profiles,preinterpsurfaces,region=regions.arctic)
 
 
 surfaces,neighbors,distances = interptools.interpolateSurfaces(preinterpsurfaces,\
-        region=regions.arctic,interpmethod="gam")
+        region=regions.arctic,interpmethod="gam",smart=False)
 
+graph.saveAllQuants(surfaces,"refpics/surfaces/defaultsplinearcticoverlay/",\
+        contour=True,secondsurface=preinterpsurfaces)
 
-nstools.surfaceDiagnostic(surfaces)
-#graph.graphSurfaces(surfaces,"pres",region="arctic")
+##nstools.surfaceDiagnostic(surfaces)
 
 
 with open('data/postinterparctic.pickle', 'wb') as outfile:
@@ -46,6 +47,7 @@ with open('data/postinterparctic.pickle', 'wb') as outfile:
 
 with open('data/postinterparctic.pickle', 'rb') as outfile:
     surfaces,neighbors,distances = pickle.load(outfile)
+
 
 surfaces = nstools.addParametersToSurfaces(surfaces,\
         neighbors,distances,regions.arctic,[])
@@ -87,9 +89,9 @@ with open('data/ready4inversearctic.pickle', 'rb') as outfile:
 #for q in surfaces[1000]["data"].keys():
     #graph.graphSurfaces(surfaces,q,savepath="refpics/allquants1000/",show=False)
 
-params = {"reflevel":1600,"upperbound":1000,"lowerbound":2000,\
+params = {"reflevel":1600,"upperbound":1000,"lowerbound":1800,\
         "mixs":{"kvo":True,"kvb":True,"kh":True},"debug":False,\
-        "3point":True,"edgeguard":False}
+        "3point":True,"edgeguard":True}
 
 
 out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
@@ -104,12 +106,15 @@ with open('data/inverseout.pickle', 'rb') as outfile:
 inv = nstools.streamFuncToUV(out["surfaces"],neighbors,distances)
 
 
-graph.graphVectorField(inv,"uabs","vabs","pv",\
-        metadata=out["metadata"],region="arctic",\
-        transform=True,show=False,
-        savepath="refpics/vectorfields/arctic55nopeer/pv/")
-#graph.graphSurfaces(inv,"e")
-#graph.graphVectorField(inv,"uabs","vabs","z",metadata=out["metadata"])
+#graph.graphVectorField(inv,"uabs","vabs","bathvar",\
+        #metadata=out["metadata"],region="arctic",\
+        #transform=True,show=False,
+        #savepath="refpics/vectorfields/arctic55bathvarbg/pv/")
+##graph.graphSurfaces(inv,"e")
+inv = nstools.artificialPSIRef(inv,1000)
+#graph.graphSurfaces(inv,"psiref",region="arctic")
+inv = ptools.calcFRho(inv)
+graph.graphVectorField(inv,"u","v","e",metadata=out["metadata"])
 
 
 #across basin

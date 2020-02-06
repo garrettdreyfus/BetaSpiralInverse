@@ -119,6 +119,39 @@ def extractProfilesMonths(fnames,months):
                         deepestdepth=data[p]["pres"][-1]
     return profiles, deepestindex
 
+def stationDeltas(profiles):
+    dts = []
+    dps =[]
+    cs = []
+    for lat in np.arange(-30,-5,0.5):
+        print(lat)
+        ts = []
+        ps = {}
+        for p in profiles:
+            if abs(p.lat-lat)<0.25:
+                ts.append(p.time)
+                for l in p.neutraldepth.keys():
+                    if l not in ps.keys():
+                        ps[l] = []
+                    ps[l].append(p.neutraldepth[l])
+        for j in ps.keys():
+            if len(ps[j]) >1:
+                dts.append(np.sqrt(np.var(ts))/60.0/24.0)
+                dps.append(np.sqrt(np.var(ps[j])))
+                cs.append(j)
+    plt.scatter(dts,dps,c=cs)
+    plt.colorbar()
+    plt.show()
+
+def timeFilter(profiles,mins,r):
+    ps = []
+    for p in profiles:
+        if abs(p.time-mins)<r:
+            ps.append(p)
+    return ps
+
+
+
 ## extract profiles within a certain box
 def extractProfilesBox(fnames,lonleft,lonright,latbot,lattop):
     ##Load JSON data into profile objects
@@ -163,7 +196,7 @@ def closestIdentifiedNS(profiles,queryprofile,depth,radius,speedy=False):
     minimumdistance = radius
     minprofile = None
     for p in profiles:
-        if depth in p.neutraldepth.keys():
+        if depth in p.neutraldepth.keys() and p.presInRange(depth):
             eyeds = tuple(sorted((queryprofile.eyed,p.eyed)))
             if eyeds not in closestIdentifiedNS.cache.keys():
                 dist = great_circle((queryprofile.lat,queryprofile.lon),(p.lat,p.lon)).km
@@ -191,7 +224,8 @@ def profileInBox(profiles,lonleft,lonright,latbot,lattop,depth):
 def emptySurface():
     return {"lats":[],"lons":[],"ids":[],\
             "data":{"pres":[],"t":[],"s":[],"pv":[],"n^2":[],"alpha":[],\
-            "beta":[],"dalphadp":[],"dalphadtheta":[],"dthetads":[],"psi":[]}}
+            "beta":[],"dalphadp":[],"dalphadtheta":[],"dthetads":[],\
+            "psi":[],"drhodz":[]}}
 
 ##given a seed profile, finds neutral surfaces by comparing each profile 
 ## to the nearest profile with an identified neutral surface. Only quits
@@ -304,7 +338,7 @@ def addDataToSurfaces(profiles,surfaces,region,debug=True):
             lat = surfaces[k]["lats"][l]
             if p and not np.isnan(p.isals).any() and region["geofilter"](lon,lat):
                 if (surfaces[k]["data"]["pres"][l]+35 in p.ipres and surfaces[k]["data"]["pres"][l]-35 in p.ipres):
-                    pv = p.potentialVorticityAtHautala(surfaces[k]["data"]["pres"][l])
+                    pv, drhodz = p.potentialVorticityAtHautala(surfaces[k]["data"]["pres"][l])
                     dthetads = p.dthetads(surfaces[k]["data"]["pres"][l])
                     t,s,alpha,beta,dalphadtheta,dalphadp = p.atPres(surfaces[k]["data"]["pres"][l],full=True)
                 else:
@@ -313,10 +347,11 @@ def addDataToSurfaces(profiles,surfaces,region,debug=True):
                     dthetads = np.nan
                     t,s,alpha,beta,dalphadtheta,dalphadp = p.atPres(surfaces[k]["data"]["pres"][l],full=True)
                 #monthcount[p.time.month]=monthcount[p.time.month]+1
-                if (pv and pv<0) or pv==0:
-                    pv=0
-                    #monthnegativecount[p.time.month]=monthnegativecount[p.time.month]+1
-                    negativecount +=1 
+                #if (pv and pv<0) or pv==0:
+                    #print("second block: ",pv,drhodz)
+                    #pv=0
+                    ##monthnegativecount[p.time.month]=monthnegativecount[p.time.month]+1
+                    #negativecount +=1 
                 if type(pv) == type(None):
                     pv = np.nan
                 if ~np.isnan(t) and ~np.isnan(s) and ~np.isnan(pv) and p and pv != np.Inf and ~np.isnan(dthetads):
@@ -326,6 +361,7 @@ def addDataToSurfaces(profiles,surfaces,region,debug=True):
                     tempSurf["data"]["t"].append(t)
                     tempSurf["data"]["s"].append(s)
                     tempSurf["data"]["pv"].append(pv)
+                    tempSurf["data"]["drhodz"].append(drhodz)
                     tempSurf["data"]["dalphadtheta"].append(dalphadtheta)
                     tempSurf["data"]["dalphadp"].append(dalphadp)
                     tempSurf["data"]["dthetads"].append(dthetads)
@@ -427,7 +463,7 @@ def nanCopySurfaces(surfaces,simple=False):
                      "curl","uabs","vabs","uprime","vprime","dsdx","dsdz","dsdy",\
                     "d2sdx2","d2sdy2","dtdx","dtdy","dpdx","dpdy","n^2",\
                     "dqnotdx","dqnotdy","d2thetads2","dalphadtheta",\
-                    "alpha","beta","dalphads","dalphadp",\
+                    "alpha","beta","dalphads","dalphadp","drhodz",\
                     "psi","psinew","dqdz","dqdx","dqdy",\
                     "d2qdz2","d2qdx2","d2qdy2","khp","khpterm","khpdz","toph",\
                     "both","dpsidx","dpsidy","ssh","ids","z","knownu"\
@@ -521,7 +557,8 @@ def averageOverNeighbors(staggered,surfaces,k,s):
     for d in surfaces[k]["data"].keys():
         if d in ["t","s","pv","h","pres","knownu","knownv",\
                 "psi","n^2","alpha","beta","toph","dthetads",\
-                "both","kapredi","kapgm","diffkr","dalphadp","dalphadtheta"]:
+                "both","kapredi","kapgm","diffkr","dalphadp",\
+                "dalphadtheta","drhodz"]:
             #staggered[k]["data"][d][s[0]] = np.mean(surfaces[k]["data"][d][s])
             staggered[k]["data"][d][s[0]] = surfaces[k]["data"][d][s[0]]
         elif d in staggered[k]["data"].keys():
@@ -735,7 +772,7 @@ def addStreamFunc(surfaces,profiles):
         for i in range(len(surfaces[k]["ids"])):
             if surfaces[k]["ids"][i] not in neutraldepths:
                 neutraldepths[surfaces[k]["ids"][i]] =[[],[]]
-            if abs(k)<5000 and int(abs(surfaces[k]["data"]["pres"][i])) not in neutraldepths[surfaces[k]["ids"][i]][1]:
+            if int(abs(surfaces[k]["data"]["pres"][i])) not in neutraldepths[surfaces[k]["ids"][i]][1]:
                 neutraldepths[surfaces[k]["ids"][i]][0].append(k)
                 neutraldepths[surfaces[k]["ids"][i]][1].append(int(abs(surfaces[k]["data"]["pres"][i])))
     refns = []
@@ -989,6 +1026,7 @@ def depthCopy(ref=None,surfaces={}):
                 surfaces[k]["data"]["alpha"].append(ref[k]["data"]["alpha"][l])
                 surfaces[k]["data"]["beta"].append(ref[k]["data"]["beta"][l])
                 surfaces[k]["data"]["dalphadtheta"].append(ref[k]["data"]["dalphadtheta"][l])
+                surfaces[k]["data"]["drhodz"].append(ref[k]["data"]["drhodz"][l])
                 surfaces[k]["data"]["dalphadp"].append(ref[k]["data"]["dalphadp"][l])
                 surfaces[k]["data"]["dthetads"].append(ref[k]["data"]["dthetads"][l])
                 surfaces[k]["data"]["dsdx"].append(ref[k]["data"]["dsdx"][l])

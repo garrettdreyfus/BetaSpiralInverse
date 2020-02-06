@@ -79,7 +79,7 @@ def indexBoolMatrix(boolmatrix):
     return indexcount
 
 def geoMask(gridx,gridy,datax,datay,radius):
-    mask = np.zeros(gridx.shape)
+    mask = np.ones(gridx.shape)
     for i in range(len(datax)):
         r = np.sqrt((gridx- datax[i])**2 + (gridy - datay[i])**2)
         inside = r<radius*1000
@@ -88,21 +88,21 @@ def geoMask(gridx,gridy,datax,datay,radius):
 
 ## neigbor in "x" direction
 def findRowNeighbor(row,col,mask,indexcount):
-    for i in range(1,6):
+    for i in range(1,3):
         if col+i < len(mask[row]) and mask[row][col+i]:
             if ~np.isnan(indexcount[row][col+i]):
                 return int(indexcount[row][col+i])
     return False
 ## neigbor in "x" direction
 def findColumnNeighbor(row,col,mask,indexcount):
-    for i in range(1,6):
+    for i in range(1,3):
         if row+i < len(mask) and mask[row+i][col]:
             if ~np.isnan(indexcount[row+i][col]):
                 return int(indexcount[row+i][col])
     return False
 #find neighbor in corner
 def findCornerNeighbor(row,col,mask,indexcount):
-    for i in range(1,6):
+    for i in range(1,3):
         if col+i < len(mask[row]) and row+i < len(mask) and mask[row][col+i]:
             if ~np.isnan(indexcount[row+i][col+i]):
                 return int(indexcount[row+i][col+i])
@@ -110,7 +110,7 @@ def findCornerNeighbor(row,col,mask,indexcount):
 
 #generate a mesh and remove points in that mesh 
 #which are too far away from locations with observations
-def generateMaskedMesh(x,y,region,coord,radius=500):
+def generateMaskedMesh(x,y,region,coord,radius=100):
     xi,yi = region["createMesh"](25,x,y,coord)
     #Make sure grid points are within original data point
     mask = geoMask(xi,yi,x,y,radius)
@@ -176,7 +176,7 @@ def bathVarMask(gridx,gridy,region,mask=[]):
 #generate a mesh and remove points in that mesh 
 #which are too far away from locations with observations
 def smartMesh(x,y,region,coord,radius=500):
-    xi,yi = region["createMesh"](55,x,y,coord)
+    xi,yi = region["createMesh"](50,x,y,coord)
     #Make sure grid points are within original data point
     mask = geoMask(xi,yi,x,y,radius)
     mask = bathVarMask(xi,yi,region,mask)
@@ -250,7 +250,7 @@ def interpolateSurface(surface,region,coord="xy",debug=True,interpmethod="gam",s
         for d in Bar("Interpolating: ").iter(surface["data"].keys()):
             notnan = ~np.isnan(surface["data"][d])
             if np.count_nonzero(notnan)>10:
-                gam = pygam.GAM(pygam.te(0,1,n_splines=[8,8])).fit(X[notnan],np.asarray(surface["data"][d])[notnan])
+                gam = pygam.GAM(pygam.te(0,1)).fit(X[notnan],np.asarray(surface["data"][d])[notnan])
                 Xgrid = np.zeros((yi.shape[0],2))
                 Xgrid[:,0] = xi
                 Xgrid[:,1] = yi

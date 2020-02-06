@@ -1,6 +1,6 @@
 from nstools import *
 from interptools import *
-
+from progress.bar import Bar
 import matplotlib
 import os
 import datetime
@@ -94,6 +94,11 @@ def zoomGraph(m,ax,region):
         urlon = -100
         lllat = 0
         urlat = 60
+    if region == "brasil":
+        lllon = -85
+        urlon = 16
+        lllat = -50
+        urlat = 8
     if region != "nepbmerc":
         xmin, ymin = m(lllon, lllat)
         xmax, ymax = m(urlon, urlat)
@@ -106,6 +111,7 @@ def zoomGraph(m,ax,region):
 def mapSetup(coords,region="arctic",newax=True):
     regions = {"arctic":[90,-60],
                 "nepb":[40,-150],
+                "brasil":[-17,-33],
                 "nepbmerc":[20,60,-170,-120]}
     if newax:
         fig,ax = plt.subplots(1,1)
@@ -143,12 +149,30 @@ def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=N
     print(newsurfaces.keys())
     graphSurfaces(newsurfaces,quantindex,contour,profiles,deepestindex,show,maximize,savepath,region=region)
 
+def threedTransect(profiles,ks):
+    ax = plt.axes()
+    for k in ks:
+        x=[]
+        pres = []
+        for p in profiles:
+            if k in p.neutraldepth.keys():
+                x.append(p.lat)
+                pres.append(-p.neutraldepth[k])
+        a = np.argsort(x)
+        x= np.asarray(x)[a]
+        pres = np.asarray(pres)[a]
+        ax.plot(x, pres);
+    plt.show()
+
+
+    
+
 ## given a surfaces object, a quantity index, graph quantity
 ## if you really want you can supply a profiles object and a deepest index to display a point
 ## controls to save, graph or maximize
 def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,\
         show=True,maximize=True,savepath=None,idlabels=False,\
-        colorlimit=True,region="arctic",select=range(0,10000)):
+        colorlimit=True,region="arctic",select=range(0,10000),secondsurface=None):
     quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV",\
                      "u":"relative U","v":"relative V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X",\
                     "hy":"Neutral Gradient Y","curl":"Curl","drdt":"Northward Velocity",\
@@ -177,23 +201,27 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
             x = np.asarray(x)
             y = np.asarray(y)
             #Plot the surface 
+            m = np.nanmedian(d)
+            s = np.nanstd(d)
             if contour:
                 a = tuple([(abs(surfaces[i]["lats"]-90)>0.5) & (~np.isnan(surfaces[i]["data"][quantindex]))])
                 if np.count_nonzero(a)>4:
-                    plt.tricontourf(x,y,np.asarray(surfaces[i]["data"][quantindex][a]),cmap=cmocean.cm.haline,levels=30)
+                    plt.tricontourf(x[a],y[a],np.asarray(surfaces[i]["data"][quantindex][a]),cmap=cmocean.cm.haline,levels=30)
             else:
-                plt.scatter(x,y,c=d,cmap=cmocean.cm.haline)
-            m = np.nanmedian(d)
-            s = np.nanstd(d)
-            print("################")
-            if colorlimit:
-                plt.clim(m-1*s,m+1*s)
-                #plt.clim(i-400,i+400)
-                mapy.colorbar()
+                plt.scatter(x,y,c=d,cmap=cmocean.cm.haline,vmin=m-1*s,vmax=m+1*s,)
             #map the reference profile
             if profiles and deepestindex:
                 x,y = mapy(profiles[deepestindex].lon,profiles[deepestindex].lat)
                 mapy.scatter(x,y,c="red")
+            if secondsurface:
+                print("SECONDSURFACE")
+                x,y = mapy(secondsurface[i]["lons"],secondsurface[i]["lats"])
+                plt.scatter(x,y,c=secondsurface[i]["data"][quantindex],vmin=m-1*s,vmax=m+1*s,cmap=cmocean.cm.haline)
+
+            if colorlimit:
+                plt.clim(m-1*s,m+1*s)
+                #plt.clim(i-400,i+400)
+                mapy.colorbar()
             if idlabels:
                 for j, eyed in enumerate(ids):
                     ax.annotate(eyed,(x[j],y[j]))
@@ -310,12 +338,13 @@ def plotCruiseAndRef(cruises,refcruises,show=True,region="arctic"):
 def plotCruise(profiles,cruisename,fig=None,ax=None,show=True,region="arctic"):
     lats, lons, depths=[],[],[]
     for p in profiles:
-        lats.append(p.lat)
-        lons.append(p.lon)
-        depths.append(np.max(p.pres))
+        if p.cruise == cruisename:
+            lats.append(p.lat)
+            lons.append(p.lon)
+            depths.append(np.max(p.pres))
     
     if not fig and not ax:
-        mapSetup([],region=region)
+        fig,ax,mapy = mapSetup([],region=region)
     else:
         mapSetup([],region=region,newax=False)
 
@@ -463,13 +492,13 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",select=range(0,1000
 
             urs.append(0.01)
             uthetas.append(0)
-            lons.append(0)
-            lats.append(90)
+            lons.append(-150)
+            lats.append(40)
 
             urs.append(0)
             uthetas.append(0.01)
-            lons.append(0)
-            lats.append(90)
+            lons.append(-150)
+            lats.append(40)
 
             fig.suptitle(key1+"," + key2 + " NS: "+str(k))
             urs = np.asarray(urs)
@@ -840,9 +869,10 @@ def distanceHist(distances):
         plt.hist(distances[k].values())
         plt.show()
 
-def saveAllQuants(surfaces,savepath,region="arctic",select=[-np.inf,np.inf]):
-    for d in surfaces[list(surfaces.keys())[0]]["data"].keys():
-        graphSurfaces(surfaces,d,show=False,savepath=savepath,region=region,select=select)
+def saveAllQuants(surfaces,savepath,region="arctic",select=range(0,100000),contour=False,secondsurface=None):
+    for d in Bar("Saving Fields").iter(surfaces[list(surfaces.keys())[0]]["data"].keys()):
+        if len(surfaces[list(surfaces.keys())[0]]["data"][d])>0:
+            graphSurfaces(surfaces,d,show=False,savepath=savepath,region=region,select=select,contour=contour,secondsurface=secondsurface)
 
 def velocityHeatMap(surfaces,uvel,lon):
     depth=[]

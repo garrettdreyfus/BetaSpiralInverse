@@ -13,7 +13,7 @@ def calcBeta(lat):
 
 ## calcute the bathymetric variability term
 def bathVarTerm(lat,lon,region):
-    d=bathtools.bathBox(lat,lon,region)
+    d=bathtools.bathBox(lat,lon)
     dnot = 750
     print("box",d)
     return (np.var(d)/dnot)**(0.25),np.mean(d)
@@ -41,7 +41,7 @@ def saveBathVarTermCache(surfaces,outfilename,region):
     coords = set(coords)
     for p in  Bar("var coord :").iter(coords):
         if not (np.isnan(p[0]) and np.isnan(p[1])):
-            d=bathtools.bathBox(p[1],p[0],region)
+            d=bathtools.bathBox(p[1],p[0])
             dnot = 750
             bathVar[p] = ((np.var(d)/dnot)**(0.25),np.mean(d))
     with open(outfilename, 'wb') as outfile:
@@ -64,7 +64,7 @@ def Kv(lat,lon,pv,pres,cachename=None):
         bVT,mean = bathVarTermCache(lat,lon,cachename) 
     else:
         bVT,mean = bathVarTerm(lat,lon)
-    return bVT*np.exp(-(abs(mean)-abs(pres))/5500),bVT,np.exp(-(abs(mean)-abs(pres))/5500)
+    return bVT*np.exp(-(abs(mean)-abs(pres))/500),bVT,np.exp(-(abs(mean)-abs(pres))/5500)
 
 #function for exploring k mixing term values
 def kChecker(surfaces,k,found,scales,debug=False):
@@ -198,7 +198,7 @@ def kChecker(surfaces,k,found,scales,debug=False):
             plt.yscale("log")
             plt.show()
             
-        return np.asarray([-pvkv0/kvoscale,-pvkvb/kvbscale,-pvkh/khscale]),np.asarray([-skvo/kvoscale,-skvb/kvbscale,-skh/khscale])
+        return np.asarray([-pvkv0*kvoscale,-pvkvb*kvbscale,-pvkh*khscale]),np.asarray([-skvo*kvoscale,-skvb*kvbscale,-skh*khscale])
 
 def fetchWithFallback(surfaces,k,q,found,fallback=None):
     r = surfaces[k]["data"][q][found]
@@ -270,8 +270,10 @@ def kterms(surfaces,k,found,params,fallback=None):
             print("something here is nan")
         return {},{}
     if not (np.isnan(isitnan).any()):
-        pvkvb = (d2qdz2+2*(1/200.0)*dqdz+(1/(200.0**2))*pv)*CKVB
+        pvkvb = (d2qdz2+2*(-CKVB/5500.0)*dqdz+(CKVB/(5500.0**2))*pv)*CKVB
+        #print("pvkvb: ",pvkvb," : ",d2qdz2,dqdz,pv,CKVB,)
         pvkvo = d2qdz2
+        #print("pvkvo: ",pvkvo)
         if params["modelmixing"]:
             print("NO")
             pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv - f*dkhpdz/(surfaces[k]["data"]["kapredi"][found])
@@ -283,6 +285,7 @@ def kterms(surfaces,k,found,params,fallback=None):
             if both==0:
                 print("both")
             pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv -((1.0/both-1.0/toph)*f*khp)
+            #print("pvkvh: ",pvkh)
         skvo = -alpha*f*(1/pv)*(dsdz**3)*doublets
         skvb = skvo*CKVB
         skhpart1 = (f/pv)*dsdz*(alphat*(dtdx**2 + dtdy**2)+alphap*(dtdx*dpdx+dtdy*dpdy))
@@ -326,5 +329,35 @@ def calcFS(surfaces,k,found,scales,ks,distances,debug=False):
     if np.isinf(-ks["kh"]):
         print("kh inf")
     return FS
+
+def calcFRho(surfaces):
+    depths = sorted(surfaces.keys())
+    for j in depths:
+        surfaces[j]["data"]["e"] =  np.full(len(surfaces[j]["lons"]),np.nan)
+    for j in range(1,len(depths)-1):
+        k = depths[j]
+        for index in range(len(surfaces[k]["lons"])):
+            eyed = int(surfaces[k]["ids"][index])
+            foundbelow = np.where(np.asarray(surfaces[depths[j+1]]["ids"])==eyed)
+            found = index
+            foundabove = np.where(np.asarray(surfaces[depths[j-1]]["ids"])==eyed)
+
+            if eyed != -999 and len(foundbelow)!=0 and len(foundbelow[0]) != 0 and len(foundabove)!=0 and len(foundabove[0]) != 0:
+                foundbelow = foundbelow[0][0]
+                foundabove = foundabove[0][0]
+                abovekv = surfaces[depths[j-1]]["data"]["kvo"][foundabove] + surfaces[depths[j-1]]["data"]["CKVB"][foundabove]*surfaces[depths[j-1]]["data"]["kvb"][foundabove]
+                belowkv = surfaces[depths[j+1]]["data"]["kvo"][foundbelow] + surfaces[depths[j+1]]["data"]["CKVB"][foundbelow]*surfaces[depths[j+1]]["data"]["kvb"][foundbelow]
+                firstterm = \
+                        -(abovekv*surfaces[depths[j-1]]["data"]["drhodz"][foundabove] \
+                        - belowkv*surfaces[depths[j+1]]["data"]["drhodz"][foundbelow])/\
+                        (surfaces[depths[j-1]]["data"]["pres"][foundabove]-surfaces[depths[j+1]]["data"]["pres"][foundbelow])
+
+                rhonot = 1025.0
+                khp = surfaces[k]["data"]["khp"][index]
+                kh = surfaces[k]["data"]["kh"][index]
+                secondterm = rhonot*kh*khp
+                e = (firstterm + secondterm)/surfaces[k]["data"]["drhodz"][index]
+                surfaces[k]["data"]["e"][index]=e
+    return surfaces
 
 

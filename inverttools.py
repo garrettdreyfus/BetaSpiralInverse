@@ -109,18 +109,20 @@ def applyPrime(staggeredsurfaces,prime,coldict,params,widths,mixing=False):
         staggeredsurfaces[k]["data"]["psisol"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         staggeredsurfaces[k]["data"]["kvb"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         staggeredsurfaces[k]["data"]["kvo"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
+        staggeredsurfaces[k]["data"]["kh"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         staggeredsurfaces[k]["data"]["usol"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         staggeredsurfaces[k]["data"]["vsol"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
+        #print(widths)
+        #print(np.asarray(prime[widths[0]:widths[0]+widths[1]])*scales["kvb"])
         for i in range(len(staggeredsurfaces[k]["data"]["ids"])):
             eyed = staggeredsurfaces[k]["ids"][i] 
             if eyed in coldict.keys():
                 staggeredsurfaces[k]["data"]["psinew"][i] = staggeredsurfaces[k]["data"]["psiref"][i] + prime[coldict[eyed]]*scales["Ar"]
                 staggeredsurfaces[k]["data"]["psisol"][i] = prime[coldict[eyed]]*scales["Ar"]
-                #staggeredsurfaces[k]["data"]["kvb"][i] = prime[widths[0]+coldict[eyed]]*scales["kvb"]
-                #if params["mixs"] == [True,True,True]:
-                    #staggeredsurfaces[k]["data"]["kvb"][i] = prime[widths[0]+coldict[eyed]]
-                    #staggeredsurfaces[k]["data"]["kh"][i] = prime[widths[0]+widths[1]+]
-                    #staggeredsurfaces[k]["data"]["kvo"][i] = prime[widths[0]+widths[1](2*m)+int(k/200.0)]
+                if params["mixs"]["kvb"] and params["mixs"]["kvo"] and params["mixs"]["kh"]:
+                    staggeredsurfaces[k]["data"]["kvb"][i] = prime[widths[0]+coldict[eyed]]*scales["kvb"]
+                    staggeredsurfaces[k]["data"]["kh"][i] = prime[widths[0]+widths[1]+sorted(staggeredsurfaces.keys()).index(k)]*scales["kh"]
+                    staggeredsurfaces[k]["data"]["kvo"][i] = prime[widths[0]+widths[1]+widths[2]]*scales["kvo"]
     return staggeredsurfaces
 
 ## return list of ids of points that are constrained by a given number of equations
@@ -349,6 +351,8 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
     fscrows= []
     fqs = []
     fss = []
+    kvbpv=[]
+    kvbs = []
     for k in Bar("adding to matrix: ").iter(sorted(neighbors.keys())[::-1]):
         for s in neighbors[k]:
             s=np.asarray(s)
@@ -358,7 +362,10 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
                     and params["lowerbound"]>=k>=params["upperbound"]\
                     and surfaces[k]["ids"][s[0]]\
                     and surfaces[k]["ids"][s[0]] != -999 :
+                kvbpv.append(kpv["kvb"])
+                kvbs.append(ks["kvb"])
                 ##find/store column indexs for each neighbor
+
                 if params["3point"]:
                     columndictionary,columnindexs = neighborsColumnNumbers(surfaces,k,s[:3],columndictionary)
                 else:
@@ -381,15 +388,17 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
                 #plt.title("beta: "+str(np.sum(np.power(l,2))))
                 #plt.show()
                 ptools.kChecker(surfaces,k,s[0],params["scalecoeffs"])
-                Apsi.append(np.asarray(betarow)/n)
+                #Apsi.append(np.asarray(betarow)/n)
 
                 #make rows that can fit it 
                 Akvbrow, Akhrow, Akvorow = generateMixingRows(columnindexs,kpv,k,n)
-                Akvb.append(Akvbrow)
-                Akh.append(Akhrow)
-                Akvo.append(Akvorow)
+                #print("pv: ",np.linalg.norm(betavals/n),np.linalg.norm(Akvbrow),np.linalg.norm(Akhrow),np.linalg.norm(Akvorow))
+                #Akvb.append(Akvbrow)
+                #Akh.append(Akhrow)
+                #Akvo.append(Akvorow)
+                plt.show()
                 us[columnindexs[0]] = surfaces[k]["data"]["psiref"][s[0]]
-                c.append(crow/n)
+                #c.append(crow/n)
                 for i in [1,2]:
                     if surfaces[k]["ids"][s[i]] in outliers[k] and params["edgeguard"]:
                         newbetarow = recenterRow(betarow,columnindexs,i)
@@ -424,6 +433,7 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
 
                 ##im a rascal and this is a shorthad way of converting the NS to an index :P
                 Akvbrow, Akhrow, Akvorow = generateMixingRows(columnindexs,ks,k,n)
+                #print("sal: ",np.linalg.norm(salvals/n),np.linalg.norm(Akvbrow),np.linalg.norm(Akhrow),np.linalg.norm(Akvorow))
                 Akvb.append(Akvbrow)
                 Akh.append(Akhrow)
                 Akvo.append(Akvorow)
@@ -446,7 +456,12 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
                 c.append(crow/n)
                 if np.isnan(crow):
                     pdb.set_trace()
-
+    #plt.plot(kvbpv, label="pv kvb")
+    #print("kvbpv: ",np.nanmean(kvbpv))
+    #plt.plot(kvbs, label="s kvb")
+    #print("kvbs: ",np.nanmean(kvbs))
+    #plt.legend()
+    #plt.show()
     if len(Apsi)<1:
         return None, None, [None,None,None],None, None,None
     print("outliercount",len(totalcount))
@@ -516,35 +531,6 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
     surfaces = applyPrime(surfaces,prime,columndictionary,params,widths,mixing=True)
 
     return {"surfaces":surfaces,"coldict":columndictionary, "svddecomp":[VT,D,U],"matrixsetup":A,"errors":errors,"metadata":metadata}
-
-def calculatediapycnalv(surfaces,prime,params,widths,coldict):
-    kvbs=np.asarray([])
-    khs =np.asarray([])
-    if params["mixs"] == [True,True,True]:
-        kvbs = prime[widths[0]:widths[0]+widths[1]]
-        khs = prime[widths[0]+widths[1]:widths[0]+widths[1]+widths[2]]
-    if params["mixs"] == [True,False,True]:
-        khs = prime[widths[0]:widths[0]+widths[1]]
-    for k in surfaces.keys():
-        surfaces[k]["data"]["e"] = np.full(len(surfaces[k]["data"]["psi"]),np.nan)
-        if params["lowerbound"] >= k >= params["upperbound"]:
-            print("bo")
-            for point in range(len(surfaces[k]["data"]["e"])):
-                kpvs,ks = ptools.kterms(surfaces,k,point,[1]*4)
-                if kpvs.any():
-                    rhonot = 1025.0
-                    e=0
-                    khindex = (k-params["upperbound"])/200
-                    if khs.any() and khindex<len(khs) :
-                        print("params scale: ",params["scalecoeffs"]["kh"])
-                        kh = khs[int(khindex)]*params["scalecoeffs"]["kh"]
-                        e+=kh*kpvs["kvh"]
-                    if kvbs.any():
-                        kvb = kvbs[coldict[surfaces[k]["ids"][point]]]
-                        e+=kvb*kpvs["kvb"]
-                    print(e)
-                    surfaces[k]["data"]["e"][point]=e
-
 
 
 #the number of values per row
@@ -651,10 +637,10 @@ def rectAndWidths(maxlengths,totrim,arrays):
         x  = np.asarray(rectangularize(arrays[i],maxlengths[i]))
         print("====")
         print("before: ",x.shape)
-        if np.all(x == 0, axis=0).any():
-            print("removing 0 columns")
-        if i in totrim:
-            x = x[:,~np.all(x == 0, axis=0)]
+        #if np.all(x == 0, axis=0).any():
+            #print("removing 0 columns")
+        #if i in totrim:
+            #x = x[:,~np.all(x == 0, axis=0)]
         print("after: ",x.shape)
         print("====")
         widths.append(x.shape[1])
