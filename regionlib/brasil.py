@@ -69,7 +69,7 @@ def createMesh(n,xvals,yvals,coord="xy"):
         return np.meshgrid(np.linspace(xmin,xmax,n), np.linspace(ymin,ymax,n),indexing="xy")
     if coord =="latlon":
         grd = np.meshgrid(\
-                np.linspace(-71,-12,45),np.linspace(-31,-2,30))
+                np.linspace(-50,-12,35),np.linspace(-31,-2,30))
         for i in range(grd[0].shape[0]):
             for j in range(grd[0].shape[1]):
                 x,y = singleXY((grd[0][i][j],grd[1][i][j]))
@@ -78,6 +78,10 @@ def createMesh(n,xvals,yvals,coord="xy"):
         return grd
     else:
         print("This grid type is not supported", sys.exc_info()[0])
+
+
+mapbounds = {"lllon":-85,"urlon":16,"lllat":-50,"urlat":8,\
+        "lat_0":-17,"lon_0":-33}
 
 
 

@@ -35,6 +35,8 @@ def searchBath(bathDataset,lat,lon):
     #lats = bathDataset.variables["lat"]
     #loni = int(86400*(lon+180)/360.0)
     #lati = int(43200*(lat+90)/180.0)
+    if np.isnan(lon) or np.isnan(lat):
+        return np.nan
     f = bathDataset.sel(lon=lon,lat=lat,method="nearest")
     if ~np.isnan(f):
         return float(f.z.values)

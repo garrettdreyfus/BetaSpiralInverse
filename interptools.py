@@ -110,7 +110,7 @@ def findCornerNeighbor(row,col,mask,indexcount):
 
 #generate a mesh and remove points in that mesh 
 #which are too far away from locations with observations
-def generateMaskedMesh(x,y,region,coord,radius=100):
+def generateMaskedMesh(x,y,region,coord,radius=200):
     xi,yi = region["createMesh"](25,x,y,coord)
     #Make sure grid points are within original data point
     mask = geoMask(xi,yi,x,y,radius)

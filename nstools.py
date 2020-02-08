@@ -852,7 +852,7 @@ def addBathAndMask(surfaces,neighbors,region):
     surfaces = bathtools.addBathToSurfaces(surfaces,region)
     for k in Bar("Bath Masking").iter(surfaces.keys()):
         for l in range(len(surfaces[k]["lats"])):
-            if abs(surfaces[k]["data"]["pres"][l]) > abs(surfaces[k]["data"]["z"][l]):
+            if -surfaces[k]["data"]["pres"][l] < surfaces[k]["data"]["z"][l]:
                 for d in surfaces[k]["data"].keys():
                     if d != "ids":
                         surfaces[k]["data"][d][l] = np.nan

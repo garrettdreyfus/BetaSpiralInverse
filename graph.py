@@ -84,49 +84,34 @@ def graphNeighbors(surfaces,neighbors):
 
 ## zoom given map and axis into the arctic.
 def zoomGraph(m,ax,region):
-    if region == "arctic":
-        lllon = -136
-        urlon = 78
-        lllat = 55
-        urlat = 63
-    if region == "nepb":
-        lllon = 170
-        urlon = -100
-        lllat = 0
-        urlat = 60
-    if region == "brasil":
-        lllon = -85
-        urlon = 16
-        lllat = -50
-        urlat = 8
     if region != "nepbmerc":
-        xmin, ymin = m(lllon, lllat)
-        xmax, ymax = m(urlon, urlat)
+        xmin, ymin = m(region["mapbounds"]["lllon"], region["mapbounds"]["lllat"])
+        xmax, ymax = m(region["mapbounds"]["urlon"], region["mapbounds"]["urlat"])
 
         ax = plt.gca()
 
         ax.set_xlim([xmin, xmax])
         ax.set_ylim([ymin, ymax])
 
-def mapSetup(coords,region="arctic",newax=True):
-    regions = {"arctic":[90,-60],
-                "nepb":[40,-150],
-                "brasil":[-17,-33],
-                "nepbmerc":[20,60,-170,-120]}
+def mapSetup(coords,region,newax=True):
     if newax:
         fig,ax = plt.subplots(1,1)
     else:
         fig=None
         ax=None
-    if region != "auto" and region != "nepbmerc":
-        mapy = Basemap(projection='ortho', lat_0=regions[region][0],lon_0=regions[region][1],area_thresh=10)
-    elif region == "nepbmerc":
-        mapy = Basemap(projection='merc', llcrnrlat=regions[region][0],urcrnrlat=regions[region][1],\
-            llcrnrlon=regions[region][2],urcrnrlon=regions[region][3],lat_ts=40,area_thresh=10)
-
+    mapy = Basemap(projection='ortho', lat_0=region["mapbounds"]["lat_0"],lon_0=region["mapbounds"]["lon_0"],area_thresh=10)
     mapy.drawmapboundary(fill_color='aqua')
     mapy.fillcontinents(color='coral',lake_color='aqua')
-    mapy.drawcoastlines()
+    #mapy.drawcoastlines()
+
+    parallels = np.arange(-90.,91,10.)
+    mapy.drawparallels(parallels)
+    meridians = np.arange(0.,351.,10.)
+    mapy.drawmeridians(meridians)
+    for i in np.arange(len(meridians)):
+        plt.annotate(np.str(meridians[i]),xy=mapy(meridians[i],region["mapbounds"]["lllat"]),xycoords='data')
+    for i in np.arange(len(parallels)):
+        plt.annotate(np.str(parallels[i]),xy=mapy(region["mapbounds"]["urlon"]-10,parallels[i]),xycoords='data')
     zoomGraph(mapy,ax,region)
     return fig,ax,mapy
 
@@ -134,7 +119,7 @@ def mapSetup(coords,region="arctic",newax=True):
 ## usually one which is not interpolated to test interpolation
 def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None,region="arctic"):
     newsurfaces = {}
-    for k in surfaces.keys():
+    for k in Bar("Graphing Surfaces: ").iter(surfaces.keys()):
         tempSurf = nstools.emptySurface()
         tempSurf["lons"] = np.concatenate((surfaces[k]["lons"], overlay[k]["lons"]))
         tempSurf["lats"] = np.concatenate((surfaces[k]["lats"],overlay[k]["lats"]))
@@ -147,7 +132,7 @@ def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=N
             tempSurf["ids"] = np.concatenate((surfaces[k]["ids"],overlay[k]["ids"]))
         newsurfaces[k]=tempSurf
     print(newsurfaces.keys())
-    graphSurfaces(newsurfaces,quantindex,contour,profiles,deepestindex,show,maximize,savepath,region=region)
+    graphSurfaces(region,newsurfaces,quantindex,contour,profiles,deepestindex,show,maximize,savepath)
 
 def threedTransect(profiles,ks):
     ax = plt.axes()
@@ -170,9 +155,9 @@ def threedTransect(profiles,ks):
 ## given a surfaces object, a quantity index, graph quantity
 ## if you really want you can supply a profiles object and a deepest index to display a point
 ## controls to save, graph or maximize
-def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,\
+def graphSurfaces(region,surfaces,quantindex,contour=False,profiles=None,deepestindex=None,\
         show=True,maximize=True,savepath=None,idlabels=False,\
-        colorlimit=True,region="arctic",select=range(0,10000),secondsurface=None):
+        colorlimit=True,select=range(0,10000),secondsurface=None):
     quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV",\
                      "u":"relative U","v":"relative V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X",\
                     "hy":"Neutral Gradient Y","curl":"Curl","drdt":"Northward Velocity",\
@@ -239,8 +224,8 @@ def graphSurfaces(surfaces,quantindex,contour=False,profiles=None,deepestindex=N
 
             plt.close()
 
-def graphSurfacesOneContour(surfaces,surfacesnc,quantindex,contour=False,profiles=None,deepestindex=None,\
-        show=True,maximize=True,savepath=None,idlabels=False,colorlimit=True,region="arctic"):
+def graphSurfacesOneContour(region,surfaces,surfacesnc,quantindex,contour=False,profiles=None,deepestindex=None,\
+        show=True,maximize=True,savepath=None,idlabels=False,colorlimit=True):
     quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV",\
                      "u":"relative U","v":"relative V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X",\
                     "hy":"Neutral Gradient Y","curl":"Curl","drdt":"Northward Velocity",\
@@ -311,7 +296,7 @@ def graphSurfacesOneContour(surfaces,surfacesnc,quantindex,contour=False,profile
 
 
 ## plots a given cruise and its reference cruise
-def plotCruiseAndRef(cruises,refcruises,show=True,region="arctic"):
+def plotCruiseAndRef(region,cruises,refcruises,show=True):
     fig,ax,mapy = mapSetup([],region=region)
     lats, lons, depths=[],[],[]
     for p in refcruises:
@@ -335,7 +320,7 @@ def plotCruiseAndRef(cruises,refcruises,show=True,region="arctic"):
         plt.show()
 
 ##plot a certain cruise
-def plotCruise(profiles,cruisename,fig=None,ax=None,show=True,region="arctic"):
+def plotCruise(region,profiles,cruisename,fig=None,ax=None,show=True):
     lats, lons, depths=[],[],[]
     for p in profiles:
         if p.cruise == cruisename:
@@ -357,7 +342,7 @@ def plotCruise(profiles,cruisename,fig=None,ax=None,show=True,region="arctic"):
         plt.show()
 
 ##plot profiles with an option to supply one profile which should be highlighted
-def plotProfiles(profiles,title,specialprofile=None,fig=None,ax=None,show=True,data="pres",depth=False,region="arctic"):
+def plotProfiles(region,profiles,title,specialprofile=None,fig=None,ax=None,show=True,data="pres",depth=False):
     lats, lons, depths=[],[],[]
     for p in profiles:
         lats.append(p.lat)
@@ -435,7 +420,7 @@ def graphStaggeredSurface(surfaces,neighbors,debug=False):
         surfaces[k]["data"]["vz"] = np.zeros(len(surfaces[k]["lons"]))
     alldxs = []
     
-    for k in surfaces.keys():
+    for k in Bar("Graphing Surfaces: ").iter(surfaces.keys()):
         fig,ax = plt.subplots(1,1)
         mapy = Basemap(projection='ortho', lat_0=90,lon_0=-60)
         mapy.drawmapboundary(fill_color='aqua')
@@ -452,8 +437,8 @@ def graphStaggeredSurface(surfaces,neighbors,debug=False):
 
 ## graph a vector field given a surfaces object on a map
 ## any quantity can be supplied as a background field
-def graphVectorField(surfaces,key1,key2,backgroundfield="pv",select=range(0,10000),\
-        region="arctic",transform=True,savepath=False,show=True,metadata={},contour=True):
+def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",select=range(0,10000),\
+        transform=True,savepath=False,show=True,metadata={},contour=True):
 
     if savepath:
         try:
@@ -461,7 +446,7 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",select=range(0,1000
         except FileExistsError as e:
             print(e)
         writeInfoFile(savepath,metadata)
-    for k in surfaces.keys():
+    for k in Bar("Graphing Surfaces: ").iter(surfaces.keys()):
         if k in select:
             fig,ax,mapy = mapSetup([],region=region)
             urs=[]
@@ -492,13 +477,13 @@ def graphVectorField(surfaces,key1,key2,backgroundfield="pv",select=range(0,1000
 
             urs.append(0.01)
             uthetas.append(0)
-            lons.append(-150)
-            lats.append(40)
+            lons.append(region["mapbounds"]["lon_0"])
+            lats.append(region["mapbounds"]["lat_0"])
 
             urs.append(0)
             uthetas.append(0.01)
-            lons.append(-150)
-            lats.append(40)
+            lons.append(region["mapbounds"]["lon_0"])
+            lats.append(region["mapbounds"]["lat_0"])
 
             fig.suptitle(key1+"," + key2 + " NS: "+str(k))
             urs = np.asarray(urs)
@@ -559,7 +544,7 @@ def graphCartVectorField(surfaces,key1,key2,show=True,savepath=False):
             os.makedirs(savepath+quantindex)
         except FileExistsError as e:
             print(e)
-    for k in surfaces.keys():
+    for k in Bar("Graphing Surfaces: ").iter(surfaces.keys()):
         fig,ax = plt.subplots(1,1)
         us=[]
         vs=[]
@@ -670,7 +655,7 @@ def getLinePoints(surfaces,startcoord,endcoord,level):
 def quantityLine(surfaces,startcoord,endcoord,quant,silldepth,factor=1):
     quants=[]
     coords = [[],[]]
-    for k in surfaces.keys():
+    for k in Bar("Graphing Surfaces: ").iter(surfaces.keys()):
         ps,vec,progress = getLinePoints(surfaces,startcoord,endcoord,k)
         surfacequants = []
 
@@ -707,6 +692,7 @@ def transportLine(surfaces,startcoord,endcoord,silldepth,uway=False,show=False):
     coords = [[],[]]
     scales = []
     for k in surfaces.keys():
+
         ps,vec,progress = getLinePoints(surfaces,startcoord,endcoord,k)
         surfacetransports = []
 
@@ -805,7 +791,7 @@ def tsNeutralExplore(profiles):
 
 ## graph a vector field given a surfaces object on a map
 ## any quantity can be supplied as a background field
-def graphProfilesVectorField(profiles,depths=range(200,4000,200),savepath=False,show=True,region="arctic"):
+def graphProfilesVectorField(region,profiles,depths=range(200,4000,200),savepath=False,show=True):
 
     if savepath:
         try:
@@ -833,14 +819,14 @@ def graphProfilesVectorField(profiles,depths=range(200,4000,200),savepath=False,
 
         urs.append(0.01)
         uthetas.append(0)
-        lons.append(89)
-        lats.append(89)
+        lons.append(region["mapbounds"]["lon_0"])
+        lats.append(region["mapbounds"]["lat_0"])
         bgfield.append(np.nan)
 
         urs.append(0)
         uthetas.append(0.01)
-        lons.append(89)
-        lats.append(89)
+        lons.append(region["mapbounds"]["lon_0"])
+        lats.append(region["mapbounds"]["lat_0"])
         bgfield.append(np.nan)
 
         fig.suptitle("knownu,knownv NS: "+str(k))
@@ -869,7 +855,7 @@ def distanceHist(distances):
         plt.hist(distances[k].values())
         plt.show()
 
-def saveAllQuants(surfaces,savepath,region="arctic",select=range(0,100000),contour=False,secondsurface=None):
+def saveAllQuants(region,surfaces,savepath,select=range(0,100000),contour=False,secondsurface=None):
     for d in Bar("Saving Fields").iter(surfaces[list(surfaces.keys())[0]]["data"].keys()):
         if len(surfaces[list(surfaces.keys())[0]]["data"][d])>0:
             graphSurfaces(surfaces,d,show=False,savepath=savepath,region=region,select=select,contour=contour,secondsurface=secondsurface)

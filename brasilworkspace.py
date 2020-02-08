@@ -23,14 +23,14 @@ import inverttools
 
 #with open('data/annotatednepbprofilessingleref.pickle', 'wb') as outfile:
     #pickle.dump([surfaces,profiles],outfile)
-#with open('data/annotatednepbprofilessingleref.pickle', 'rb') as outfile:
-    #preinterpsurfaces,profiles = pickle.load(outfile)
+with open('data/annotatednepbprofilessingleref.pickle', 'rb') as outfile:
+    preinterpsurfaces,profiles = pickle.load(outfile)
 
-#surfaces,neighbors,distances = interptools.interpolateSurfaces(preinterpsurfaces,\
-        #regions.brasil,interpmethod="gam",smart=False,coord="latlon")
+surfaces,neighbors,distances = interptools.interpolateSurfaces(preinterpsurfaces,\
+        regions.brasil,interpmethod="gam",smart=False,coord="latlon")
 
-#with open('data/interpedbrasil.pickle', 'wb') as outfile:
-    #pickle.dump([surfaces,neighbors,distances], outfile)
+with open('data/interpedbrasil.pickle', 'wb') as outfile:
+    pickle.dump([surfaces,neighbors,distances], outfile)
 with open('data/interpedbrasil.pickle', 'rb') as outfile:
     [surfaces,neighbors,distances] = pickle.load(outfile)
 
@@ -40,7 +40,7 @@ nstools.inverseReady(surfaces)
 
 params = {"reflevel":1700,"upperbound":1000,"lowerbound":4000,\
         "mixs":{"kvo":True,"kvb":True,"kh":True},"debug":False,\
-        "3point":False,"edgeguard":True}
+        "3point":True,"edgeguard":True}
 
 with open('data/interpedbrasil.pickle', 'wb') as outfile:
     pickle.dump([surfaces,neighbors,distances], outfile)
@@ -58,9 +58,9 @@ with open('data/inverseoutbrasil.pickle', 'rb') as outfile:
 
 inv = nstools.streamFuncToUV(out["surfaces"],neighbors,distances)
 
-
-graph.graphVectorField(inv,"uabs","vabs","pv",\
-        metadata=out["metadata"],region="brasil",\
+#graph.graphSurfaces(regions.brasil,inv,"pres")
+graph.graphVectorField(regions.brasil,inv,"uabs","vabs","pv",\
+        metadata=out["metadata"],\
         transform=False,show=False,
         savepath="refpics/vectorfields/brasilmix/4pointpv/")
 

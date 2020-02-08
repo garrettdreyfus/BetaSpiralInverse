@@ -63,3 +63,6 @@ nepbSearchBath =partial(nepbSearchBath,xr.open_dataset('data/nepbbath.nc',decode
 nepbMatlabSearchBath =partial(nepbMatlabSearchBath,sio.loadmat("data/Run0.new.mat"))
 
 
+mapbounds = {"lllon":170,"urlon":-100,"lllat":0,"urlat":60,\
+        "lat_0":40,"lon_0":-150}
+

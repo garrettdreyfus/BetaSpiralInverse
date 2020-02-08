@@ -30,4 +30,7 @@ def searchBath(bathDataset,lat,lon):
 
 arcticSearchBath =partial(searchBath,Dataset("data/ver1_netcdf_geo.nc"))
 
+mapbounds = {"lllon":-136,"urlon":78,"lllat":55,"urlat":63,\
+        "lat_0":90,"lon_0":-60}
+
 

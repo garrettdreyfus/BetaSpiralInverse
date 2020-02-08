@@ -8,11 +8,11 @@ from regionlib import arctic as arcticlib
 from regionlib import nepb as nepblib
 
 arctic = {"createMesh":arcticlib.createMesh,"geofilter":arcticlib.geoFilter,\
-        "name":"arctic"}
+        "mapbounds":arcticlib.mapbounds,"name":"arctic"}
 nepb = {"createMesh":nepblib.createMesh,"geofilter":nepblib.geoFilter,\
-        "name":"nepb"}
+        "mapbounds":nepblib.mapbounds,"name":"nepb"}
 brasil = {"geofilter":brasillib.geoFilter,"name":"brasil",\
-        "createMesh":brasillib.createMesh}
+        "mapbounds":brasillib.mapbounds,"createMesh":brasillib.createMesh}
 
 
 
