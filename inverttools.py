@@ -119,10 +119,10 @@ def applyPrime(staggeredsurfaces,prime,coldict,params,widths,mixing=False):
             if eyed in coldict.keys():
                 staggeredsurfaces[k]["data"]["psinew"][i] = staggeredsurfaces[k]["data"]["psiref"][i] + prime[coldict[eyed]]*scales["Ar"]
                 staggeredsurfaces[k]["data"]["psisol"][i] = prime[coldict[eyed]]*scales["Ar"]
-                if params["mixs"]["kvb"] and params["mixs"]["kvo"] and params["mixs"]["kh"]:
-                    staggeredsurfaces[k]["data"]["kvb"][i] = prime[widths[0]+coldict[eyed]]*scales["kvb"]
-                    staggeredsurfaces[k]["data"]["kh"][i] = prime[widths[0]+widths[1]+sorted(staggeredsurfaces.keys()).index(k)]*scales["kh"]
-                    staggeredsurfaces[k]["data"]["kvo"][i] = prime[widths[0]+widths[1]+widths[2]]*scales["kvo"]
+                #if params["mixs"]["kvb"] and params["mixs"]["kvo"] and params["mixs"]["kh"]:
+                    #staggeredsurfaces[k]["data"]["kvb"][i] = prime[widths[0]+coldict[eyed]]*scales["kvb"]
+                    #staggeredsurfaces[k]["data"]["kh"][i] = prime[widths[0]+widths[1]+sorted(staggeredsurfaces.keys()).index(k)]*scales["kh"]
+                    #staggeredsurfaces[k]["data"]["kvo"][i] = prime[widths[0]+widths[1]+widths[2]]*scales["kvo"]
     return staggeredsurfaces
 
 ## return list of ids of points that are constrained by a given number of equations
@@ -637,10 +637,10 @@ def rectAndWidths(maxlengths,totrim,arrays):
         x  = np.asarray(rectangularize(arrays[i],maxlengths[i]))
         print("====")
         print("before: ",x.shape)
-        #if np.all(x == 0, axis=0).any():
-            #print("removing 0 columns")
-        #if i in totrim:
-            #x = x[:,~np.all(x == 0, axis=0)]
+        if np.all(x == 0, axis=0).any():
+            print("removing 0 columns")
+        if i in totrim:
+            x = x[:,~np.all(x == 0, axis=0)]
         print("after: ",x.shape)
         print("====")
         widths.append(x.shape[1])

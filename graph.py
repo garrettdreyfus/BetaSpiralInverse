@@ -7,6 +7,15 @@ import datetime
 import git
 import cmocean
 
+quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV",\
+                 "u":"relative U","v":"relative V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X",\
+                "hy":"Neutral Gradient Y","curl":"Curl","drdt":"Northward Velocity",\
+                "dthetadt":"Eastward Velocity","ids":"IDS","uabs":"Absolute U","vabs":"Absolute V",\
+                "uprime":"reference U velocity","vprime":"reference V velocity","h":"Thickness of ",\
+                "CKVB":"KV term with roughness","CKVO":"KV term without roughness","dsdx":"Salinity X gradient",\
+                "dsdy":"Salinity Y gradient","d2sdx2":"Salinity X curvature",\
+                "d2sdy2":"Salinity Y curvature","n^2":"N^2"}
+
 ##Graph a given quantity over a transect given a surfaces object
 ## savepath and show control whether the images should be saved and whether graphs should be displayed
 def graphTransects(surfaces,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None):
@@ -117,7 +126,7 @@ def mapSetup(coords,region,newax=True):
 
 ## analagous to graphSurfaces but you can provide a second surfaces object
 ## usually one which is not interpolated to test interpolation
-def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None,region="arctic"):
+def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,stds=1,profiles=None,deepestindex=None,show=True,maximize=True,savepath=None,region="arctic"):
     newsurfaces = {}
     for k in Bar("Graphing Surfaces: ").iter(surfaces.keys()):
         tempSurf = nstools.emptySurface()
@@ -155,17 +164,9 @@ def threedTransect(profiles,ks):
 ## given a surfaces object, a quantity index, graph quantity
 ## if you really want you can supply a profiles object and a deepest index to display a point
 ## controls to save, graph or maximize
-def graphSurfaces(region,surfaces,quantindex,contour=False,profiles=None,deepestindex=None,\
+def graphSurfaces(region,surfaces,quantindex,stds=1,contour=False,profiles=None,deepestindex=None,\
         show=True,maximize=True,savepath=None,idlabels=False,\
         colorlimit=True,select=range(0,10000),secondsurface=None):
-    quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV",\
-                     "u":"relative U","v":"relative V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X",\
-                    "hy":"Neutral Gradient Y","curl":"Curl","drdt":"Northward Velocity",\
-                    "dthetadt":"Eastward Velocity","ids":"IDS","uabs":"Absolute U","vabs":"Absolute V",\
-                    "uprime":"reference U velocity","vprime":"reference V velocity","h":"Thickness of ",\
-                    "CKVB":"KV term with roughness","CKVO":"KV term without roughness","dsdx":"Salinity X gradient",\
-                    "dsdy":"Salinity Y gradient","d2sdx2":"Salinity X curvature",\
-                    "d2sdy2":"Salinity Y curvature","n^2":"N^2"}
     if savepath:
         try:
             os.makedirs(savepath+quantindex)
@@ -204,7 +205,7 @@ def graphSurfaces(region,surfaces,quantindex,contour=False,profiles=None,deepest
                 plt.scatter(x,y,c=secondsurface[i]["data"][quantindex],vmin=m-1*s,vmax=m+1*s,cmap=cmocean.cm.haline)
 
             if colorlimit:
-                plt.clim(m-1*s,m+1*s)
+                plt.clim(m-stds*s,m+stds*s)
                 #plt.clim(i-400,i+400)
                 mapy.colorbar()
             if idlabels:
@@ -509,7 +510,7 @@ def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",select=range
                 s = np.nanstd(bgfield)
                 plt.clim(m-2*s,m+2*s)
                 mapy.colorbar()
-                mapy.quiver(x,y,u*2,v*2,mag,cmap="autumn",width = 0.004)
+                mapy.quiver(x,y,u*2,v*2,mag,scale=0.6,cmap="autumn",width = 0.004)
                 if savepath:
                     plt.savefig(savepath+key1+key2+"/ns"+str(k)+".png")
 
@@ -850,6 +851,8 @@ def graphProfilesVectorField(region,profiles,depths=range(200,4000,200),savepath
             plt.show()
         plt.close()
 
+
+
 def distanceHist(distances):
     for k in distances.keys():
         plt.hist(distances[k].values())
@@ -892,6 +895,45 @@ def velocityHeatMap(surfaces,uvel,lon):
     plt.colorbar()
     plt.show()
 
+def northSouthTransect(surfaces,quant,lat=None,lon=None):
+    xs = []
+    ps = []
+    cs = []
+    for k in surfaces.keys():
+        for i in range(len(surfaces[k]["data"][quant])):
+            if lat and abs(surfaces[k]["lats"][i]-lat)<0.5:
+                xs.append(surfaces[k]["lons"][i])
+                cs.append(surfaces[k]["data"][quant][i])
+                ps.append(surfaces[k]["data"]["pres"][i])
+            if lon and abs(surfaces[k]["lons"][i]-lon)<0.5:
+                xs.append(surfaces[k]["lats"][i])
+                cs.append(surfaces[k]["data"][quant][i])
+                ps.append(surfaces[k]["data"]["pres"][i])
+    m = np.nanmean(cs)
+    s = np.nanstd(cs)
+    plt.scatter(xs,ps,c=cs)
+    plt.clim(m-1*s,m+1*s)
+    if lat:
+        plt.xlabel("Longitude in Degrees")
+    if lon:
+        plt.xlabel("Latitude in Degrees ")
+    plt.ylabel("Depth in Dbar")
+    plt.gca().invert_yaxis()
+    cbar = plt.colorbar()
+    
+    if lat:
+        degline = " along " + str(lat) + " latitude"
+    if lon:
+        degline = " along " + str(lon) + " longitude"
+
+    if quant in quanttitlehash.keys():
+        cbar.set_label(quanttitlehash[quant])
+        plt.title(quanttitlehash[quant] + degline)
+    else:
+        cbar.set_label(quant)
+        plt.title(quant + degline)
+
+    plt.show()
 
         
 
