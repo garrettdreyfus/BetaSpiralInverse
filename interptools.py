@@ -111,7 +111,7 @@ def findCornerNeighbor(row,col,mask,indexcount):
 #generate a mesh and remove points in that mesh 
 #which are too far away from locations with observations
 def generateMaskedMesh(x,y,region,coord,radius=200):
-    xi,yi = region["createMesh"](25,x,y,coord)
+    xi,yi = region.createMesh(x,y,coord)
     #Make sure grid points are within original data point
     mask = geoMask(xi,yi,x,y,radius)
     indexcount = indexBoolMatrix(mask)
@@ -176,7 +176,7 @@ def bathVarMask(gridx,gridy,region,mask=[]):
 #generate a mesh and remove points in that mesh 
 #which are too far away from locations with observations
 def smartMesh(x,y,region,coord,radius=500):
-    xi,yi = region["createMesh"](50,x,y,coord)
+    xi,yi = region.createMesh(x,y,coord,spacingscale=2)
     #Make sure grid points are within original data point
     mask = geoMask(xi,yi,x,y,radius)
     mask = bathVarMask(xi,yi,region,mask)
@@ -279,7 +279,7 @@ def interpolateSurface(surface,region,coord="xy",debug=True,interpmethod="gam",s
 
 ## interpolate all the surfaces vertically and store
 ## neighbors, and distances as well
-def interpolateSurfaces(surfaces,region,coord="xy",debug=True,interpmethod="gam",smart=True):
+def interpolateSurfaces(region,surfaces,coord="xy",debug=True,interpmethod="gam",smart=False):
     surfaces = addXYToSurfaces(surfaces)
     interpolatedsurfaces = {}
     neighbors={}

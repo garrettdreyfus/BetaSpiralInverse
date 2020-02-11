@@ -13,6 +13,11 @@ from scipy.interpolate import UnivariateSpline
 class Profile:
     def __init__(self,eyed, data,ct=False,abssal=False):
         ##id of profiles plus info
+        if not {"sal","temp","pres","lat","lon"}.issubset(data.keys()):
+            raise ValueError("This does not contain the required information")
+        if abs(max(data["pres"])-min(data["pres"])) <50:
+            print(data["pres"])
+            raise ValueError("This does not contain enough pressure information ")
         self.eyed = eyed
         self.lat = data["lat"]
         self.f = gsw.f(self.lat)

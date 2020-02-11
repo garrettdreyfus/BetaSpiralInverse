@@ -861,7 +861,7 @@ def distanceHist(distances):
 def saveAllQuants(region,surfaces,savepath,select=range(0,100000),contour=False,secondsurface=None):
     for d in Bar("Saving Fields").iter(surfaces[list(surfaces.keys())[0]]["data"].keys()):
         if len(surfaces[list(surfaces.keys())[0]]["data"][d])>0:
-            graphSurfaces(surfaces,d,show=False,savepath=savepath,region=region,select=select,contour=contour,secondsurface=secondsurface)
+            graphSurfaces(region,surfaces,d,show=False,savepath=savepath,select=select,contour=contour,secondsurface=secondsurface)
 
 def velocityHeatMap(surfaces,uvel,lon):
     depth=[]

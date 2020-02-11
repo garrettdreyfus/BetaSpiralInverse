@@ -1,5 +1,4 @@
 import csv
-import regions
 from mpl_toolkits.basemap import Basemap
 from numpy import linspace
 import matplotlib.pyplot as plt
@@ -29,7 +28,6 @@ import parametertools as ptools
 from prettytable import PrettyTable
 import pdb
 import interptools
-import aleutianline as al
 #From a list of filenames extract a bunch of profile objects
 #also returns the profile with the deepestindex because that may be useful
 def extractProfiles(fnames):
@@ -215,6 +213,8 @@ def closestIdentifiedNS(profiles,queryprofile,depth,radius,speedy=False):
 def profileInBox(profiles,lonleft,lonright,latbot,lattop,depth):
     results=[]
     for p in profiles:
+        #if not hasattr(p,"lon"):
+            #pdb.set_trace()
         if lonleft< p.lon <lonright and latbot < p.lat < lattop\
             and np.max(abs(p.pres))>depth:
             results.append(p)
@@ -264,7 +264,7 @@ def peerSearch(profiles,depth,profilechoice,radius=500,peer=True):
     return surfaces
 
 ## runs the peer search on every neutral surface essentially
-def runPeerSearch(profiles,ns,profilechoice,peer,radius):
+def runPeerSearch(profiles,ns,profilechoice,peer=False,radius=10**10):
     surfaces = {}
     for d in ns:
         print("NSearching: ",d)
@@ -311,20 +311,9 @@ def findAboveIndex(surfaces,k,l):
             below = surfaces[k+200]["data"]["pres"][below[0]]
             return abs(above+middle)/2,abs(below+middle)/2
     return None,None
-
-def removeAleutians(surfaces):
-    for k in surfaces.keys():
-        for l in range(len(surfaces[k]["lats"])):
-            if not regions.aleutianFilter(surfaces[k]["lons"][l],surfaces[k]["lats"][l]):
-                for d in surfaces[k]["data"].keys():
-                    if l<len(surfaces[k]["data"][d]):
-                        surfaces[k]["data"][d][l]=np.nan
-    return surfaces
-
-    #return True
 ## calculates data throughout neutral surfaces, and some that require calculation 
 ## shoots that all into a new surfaces object and returns it
-def addDataToSurfaces(profiles,surfaces,region,debug=True):
+def addDataToSurfaces(region,profiles,surfaces,debug=True):
     tempSurfs = {}
     for k in Bar("Adding data to: ").iter(surfaces.keys()):
         negativecount = 0
@@ -336,7 +325,7 @@ def addDataToSurfaces(profiles,surfaces,region,debug=True):
             p = getProfileById(profiles,surfaces[k]["ids"][l])
             lon = surfaces[k]["lons"][l]
             lat = surfaces[k]["lats"][l]
-            if p and not np.isnan(p.isals).any() and region["geofilter"](lon,lat):
+            if p and not np.isnan(p.isals).any() and region.geoFilter(lon,lat):
                 if (surfaces[k]["data"]["pres"][l]+35 in p.ipres and surfaces[k]["data"]["pres"][l]-35 in p.ipres):
                     pv, drhodz = p.potentialVorticityAtHautala(surfaces[k]["data"]["pres"][l])
                     dthetads = p.dthetads(surfaces[k]["data"]["pres"][l])
@@ -883,7 +872,7 @@ def addBathAndMask(surfaces,neighbors,region):
 
     return surfaces
    
-def addParametersToSurfaces(surfaces,neighbors,distances,region,ignore=[]):
+def addParametersToSurfaces(region,surfaces,neighbors,distances,ignore=[]):
     #surfaceDiagnostic(surfaces)
     surfaces = addHeight(surfaces)
     #print("after height")

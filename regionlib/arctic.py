@@ -2,7 +2,8 @@ from netCDF4 import Dataset
 from functools import partial
 import xarray as xr
 
-def createMesh(n,xvals,yvals,coord="xy"):
+def createMesh(xvals,yvals,coord="xy",spacingscale=1):
+    n=25
     xmin= -1793163
     xmax = 971927
     ymin = -1455096
@@ -32,5 +33,6 @@ arcticSearchBath =partial(searchBath,Dataset("data/ver1_netcdf_geo.nc"))
 
 mapbounds = {"lllon":-136,"urlon":78,"lllat":55,"urlat":63,\
         "lat_0":90,"lon_0":-60}
+
 
 

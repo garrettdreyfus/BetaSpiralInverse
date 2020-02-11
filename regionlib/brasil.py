@@ -6,6 +6,7 @@ from functools import partial
 import sys
 import xarray as xr
 import pdb
+from progress.bar import Bar
 
 def geoFilter(lon,lat):
     latinrange = (lat<0 and lat >-31)
@@ -29,7 +30,7 @@ def singleXY(coord):
     return x,y
 
 
-def extractProfiles(ncfolder): 
+def extractWoceProfiles(ncfolder): 
     profiles= []
     for f in glob.glob(ncfolder+"/*.nc"):
         ncdf = Dataset(f, 'r')  # Dataset is the class behavior to open the file
@@ -58,8 +59,45 @@ def extractProfiles(ncfolder):
                 profiles.append(prof)
     return profiles
 
-def createMesh(n,xvals,yvals,coord="xy"):
+def extractArgoProfiles(ncfolder): 
+    profiles= []
+    for f in Bar("file:" ).iter(glob.glob(ncfolder+"/*.nc")):
+        ncdf = Dataset(f, 'r')  # Dataset is the class behavior to open the file
+        #pdb.set_trace()
+        print("yup")
+        print(ncdf.dimensions["N_PROF"].size)
+        for prof in range(ncdf.dimensions["N_PROF"].size):
+            profiledata = {}
+            profiledata["lon"] = ncdf.variables["LONGITUDE"][prof]
+            profiledata["lat"] = ncdf.variables["LATITUDE"][prof]
+            if geoFilter(profiledata["lon"],profiledata["lat"]) and prof%5 ==0:
+                #profiledata["cruise"] = ncdf.WOCE_ID
+                #profiledata["station"] = ncdf.STATION_NUMBER
+                profiledata["time"] = ncdf.variables["JULD"][prof]
+                #profiledata["cruise"] = ncdf.WOCE_ID
+                #profiledata["station"] = ncdf.STATION_NUMBER
+                if "TEMP_ADJUSTED" in ncdf.variables.keys():
+                    profiledata["temp"] = np.asarray(ncdf.variables["TEMP_ADJUSTED"][prof][:])
+                if "PSAL_ADJUSTED" in ncdf.variables.keys():
+                    profiledata["sal"] = np.asarray(ncdf.variables["PSAL_ADJUSTED"][prof][:])
+                if "PRES_ADJUSTED" in ncdf.variables.keys():
+                    profiledata["pres"] = np.asarray(ncdf.variables["PRES_ADJUSTED"][prof][:])
+                if len(profiledata["pres"])>4 and max(profiledata["pres"])>1500\
+                        and geoFilter(profiledata["lon"],profiledata["lat"]):
+                        if {"sal","temp","pres","lat","lon"}.issubset(profiledata.keys())\
+                            and abs(max(profiledata["pres"])-min(profiledata["pres"])) > 100\
+                            and 99999 not in profiledata["pres"] and 99999 not in profiledata["temp"]\
+                            and 99999 not in profiledata["sal"]:
+                            eyed=idgenerator()
+                            prof=Profile(eyed,profiledata)
+                            profiles.append(prof)
+                            #print(profiledata)
+        del ncdf
+    return profiles
+
+def createMesh(xvals,yvals,coord="xy",spacingscale=1):
     if coord == "xy":
+        n=25
         x1,y1 = singleXY((-68,-54))
         x2,y2 = singleXY((-21,-7))
         xmin = min(x1,x2)
