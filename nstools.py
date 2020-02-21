@@ -1116,4 +1116,16 @@ def highlightNAN(surfaces,quant):
         surfaces[k]["data"][quant][np.isnan(surfaces[k]["data"][quant])] = 1
     return surfaces
 
+def domainMedianStdev(leftlon,rightlon,bottomlat,toplat,surface,quant):
+    lats = np.asarray(surface["lats"])
+    lons = np.asarray(surface["lons"])
+    latinrange = np.logical_and(lats>=bottomlat, lats<=toplat)
+    loninrange = np.logical_and(lons>=leftlon, lons<=rightlon)
+    a= np.logical_and(latinrange,loninrange)
+    m = np.nanmedian(surface["data"][quant][a])
+    s = (np.nanmax(surface["data"][quant][a])-m + np.nanmin(surface["data"][quant][a])-m)/2 
+    #s = np.nanstd(surface["data"][quant][a])
+    return m,s
+
+
     

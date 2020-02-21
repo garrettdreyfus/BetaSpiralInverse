@@ -65,12 +65,16 @@ def graphError(b,us,prime):
 ##normalize a vector
 def norm(v):
     return v/np.linalg.norm(v)
+
+
+
 #get the column number of a parameter
 #generates new number if necessary
 def getColumnNumber(eyedict,eyed):
     #assign each eyed a column number 
     if "max" not in eyedict.keys():
         eyedict["max"]=-1
+        eyedict[-999]=0
     if eyed not in eyedict.keys():
         eyedict[eyed]=eyedict["max"]+1 
         eyedict["max"] = eyedict["max"]+1
@@ -101,6 +105,13 @@ def applyRefLevel(surfaces,reflevel=1000):
                 surfaces[k]["data"]["vref"][l] = (surfaces[k]["data"]["v"][l]-surfaces[reflevel]["data"]["v"][found[0][0]])
     return surfaces
 
+def indexOfSurface(surfaces,params,k):
+    cs=[]
+    for i in surfaces.keys():
+        if params["lowerbound"]>=i>=params["upperbound"]:
+            cs.append(i)
+    return sorted(cs).index(k)
+
 ## apply the solution to surfaces
 def applyPrime(staggeredsurfaces,prime,coldict,params,widths,mixing=False):
     scales = params["scalecoeffs"]
@@ -119,10 +130,12 @@ def applyPrime(staggeredsurfaces,prime,coldict,params,widths,mixing=False):
             if eyed in coldict.keys():
                 staggeredsurfaces[k]["data"]["psinew"][i] = staggeredsurfaces[k]["data"]["psiref"][i] + prime[coldict[eyed]]*scales["Ar"]
                 staggeredsurfaces[k]["data"]["psisol"][i] = prime[coldict[eyed]]*scales["Ar"]
-                #if params["mixs"]["kvb"] and params["mixs"]["kvo"] and params["mixs"]["kh"]:
-                    #staggeredsurfaces[k]["data"]["kvb"][i] = prime[widths[0]+coldict[eyed]]*scales["kvb"]
-                    #staggeredsurfaces[k]["data"]["kh"][i] = prime[widths[0]+widths[1]+sorted(staggeredsurfaces.keys()).index(k)]*scales["kh"]
-                    #staggeredsurfaces[k]["data"]["kvo"][i] = prime[widths[0]+widths[1]+widths[2]]*scales["kvo"]
+                if params["mixs"]["kvb"] and params["mixs"]["kvo"] and params["mixs"]["kh"]:
+                    staggeredsurfaces[k]["data"]["kvb"][i] = prime[widths[0]+coldict[eyed]]*scales["kvb"]
+                    if params["lowerbound"]>=k>=params["upperbound"]:
+                        staggeredsurfaces[k]["data"]["kh"][i] =\
+                                prime[widths[0]+widths[1]+indexOfSurface(staggeredsurfaces,params,k)]*scales["kh"]
+                    staggeredsurfaces[k]["data"]["kvo"][i] = prime[widths[0]+widths[1]+widths[2]]*scales["kvo"]
     return staggeredsurfaces
 
 ## return list of ids of points that are constrained by a given number of equations
@@ -488,6 +501,9 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
     m = columndictionary["max"]+1
     us = us[:m]
 
+    #for k in columndictionary.keys():
+        #if columndictionary[k] == 6:
+            #print(k)
     if params["mixs"]["kh"] and params["mixs"]["kvb"] and params["mixs"]["kvo"]:
         A,widths = combineAs([m,m,len(surfaces.keys()),1],[1,2],Apsi,Akvb,Akh,Akvo)
         print("ALL ON")
@@ -640,6 +656,7 @@ def rectAndWidths(maxlengths,totrim,arrays):
         if np.all(x == 0, axis=0).any():
             print("removing 0 columns")
         if i in totrim:
+            print(~np.all(x == 0, axis=0))
             x = x[:,~np.all(x == 0, axis=0)]
         print("after: ",x.shape)
         print("====")

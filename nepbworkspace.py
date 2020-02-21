@@ -11,10 +11,9 @@ import parametertools as ptools
 import pickle
 import sensitivity
 import random
-import nepbctdextract
 import pdb
 import scipy.io as sio
-import regions
+from regionlib import brasil, nepb
 
 #nepbctdextract.nepbCTDExtract("data/newnepbdata.mat","data/nepbctdprofiles.pickle")
 #with open('data/nepbctdprofiles.pickle', 'rb') as outfile:
@@ -99,51 +98,51 @@ import regions
 #with open('data/ready4inversenepb.pickle', 'rb') as outfile:
     #surfaces,neighbors,distances = pickle.load(outfile)
 
-###surfaces = nstools.highlightNAN(surfaces,"d2qdx2")
-###graph.graphSurfaces(surfaces,"d2qdx2",region="nepb")
-###graph.saveAllQuants(surfaces,"refpics/surfaces/smartmesh/",
-        ###region="nepb",select =range(1000,1500))
+####surfaces = nstools.highlightNAN(surfaces,"d2qdx2")
+####graph.graphSurfaces(surfaces,"d2qdx2",region="nepb")
+####graph.saveAllQuants(surfaces,"refpics/surfaces/smartmesh/",
+        ####region="nepb",select =range(1000,1500))
 
-##nstools.inverseReady(surfaces)
+###nstools.inverseReady(surfaces)
 
-####nstools.surfaceDiagnostic(surfaces)
+#####nstools.surfaceDiagnostic(surfaces)
 
-####scompare = nepbctdextract.nepbCTDExtractInterpSurfaces("data/Run0.new.mat",calcDeriv=False)
-####graph.graphSurfaces(surfaces,"kvbdiagnostic",region="nepb",savepath="refpics/surfaces/bathvardepthmean/",show=False)
-######scompare = nstools.domainChop(scompare)
+#####scompare = nepbctdextract.nepbCTDExtractInterpSurfaces("data/Run0.new.mat",calcDeriv=False)
+#####graph.graphSurfaces(surfaces,"kvbdiagnostic",region="nepb",savepath="refpics/surfaces/bathvardepthmean/",show=False)
+#######scompare = nstools.domainChop(scompare)
+#######surfaces = nstools.domainChop(surfaces)
+######sminus = nstools.surfaceSubtract(surfaces,scompare,metric="/")
+######graph.graphSurfaces(sminus,"dqdy",region="nepb",select=[400,600])
+######graph.graphSurfaces(sminus,"dqdx",region="nepb",select=[400,600])
+######graph.graphSurfaces(sminus,"dqnotdy",region="nepb",select=[400,600])
+######graph.graphSurfaces(sminus,"dqnotdx",region="nepb",select=[400,600])
+######graph.graphSurfaces(sminus,"dsdx",region="nepb",select=[400,600])
+######graph.graphSurfaces(sminus,"dsdy",region="nepb",select=[400,600])
+#######surfaces = artificialPSIRef(surfaces):
+######graph.graphSurfaces(sminus,"dqnotdy",region="nepb",select=[400,600])
+#######graph.graphSurfaces(scompare,"bathvar",region="nepb",select=[400,600])
 ######surfaces = nstools.domainChop(surfaces)
-#####sminus = nstools.surfaceSubtract(surfaces,scompare,metric="/")
-#####graph.graphSurfaces(sminus,"dqdy",region="nepb",select=[400,600])
-#####graph.graphSurfaces(sminus,"dqdx",region="nepb",select=[400,600])
-#####graph.graphSurfaces(sminus,"dqnotdy",region="nepb",select=[400,600])
-#####graph.graphSurfaces(sminus,"dqnotdx",region="nepb",select=[400,600])
-#####graph.graphSurfaces(sminus,"dsdx",region="nepb",select=[400,600])
-#####graph.graphSurfaces(sminus,"dsdy",region="nepb",select=[400,600])
-######surfaces = artificialPSIRef(surfaces):
-#####graph.graphSurfaces(sminus,"dqnotdy",region="nepb",select=[400,600])
-######graph.graphSurfaces(scompare,"bathvar",region="nepb",select=[400,600])
-#####surfaces = nstools.domainChop(surfaces)
-#######with open('data/sminus.pickle', 'wb') as outfile:
-    #######pickle.dump(sminus, outfile)
+########with open('data/sminus.pickle', 'wb') as outfile:
+    ########pickle.dump(sminus, outfile)
 
-######with open('data/sminus.pickle', 'rb') as outfile:
-    ######sminus = pickle.load(outfile)
+#######with open('data/sminus.pickle', 'rb') as outfile:
+    #######sminus = pickle.load(outfile)
 
-######graph.graphVectorField(surfaces,"u","v","psi",region="nepb",transform=False)
-######graph.graphVectorField(surfaces,"u","v","psi",region="nepbmerc")
-######nstools.inverseReady(surfaces)
+#######graph.graphVectorField(surfaces,"u","v","psi",region="nepb",transform=False)
+#######graph.graphVectorField(surfaces,"u","v","psi",region="nepbmerc")
+#######nstools.inverseReady(surfaces)
 
-######s = nepbctdextract.nepbCTDExtractInterpSurfaces("data/Run0.new.mat")
-##################################################
-#####graph.saveAllQuants(sminus,"refpics/surfaces/sminushgrid/",
-        #####region="nepb",select = [200,1000])
-#######graph.graphSurfaces(surfaces,"pres",region="nepb")
+#######s = nepbctdextract.nepbCTDExtractInterpSurfaces("data/Run0.new.mat")
+###################################################
+######graph.saveAllQuants(sminus,"refpics/surfaces/sminushgrid/",
+        ######region="nepb",select = [200,1000])
+########graph.graphSurfaces(surfaces,"pres",region="nepb")
 
 #params = {"reflevel":1700,"upperbound":1100,"lowerbound":3500,\
         #"mixs":{"kvo":True,"kvb":True,"kh":True},"debug":False,\
         #"3point":True,"edgeguard":True}
 
-#######nstools.surfaceDiagnostic(surfaces)
+########nstools.surfaceDiagnostic(surfaces)
 #out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
 #with open('data/inverseout.pickle', 'wb') as outfile:
     #pickle.dump([out,neighbors,distances], outfile)
@@ -152,8 +151,20 @@ with open('data/inverseout.pickle', 'rb') as outfile:
 ###print(out["metadata"])
 inv = nstools.streamFuncToUV(out["surfaces"],neighbors,distances)
 inv = ptools.calcFRho(inv)
-inv,neighbors,distances = interptools.interpolateSurfaces(inv,\
-        regions.nepb,coord="latlon",interpmethod="linear",smart=False)
+print(out["metadata"])
+#inv,neighbors,distances = interptools.interpolateSurfaces(inv,\
+        #regions.nepb,coord="latlon",interpmethod="linear",smart=False)
+for k in inv.keys():
+    print("NS ",k, " e:", np.nanmean(inv[k]["data"]["e"]))
+    print("NS ",k, " e:", np.nanstd(inv[k]["data"]["e"]))
+    print("NS ",k, " kvb:", np.nanmean(inv[k]["data"]["kvb"]))
+    print("NS ",k, " kvb:", np.nanstd(inv[k]["data"]["kvb"]))
+    print("NS ",k, " drhodz:", np.nanmean(inv[k]["data"]["drhodz"]))
+    print("NS ",k, " drhodz:", np.nanstd(inv[k]["data"]["drhodz"]))
+    print("NS ",k, " khp:", np.nanmean(inv[k]["data"]["khp"]))
+    print("NS ",k, " khp:", np.nanstd(inv[k]["data"]["khp"]))
+    print("NS ",k, " kh:", np.nanmean(inv[k]["data"]["kh"]))
+    print("NS ",k, " kh:", np.nanstd(inv[k]["data"]["kh"]))
 #for k in inv.keys():
     #print(k,": kvb avg: ",np.nanmean(inv[k]["data"]["kvb"]))
     #print(k,": kvb std: ",np.nanstd(inv[k]["data"]["kvb"]))

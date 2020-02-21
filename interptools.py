@@ -6,6 +6,11 @@ import itertools
 from geopy.distance import geodesic
 from progress.bar import Bar
 import pdb
+import alphashape
+from shapely.geometry import Point
+import matplotlib.pyplot as plt
+from descartes import PolygonPatch
+
 #add x and y to surfaces. x and y necesarry for interpolation
 def addXYToSurfaces(surfaces,debug=True):
     if debug:
@@ -78,13 +83,32 @@ def indexBoolMatrix(boolmatrix):
                 count+=1
     return indexcount
 
-def geoMask(gridx,gridy,datax,datay,radius):
-    mask = np.ones(gridx.shape)
+def simpleBoundary(gridx,gridy,datax,datay,radius):
+    radius=150
+    mask = np.zeros(gridx.shape)
     for i in range(len(datax)):
         r = np.sqrt((gridx- datax[i])**2 + (gridy - datay[i])**2)
         inside = r<radius*1000
         mask = mask+inside
     return mask
+
+def geoMask(gridx,gridy,datax,datay,radius):
+    mask = simpleBoundary(gridx,gridy,datax,datay,radius)
+    points = []
+    for l in range(len(mask)):
+        for j in range(len(mask[l])):
+            if mask[l][j]:
+                points.append((gridx[l][j],gridy[l][j]))
+    shape = alphashape.alphashape(points,alpha=0)
+    newmask = np.zeros(gridx.shape)
+    #plt.plot(*shape.exterior.xy)
+    #plt.show()
+    for l in range(len(newmask)):
+        for j in range(len(newmask[l])):
+            if shape.contains(Point(gridx[l][j],gridy[l][j])):
+                newmask[l][j] = 1
+    return newmask
+
 
 ## neigbor in "x" direction
 def findRowNeighbor(row,col,mask,indexcount):
@@ -110,9 +134,10 @@ def findCornerNeighbor(row,col,mask,indexcount):
 
 #generate a mesh and remove points in that mesh 
 #which are too far away from locations with observations
-def generateMaskedMesh(x,y,region,coord,radius=200):
+def generateMaskedMesh(x,y,region,coord,radius=50):
     xi,yi = region.createMesh(x,y,coord)
     #Make sure grid points are within original data point
+
     mask = geoMask(xi,yi,x,y,radius)
     indexcount = indexBoolMatrix(mask)
     finalxi=[]

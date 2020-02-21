@@ -5,6 +5,7 @@ import nstools
 import pickle
 import interptools
 import inverttools
+from functools import partial
 
 #profiles = brasil.extractArgoProfiles(os.path.abspath("data/brasilargonc/"))
 #profiles = profiles + brasil.extractWoceProfiles(os.path.abspath("data/brasilnc/"))
@@ -30,49 +31,53 @@ import inverttools
 
 #with open('data/annotatednepbprofilessingleref.pickle', 'wb') as outfile:
     #pickle.dump([surfaces,profiles],outfile)
-with open('data/annotatednepbprofilessingleref.pickle', 'rb') as outfile:
-    preinterpsurfaces,profiles = pickle.load(outfile)
+#with open('data/annotatednepbprofilessingleref.pickle', 'rb') as outfile:
+    #preinterpsurfaces,profiles = pickle.load(outfile)
 
-surfaces,neighbors,distances = interptools.interpolateSurfaces(brasil,preinterpsurfaces,\
-        interpmethod="gam",smart=False,coord="latlon")
+#surfaces,neighbors,distances = interptools.interpolateSurfaces(brasil,preinterpsurfaces,\
+        #interpmethod="gam",smart=False,coord="latlon")
 
-with open('data/interpedbrasil.pickle', 'wb') as outfile:
-    pickle.dump([surfaces,neighbors,distances], outfile)
-with open('data/interpedbrasil.pickle', 'rb') as outfile:
-    [surfaces,neighbors,distances] = pickle.load(outfile)
+#with open('data/interpedbrasil.pickle', 'wb') as outfile:
+    #pickle.dump([surfaces,neighbors,distances], outfile)
+#with open('data/interpedbrasil.pickle', 'rb') as outfile:
+    #[surfaces,neighbors,distances] = pickle.load(outfile)
 
-surfaces = nstools.addParametersToSurfaces(brasil,surfaces,\
-        neighbors,distances)
-nstools.inverseReady(surfaces)
-
-
-with open('data/interpedbrasil.pickle', 'wb') as outfile:
-    pickle.dump([surfaces,neighbors,distances], outfile)
-with open('data/interpedbrasil.pickle', 'rb') as outfile:
-    [surfaces,neighbors,distances] = pickle.load(outfile)
-
-params = {"reflevel":1700,"upperbound":1000,"lowerbound":4000,\
-        "mixs":{"kvo":True,"kvb":True,"kh":True},"debug":False,\
-        "3point":True,"edgeguard":True}
+#surfaces = nstools.addParametersToSurfaces(brasil,surfaces,\
+        #neighbors,distances)
+#nstools.inverseReady(surfaces)
 
 
-out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
+#with open('data/interpedbrasil.pickle', 'wb') as outfile:
+    #pickle.dump([surfaces,neighbors,distances], outfile)
+#with open('data/interpedbrasil.pickle', 'rb') as outfile:
+    #[surfaces,neighbors,distances] = pickle.load(outfile)
 
-with open('data/inverseoutbrasil.pickle', 'wb') as outfile:
-    pickle.dump([out,neighbors,distances], outfile)
+#params = {"reflevel":1700,"upperbound":1000,"lowerbound":4000,\
+        #"mixs":{"kvo":True,"kvb":True,"kh":True},"debug":False,\
+        #"3point":True,"edgeguard":True}
+
+
+#out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
+
+#with open('data/inverseoutbrasil.pickle', 'wb') as outfile:
+    #pickle.dump([out,neighbors,distances], outfile)
 with open('data/inverseoutbrasil.pickle', 'rb') as outfile:
     [out,neighbors,distances] = pickle.load(outfile)
 
 inv = nstools.streamFuncToUV(out["surfaces"],neighbors,distances)
-#graph.saveAllQuants(regions.brasil,inv,"refpics/surfaces/brasilandargo/")
+graph.saveAllQuants(brasil,inv,"refpics/surfaces/brasilandargocropped/")
+
+for lat in range(-30,-2,5):
+    graph.northSouthTransect(inv,"vabs",lat=lat,savepath="refpics/transects/")
+for lon in range(-35,-12,5):
+    graph.northSouthTransect(inv,"uabs",lon=lon,savepath="refpics/transects/")
 
 
-#graph.northSouthTransect(inv,"vabs",lat=-31)
-#graph.northSouthTransect(inv,"uabs",lon=-25)
-#graph.graphSurfaces(regions.brasil,inv,"psinew",stds=0.6,\
-        #show=False, savepath="refpics/surfaces/inversesolution/")
-#graph.graphVectorField(regions.brasil,inv,"uabs","vabs","pv",\
+#graph.graphSurfaces(brasil,inv,"psinew",stds=3,\
+        #show=False, savepath="refpics/surfaces/inversesolutionnewcenter/",\
+        #centerfunction = partial(nstools.domainMedianStdev,-30,-20,-25,-10))
+#graph.graphVectorField(brasil,inv,"uabs","vabs","psi",\
         #metadata=out["metadata"],\
         #transform=False,show=False,
-        #savepath="refpics/vectorfields/brasilmix/4pointpv/")
+        #savepath="refpics/vectorfields/brasilmixcropped/4pointpv/")
 
