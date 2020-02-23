@@ -61,7 +61,7 @@ def extractWoceProfiles(ncfolder):
 
 def extractArgoProfiles(ncfolder): 
     profiles= []
-    for f in Bar("file:" ).iter(glob.glob(ncfolder+"/*.nc")):
+    for f in Bar("file:" ).iter(glob.glob(ncfolder+"/**/*.nc",recursive=True)):
         ncdf = Dataset(f, 'r')  # Dataset is the class behavior to open the file
         #pdb.set_trace()
         print("yup")

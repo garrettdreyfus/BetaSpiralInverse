@@ -164,7 +164,7 @@ def threedTransect(profiles,ks):
 ## given a surfaces object, a quantity index, graph quantity
 ## if you really want you can supply a profiles object and a deepest index to display a point
 ## controls to save, graph or maximize
-def graphSurfaces(region,surfaces,quantindex,stds=1,contour=False,profiles=None,deepestindex=None,\
+def graphSurfaces(region,surfaces,quantindex,stds=2,contour=False,profiles=None,deepestindex=None,\
         show=True,maximize=True,savepath=None,idlabels=False,\
         colorlimit=True,select=range(0,10000),secondsurface=None,centerfunction=False):
     if savepath:
@@ -197,9 +197,9 @@ def graphSurfaces(region,surfaces,quantindex,stds=1,contour=False,profiles=None,
             if contour:
                 a = tuple([(abs(np.asarray(surfaces[i]["lats"])-90)>0.5) & (~np.isnan(surfaces[i]["data"][quantindex]))])
                 if np.count_nonzero(a)>4:
-                    plt.tricontourf(x[a],y[a],np.asarray(surfaces[i]["data"][quantindex])[a],cmap=cmocean.cm.haline,levels=30)
+                    plt.tricontourf(x[a],y[a],np.asarray(surfaces[i]["data"][quantindex])[a],cmap=cmocean.cm.haline,levels=30,vmin=m-stds*s,vmax=m+stds*s)
             else:
-                plt.scatter(x,y,c=d,cmap=cmocean.cm.haline,vmin=m-1*s,vmax=m+1*s,)
+                plt.scatter(x,y,c=d,cmap=cmocean.cm.haline,vmin=m-stds*s,vmax=m+stds*s)
             #map the reference profile
             if profiles and deepestindex:
                 x,y = mapy(profiles[deepestindex].lon,profiles[deepestindex].lat)
@@ -207,7 +207,7 @@ def graphSurfaces(region,surfaces,quantindex,stds=1,contour=False,profiles=None,
             if secondsurface:
                 print("SECONDSURFACE")
                 x,y = mapy(secondsurface[i]["lons"],secondsurface[i]["lats"])
-                plt.scatter(x,y,c=secondsurface[i]["data"][quantindex],vmin=m-1*s,vmax=m+1*s,cmap=cmocean.cm.haline)
+                plt.scatter(x,y,c=secondsurface[i]["data"][quantindex],vmin=m-stds*s,vmax=m+stds*s,cmap=cmocean.cm.haline)
 
             if colorlimit:
                 plt.clim(m-stds*s,m+stds*s)
@@ -444,7 +444,7 @@ def graphStaggeredSurface(surfaces,neighbors,debug=False):
 ## graph a vector field given a surfaces object on a map
 ## any quantity can be supplied as a background field
 def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",select=range(0,10000),\
-        transform=True,savepath=False,show=True,metadata={},contour=True):
+        transform=True,savepath=False,show=True,metadata={},contour=True,scale=1):
 
     if savepath:
         try:
@@ -515,7 +515,7 @@ def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",select=range
                 s = np.nanstd(bgfield)
                 plt.clim(m-2*s,m+2*s)
                 mapy.colorbar()
-                mapy.quiver(x,y,u*2,v*2,mag,scale=0.6,cmap="autumn",width = 0.004)
+                mapy.quiver(x,y,u*2,v*2,mag,scale=scale,cmap="autumn",width = 0.004)
                 if savepath:
                     plt.savefig(savepath+key1+key2+"/ns"+str(k)+".png")
 

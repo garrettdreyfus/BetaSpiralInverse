@@ -1,34 +1,40 @@
 from regionlib import sargasso
 import graph
 import nstools
+import pickle
+import interptools
+import inverttools
 
-profiles = sargasso.extractArgoProfiles("data/sargassonc")
-graph.plotProfiles(sargasso,profiles,"sargasso")
+#profiles = sargasso.extractArgoProfiles("data/sargassonc")
+#graph.plotProfiles(sargasso,profiles,"sargasso")
 
-profilechoice = profiles[nstools.deepestProfile(profiles)]
-preinterpsurfaces = nstools.runPeerSearch(profiles,range(100,3000,200),profilechoice,False,10**10)
+#profilechoice = profiles[nstools.deepestProfile(profiles)]
+#preinterpsurfaces = nstools.runPeerSearch(profiles,range(100,3000,200),profilechoice,False)
 
-with open('data/annotatedsargassopbprofilessingleref.pickle', 'wb') as outfile:
-    pickle.dump([preinterpsurfaces,profiles],outfile)
-with open('data/annotatedsargassoprofilessingleref.pickle', 'rb') as outfile:
-    preinterpsurfaces,profiles = pickle.load(outfile)
+#with open('data/annotatedsargassopbprofilessingleref.pickle', 'wb') as outfile:
+    #pickle.dump([preinterpsurfaces,profiles],outfile)
+#with open('data/annotatedsargassopbprofilessingleref.pickle', 'rb') as outfile:
+    #preinterpsurfaces,profiles = pickle.load(outfile)
 
-surfaces = nstools.addDataToSurfaces(sargasso,profiles,preinterpsurfaces)
+#surfaces = nstools.addDataToSurfaces(sargasso,profiles,preinterpsurfaces)
 
-with open('data/annotatedsargassoprofilessingleref.pickle', 'wb') as outfile:
-    pickle.dump([surfaces,profiles],outfile)
+#with open('data/annotatedsargassoprofilessingleref.pickle', 'wb') as outfile:
+    #pickle.dump([surfaces,profiles],outfile)
 with open('data/annotatedsargassoprofilessingleref.pickle', 'rb') as outfile:
     preinterpsurfaces,profiles = pickle.load(outfile)
 
 surfaces,neighbors,distances = interptools.interpolateSurfaces(sargasso,preinterpsurfaces,\
         interpmethod="gam",smart=False,coord="latlon")
 
-with open('data/interpedbrasil.pickle', 'wb') as outfile:
-    pickle.dump([surfaces,neighbors,distances], outfile)
-with open('data/interpedbrasil.pickle', 'rb') as outfile:
-    [surfaces,neighbors,distances] = pickle.load(outfile)
 
-surfaces = nstools.addParametersToSurfaces(brasil,surfaces,\
+with open('data/interpedsargasso.pickle', 'wb') as outfile:
+    pickle.dump([surfaces,neighbors,distances], outfile)
+with open('data/interpedsargasso.pickle', 'rb') as outfile:
+    [surfaces,neighbors,distances] = pickle.load(outfile)
+    
+graph.graphSurfaces(sargasso,surfaces,"pres",secondsurface=preinterpsurfaces,contour=True)
+
+surfaces = nstools.addParametersToSurfaces(sargasso,surfaces,\
         neighbors,distances)
 nstools.inverseReady(surfaces)
 
@@ -38,7 +44,7 @@ with open('data/interpedbrasil.pickle', 'wb') as outfile:
 with open('data/interpedbrasil.pickle', 'rb') as outfile:
     [surfaces,neighbors,distances] = pickle.load(outfile)
 
-params = {"reflevel":1700,"upperbound":1000,"lowerbound":4000,\
+params = {"reflevel":1700,"upperbound":1000,"lowerbound":2000,\
         "mixs":{"kvo":True,"kvb":True,"kh":True},"debug":False,\
         "3point":True,"edgeguard":True}
 
@@ -51,19 +57,11 @@ with open('data/inverseoutbrasil.pickle', 'rb') as outfile:
     [out,neighbors,distances] = pickle.load(outfile)
 
 inv = nstools.streamFuncToUV(out["surfaces"],neighbors,distances)
-graph.saveAllQuants(brasil,inv,"refpics/surfaces/brasilandargocropped/")
 
-for lat in range(-30,-2,5):
-    graph.northSouthTransect(inv,"vabs",lat=lat,savepath="refpics/transects/")
-for lon in range(-35,-12,5):
-    graph.northSouthTransect(inv,"uabs",lon=lon,savepath="refpics/transects/")
-
-
-graph.graphSurfaces(brasil,inv,"psinew",stds=3,\
-        show=False, savepath="refpics/surfaces/inversesolutionnewcenter/",\
-        centerfunction = partial(nstools.domainMedianStdev,-30,-20,-25,-10))
-graph.graphVectorField(brasil,inv,"uabs","vabs","psi",\
+#graph.graphSurfaces(sargasso,inv,"psinew",stds=3,\
+        #show=False, savepath="refpics/surfaces/inversesolutionsargasso/",)
+graph.graphVectorField(sargasso,inv,"uabs","vabs","psinew",\
         metadata=out["metadata"],\
-        transform=False,show=False,
-        savepath="refpics/vectorfields/brasilmixcropped/4pointpv/")
+        transform=False,show=False,scale=1,
+        savepath="refpics/vectorfields/sargasso/")
 

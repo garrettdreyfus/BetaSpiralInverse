@@ -77,11 +77,11 @@ def extractArgoProfiles(ncfolder):
     return profiles
 
 def geoFilter(lon,lat):
-    latinrange = (lat>20 and lat <44)
-    loninrange = (lon>-75 and lon < -35)
+    latinrange = (lat>22 and lat <34)
+    loninrange = (lon>-70 and lon < -30)
     return (latinrange and loninrange)
 
-mapbounds = {"lllon":-81,"urlon":-35,"lllat":20,"urlat":44,\
+mapbounds = {"lllon":-81,"urlon":-35,"lllat":10,"urlat":44,\
         "lat_0":31,"lon_0":-50}
 
 
