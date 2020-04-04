@@ -151,7 +151,7 @@ def nepbCTDExtract(fname,savepath):
 
             if len(data["pres"])>4 and max(data["pres"])>1500:
                 eyed=int(p)
-                prof=Profile(eyed,data)
+                prof=Profile(eyed,data,tempunit="insitu",salunit="practical")
                 profiles.append(prof)
                 
     with open(savepath, 'wb') as outfile:

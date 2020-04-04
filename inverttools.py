@@ -110,6 +110,7 @@ def indexOfSurface(surfaces,params,k):
     for i in surfaces.keys():
         if params["lowerbound"]>=i>=params["upperbound"]:
             cs.append(i)
+    #print(cs)
     return sorted(cs).index(k)
 
 ## apply the solution to surfaces
@@ -133,6 +134,8 @@ def applyPrime(staggeredsurfaces,prime,coldict,params,widths,mixing=False):
                 if params["mixs"]["kvb"] and params["mixs"]["kvo"] and params["mixs"]["kh"]:
                     staggeredsurfaces[k]["data"]["kvb"][i] = prime[widths[0]+coldict[eyed]]*scales["kvb"]
                     if params["lowerbound"]>=k>=params["upperbound"]:
+                        #print(widths,len(prime))
+                        #print(indexOfSurface(staggeredsurfaces,params,k))
                         staggeredsurfaces[k]["data"]["kh"][i] =\
                                 prime[widths[0]+widths[1]+indexOfSurface(staggeredsurfaces,params,k)]*scales["kh"]
                     staggeredsurfaces[k]["data"]["kvo"][i] = prime[widths[0]+widths[1]+widths[2]]*scales["kvo"]

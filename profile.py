@@ -11,8 +11,12 @@ from scipy.interpolate import UnivariateSpline
 
 
 class Profile:
-    def __init__(self,eyed, data,ct=False,abssal=False):
+    def __init__(self,eyed, data,tempunit,salunit):
         ##id of profiles plus info
+        if tempunit not in ["insitu","conservative","potential"]:
+            raise ValueError("This temperature unit is not supported")
+        if salunit not in ["practical","absolute","insitu"]:
+            raise ValueError("This salinity unit is not supported")
         if not {"sal","temp","pres","lat","lon"}.issubset(data.keys()):
             raise ValueError("This does not contain the required information")
         if abs(max(data["pres"])-min(data["pres"])) <50:
@@ -35,14 +39,21 @@ class Profile:
         else:
             self.knownns = {}
 
-
+        if "knownu" in data.keys():
+            self.knownu = data["knownu"]
+            self.knownv = data["knownv"]
         #Temerature Salinity and Pressure
         self.temps = np.asarray(data["temp"])
         self.sals = np.asarray(data["sal"])
         self.pres = np.abs(np.asarray(data["pres"]))
-        if not abssal:
+
+        if salunit == "practical":
             self.sals = gsw.SA_from_SP(self.sals,self.pres,self.lon,self.lat)
-        if not ct:
+
+        if tempunit == "potential":
+            self.temps = gsw.CT_from_pt(self.sals,self.temps)
+
+        if tempunit == "insitu":
             self.temps = gsw.CT_from_t(self.sals,self.temps,np.abs(self.pres))
 
         s = np.argsort(self.pres)
@@ -87,13 +98,18 @@ class Profile:
         self.itemps=[]
         self.interpolate()
         
-
-    #interpolate all quantities on a 1 dbar line
     def interpolate(self):
         self.ipres = range(int(min(self.pres)),int(max(self.pres)))
         if len(self.pres)>4:
+
             self.isals = np.interp(self.ipres,self.pres,self.sals)
             self.itemps = np.interp(self.ipres,self.pres,self.temps)
+            if hasattr(self,"knownu"):
+                self.iknownu = np.interp(self.ipres,self.pres,self.knownu)
+                self.iknownv = np.interp(self.ipres,self.pres,self.knownv)
+            #plt.plot(self.temps,self.pres)
+            #plt.plot(self.itemps,self.ipres)
+            #plt.show()
             self.ialpha = gsw.alpha(self.isals,self.itemps,self.ipres)
             self.ibeta = gsw.beta(self.isals,self.itemps,self.ipres)
             self.idalphadtheta = gsw.cabbeling(self.isals,self.itemps,self.ipres)
@@ -223,10 +239,26 @@ class Profile:
         return pv
     
     ##returns the t s at a pressure
-    def atPres(self,pres,full=False):
-        i = np.where(np.asarray(self.ipres) == int(pres))[0][0]
-        return self.itemps[i], self.isals[i], self.ialpha[i],self.ibeta[i],self.idalphadtheta[i],self.idalphadp[i]
-    
+    def atPres(self,pres,full=False,interp=False):
+        if interp:
+            s = np.interp(pres,self.ipres,self.isals)
+            t = np.interp(pres,self.ipres,self.itemps)
+            a = np.interp(pres,self.ipres,self.ialpha)
+            b = np.interp(pres,self.ipres,self.ibeta)
+            dadt = np.interp(pres,self.ipres,self.idalphadtheta)
+            dadp = np.interp(pres,self.ipres,self.idalphadp)
+            return t,s,a,b,dadt,dadp
+        else:
+            i = np.where(np.asarray(self.ipres) == int(pres))[0][0]
+            return self.itemps[i], self.isals[i], self.ialpha[i],self.ibeta[i],self.idalphadtheta[i],self.idalphadp[i]
+
+    def velAtPres(self,pres):
+        if hasattr(self,"knownu"):
+            i = np.where(np.asarray(self.ipres) == int(pres))[0][0]
+            return self.iknownu[i], self.iknownv[i]
+        else:
+            return np.nan,np.nan
+ 
     ##returns the index at pressure
     def presIndex(self,pres):
         i = np.argmin(np.abs(np.asarray(self.pres) - pres))#[0][0]

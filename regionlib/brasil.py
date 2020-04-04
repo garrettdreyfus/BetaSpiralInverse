@@ -7,10 +7,11 @@ import sys
 import xarray as xr
 import pdb
 from progress.bar import Bar
+import matplotlib.pyplot as plt
 
 def geoFilter(lon,lat):
-    latinrange = (lat<0 and lat >-31)
-    loninrange = (lon>-69 and lon < -12)
+    latinrange = (lat<0 and lat >-80)
+    loninrange = (lon>-79 and lon < -12)
     return (latinrange and loninrange)
 
 #generate a unique id
@@ -55,17 +56,58 @@ def extractWoceProfiles(ncfolder):
         if len(profiledata["pres"])>4 and max(profiledata["pres"])>1500\
                 and geoFilter(profiledata["lon"],profiledata["lat"]):
                 eyed=idgenerator()
-                prof=Profile(eyed,profiledata)
+                prof=Profile(eyed,profiledata,"insitu","practical")
                 profiles.append(prof)
     return profiles
+
+
+def extractBodcProfiles(ncfolder): 
+    profiles= []
+    maxs= []
+    for f in Bar(" cdf file: ").iter(glob.glob(ncfolder+"/*.nc")):
+        ncdf = Dataset(f, 'r')  # Dataset is the class behavior to open the file
+        profiledata = {}
+        profiledata["lon"] = ncdf.variables["LONGITUDE"][0]
+        profiledata["lat"] = ncdf.variables["LATITUDE"][0]
+        #profiledata["cruise"] = ncdf.SDN_CRUISE
+        #profiledata["station"] = ncdf.SDN_STATION
+        #profiledata["time"] = ncdf.variables["TIME"][0]
+        #profiledata["station"] = ncdf.STATION_NUMBER
+        if "POTMCV01" in ncdf.variables.keys():
+            profiledata["temp"] = np.asarray(ncdf.variables["POTMCV01"][:][0])
+        if "PSALCC01" in ncdf.variables.keys():
+            profiledata["sal"] = np.asarray(ncdf.variables["PSALCC01"][:][0])
+        if "PRES" in ncdf.variables.keys():
+            profiledata["pres"] = np.asarray(ncdf.variables["PRES"][:][0])
+        maxs.append(np.max(profiledata["pres"]))
+        if len(profiledata["pres"])>4 and np.max(profiledata["pres"])>1000\
+                and geoFilter(profiledata["lon"],profiledata["lat"]):
+                eyed=idgenerator()
+                try:
+                    prof=Profile(eyed,profiledata,"potential","practical")
+                    profiles.append(prof)
+                except ValueError as e:
+                    print(profiledata.keys())
+                    for k in ncdf.variables.keys():
+                        if "SAL" in k:
+                            print(k)
+                    print(e)
+        #else:
+            #print((profiledata["lon"],profiledata["lat"]),geoFilter(profiledata["lon"],profiledata["lat"]))
+            #print(profiledata["pres"])
+            #plt.plot(profiledata["pres"])
+            #plt.show()
+
+    print("above 1000: ",np.count_nonzero(np.asarray(maxs)>1000))
+    return profiles
+
+
 
 def extractArgoProfiles(ncfolder): 
     profiles= []
     for f in Bar("file:" ).iter(glob.glob(ncfolder+"/**/*.nc",recursive=True)):
         ncdf = Dataset(f, 'r')  # Dataset is the class behavior to open the file
         #pdb.set_trace()
-        print("yup")
-        print(ncdf.dimensions["N_PROF"].size)
         for prof in range(ncdf.dimensions["N_PROF"].size):
             profiledata = {}
             profiledata["lon"] = ncdf.variables["LONGITUDE"][prof]
@@ -89,7 +131,7 @@ def extractArgoProfiles(ncfolder):
                             and 99999 not in profiledata["pres"] and 99999 not in profiledata["temp"]\
                             and 99999 not in profiledata["sal"]:
                             eyed=idgenerator()
-                            prof=Profile(eyed,profiledata)
+                            prof=Profile(eyed,profiledata,"insitu","practical")
                             profiles.append(prof)
                             #print(profiledata)
         del ncdf
@@ -107,7 +149,7 @@ def createMesh(xvals,yvals,coord="xy",spacingscale=1):
         return np.meshgrid(np.linspace(xmin,xmax,n), np.linspace(ymin,ymax,n),indexing="xy")
     if coord =="latlon":
         grd = np.meshgrid(\
-                np.linspace(-50,-12,35),np.linspace(-31,-2,30))
+                np.linspace(-50,-12,35),np.linspace(-41,-2,40))
         for i in range(grd[0].shape[0]):
             for j in range(grd[0].shape[1]):
                 x,y = singleXY((grd[0][i][j],grd[1][i][j]))

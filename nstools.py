@@ -28,6 +28,57 @@ import parametertools as ptools
 from prettytable import PrettyTable
 import pdb
 import interptools
+from pygamma_n import gamma_n
+
+def addGammaN(surfaces):
+    savedata = {"s":[],"t":[],"p":[],"lons":[],"lats":[]}
+    for k in surfaces.keys():
+        filt = \
+            np.logical_and(~np.isnan(surfaces[k]["lons"]),~np.isnan(surfaces[k]["lats"]))
+        surfaces[k]["data"]["gamma"]= np.full_like(surfaces[k]["lons"],np.nan)
+        surfaces[k]["data"]["gamma"][filt]=\
+                gamma_n.gamma_n(np.asarray(surfaces[k]["data"]["s"])[filt].T,\
+                    np.asarray(surfaces[k]["data"]["t"])[filt].T,\
+                    np.asarray(surfaces[k]["data"]["pres"])[filt].T,\
+                    np.asarray(surfaces[k]["lons"])[filt],\
+                    np.asarray(surfaces[k]["lats"])[filt])[0]
+        #savedata["t"].append(gsw.t_from_CT(surfaces[k]["data"]["s"][filt],\
+                #surfaces[k]["data"]["t"][filt],surfaces[k]["data"]["pres"][filt]))
+        #savedata["s"].append(gsw.SP_from_SA(surfaces[k]["data"]["s"][filt],\
+                #surfaces[k]["data"]["pres"][filt],surfaces[k]["lons"][filt],surfaces[k]["lats"][filt]))
+        #savedata["p"].append(surfaces[k]["data"]["pres"][filt])                                              
+        #savedata["lons"].append(surfaces[k]["lons"][filt])
+        #savedata["lats"].append(surfaces[k]["lats"][filt])
+    #savedata["s"] = np.asarray(savedata["s"])
+    #savedata["t"] = np.asarray(savedata["t"])
+    #savedata["p"] = np.asarray(savedata["p"])
+    #savedata["lons"] = np.asarray(savedata["lons"])
+    #savedata["lats"] = np.asarray(savedata["lats"])
+    #sio.savemat("g.mat",savedata)
+    return surfaces
+
+def compareGammaN(surfaces):
+    mgamma = sio.loadmat("gamma_n.mat")
+    g = np.asarray(mgamma["gamma"]).T
+    counter = 0
+    for k in Bar("gama surf").iter(surfaces.keys()):
+        filt = \
+            np.logical_and(~np.isnan(surfaces[k]["lons"]),~np.isnan(surfaces[k]["lats"]))
+        surfaces[k]["data"]["gamma"]= np.full_like(surfaces[k]["lons"],np.nan)
+
+
+        surfaces[k]["data"]["gamma"][filt]=\
+                gamma_n.gamma_n(surfaces[k]["data"]["s"][filt].T,\
+                    surfaces[k]["data"]["t"][filt].T,\
+                    surfaces[k]["data"]["pres"][filt].T,\
+                    surfaces[k]["lons"][filt],\
+                    surfaces[k]["lats"][filt])[0]-g[counter][g[counter]!=0]
+        counter+=1
+    return surfaces
+
+
+        
+
 #From a list of filenames extract a bunch of profile objects
 #also returns the profile with the deepestindex because that may be useful
 def extractProfiles(fnames):
@@ -122,7 +173,6 @@ def stationDeltas(profiles):
     dps =[]
     cs = []
     for lat in np.arange(-30,-5,0.5):
-        print(lat)
         ts = []
         ps = {}
         for p in profiles:
@@ -225,7 +275,7 @@ def emptySurface():
     return {"lats":[],"lons":[],"ids":[],\
             "data":{"pres":[],"t":[],"s":[],"pv":[],"n^2":[],"alpha":[],\
             "beta":[],"dalphadp":[],"dalphadtheta":[],"dthetads":[],\
-            "psi":[],"drhodz":[]}}
+            "psi":[],"drhodz":[],"knownu":[],"knownv":[]}}
 
 ##given a seed profile, finds neutral surfaces by comparing each profile 
 ## to the nearest profile with an identified neutral surface. Only quits
@@ -263,20 +313,36 @@ def peerSearch(profiles,depth,profilechoice,radius=500,peer=True):
         #plotProfiles(references,"ITS SPREADING",specialprofile = profilechoice)
     return surfaces
 
-## runs the peer search on every neutral surface essentially
-def runPeerSearch(profiles,ns,profilechoice,peer=False,radius=10**10):
+def gammaSearch(profiles,depth,gamma,profilechoice,radius=500,peer=True):
     surfaces = {}
-    for d in ns:
-        print("NSearching: ",d)
-        surfaces.update(peerSearch(profiles.copy(),d,profilechoice,radius,peer))
+    depth = np.asarray(depth)
+    for k in depth:
+        surfaces[k]= emptySurface()
+        surfaces[k]["data"]["gamma"]=[]
+    for p in profiles:
+        gammas, errl,errh = gamma_n.gamma_n(p.isals,p.itemps,p.ipres,p.lon.copy(),p.lat.copy())
+        #plt.plot(gammas,np.asarray(p.ipres))
+        #plt.show()
+        ssol,tsol,psol = gamma_n.neutralsurfaces(p.isals,p.itemps,p.ipres,gammas,np.asarray(gamma))
+        for d in zip(psol,gamma,depth):
+            if ~np.isnan(d[0]):
+                surfaces[d[2]]["lons"].append(p.lon)
+                surfaces[d[2]]["lats"].append(p.lat)
+                surfaces[d[2]]["data"]["pres"].append(d[0])
+                p.neutraldepth[d[2]]=d[0]
+                surfaces[d[2]]["ids"].append(p.eyed)
     return surfaces
 
-def findNeutralSurfaces(profiles,ns,profilechoice,peer,radius=500):
-    if peer:
-        runPeerSearch(profiles,ns,profilechoice,peer,radius)
+## runs the peer search on every neutral surface essentially
+def runPeerSearch(profiles,ns,profilechoice,peer=False,radius=10**10,gammas=None):
+    surfaces = {}
+    if not gammas:
+        for d in ns:
+            print("NSearching: ",d)
+            surfaces.update(peerSearch(profiles.copy(),d,profilechoice,radius,peer))
+        return surfaces
     else:
-        runPeerSearch(profiles,ns,profilechoice,peer,radius=10**10)
-
+        return gammaSearch(profiles,ns,gammas,profilechoice,radius,peer)
     
 
 ## faultyway of finding neutral surfaces in the arctic
@@ -313,7 +379,7 @@ def findAboveIndex(surfaces,k,l):
     return None,None
 ## calculates data throughout neutral surfaces, and some that require calculation 
 ## shoots that all into a new surfaces object and returns it
-def addDataToSurfaces(region,profiles,surfaces,debug=True):
+def addDataToSurfaces(region,profiles,surfaces,debug=True,noise=0):
     tempSurfs = {}
     for k in Bar("Adding data to: ").iter(surfaces.keys()):
         negativecount = 0
@@ -321,32 +387,44 @@ def addDataToSurfaces(region,profiles,surfaces,debug=True):
         monthcount = [0]*13
         monthnegativecount = [0]*13
         for l in range(len(surfaces[k]["lons"])):
-            surfaces[k]["data"]["pres"][l] = int(abs(surfaces[k]["data"]["pres"][l]))
+            surfaces[k]["data"]["pres"][l] = abs(surfaces[k]["data"]["pres"][l])
             p = getProfileById(profiles,surfaces[k]["ids"][l])
             lon = surfaces[k]["lons"][l]
             lat = surfaces[k]["lats"][l]
             if p and not np.isnan(p.isals).any() and region.geoFilter(lon,lat):
-                if (surfaces[k]["data"]["pres"][l]+35 in p.ipres and surfaces[k]["data"]["pres"][l]-35 in p.ipres):
-                    pv, drhodz = p.potentialVorticityAtHautala(surfaces[k]["data"]["pres"][l])
-                    dthetads = p.dthetads(surfaces[k]["data"]["pres"][l])
-                    t,s,alpha,beta,dalphadtheta,dalphadp = p.atPres(surfaces[k]["data"]["pres"][l],full=True)
+                if noise != 0:
+                    nspres = int(surfaces[k]["data"]["pres"][l] + np.random.normal(0,noise))
+                    p.neutraldepth[k] = nspres
+                    if nspres > np.max(p.ipres):
+                        nspres = p.ipres[-1]
+                    if nspres < np.min(p.ipres[0]):
+                        nspres = p.ipres[0]
+                else:
+                    nspres = int(surfaces[k]["data"]["pres"][l])
+
+                if (nspres+35 in p.ipres and nspres-35 in p.ipres):
+                    pv, drhodz = p.potentialVorticityAtHautala(nspres)
+                    dthetads = p.dthetads(nspres)
+                    t,s,alpha,beta,dalphadtheta,dalphadp = p.atPres(abs(surfaces[k]["data"]["pres"][l]),full=True,interp=True)
+                    u,v = p.velAtPres(nspres)
                 else:
                     pv = np.nan
                     dsdz = np.nan
                     dthetads = np.nan
-                    t,s,alpha,beta,dalphadtheta,dalphadp = p.atPres(surfaces[k]["data"]["pres"][l],full=True)
+                    t,s,alpha,beta,dalphadtheta,dalphadp = p.atPres(abs(surfaces[k]["data"]["pres"][l]),full=True,interp=True)
+                    u,v = p.velAtPres(nspres)
                 #monthcount[p.time.month]=monthcount[p.time.month]+1
                 #if (pv and pv<0) or pv==0:
                     #print("second block: ",pv,drhodz)
                     #pv=0
                     ##monthnegativecount[p.time.month]=monthnegativecount[p.time.month]+1
                     #negativecount +=1 
-                if type(pv) == type(None):
+                if not isinstance(pv,np.float64):
                     pv = np.nan
                 if ~np.isnan(t) and ~np.isnan(s) and ~np.isnan(pv) and p and pv != np.Inf and ~np.isnan(dthetads):
                     tempSurf["lons"].append(lon)
                     tempSurf["lats"].append(lat)
-                    tempSurf["data"]["pres"].append(abs(surfaces[k]["data"]["pres"][l]))
+                    tempSurf["data"]["pres"].append(abs(nspres))
                     tempSurf["data"]["t"].append(t)
                     tempSurf["data"]["s"].append(s)
                     tempSurf["data"]["pv"].append(pv)
@@ -358,6 +436,8 @@ def addDataToSurfaces(region,profiles,surfaces,debug=True):
                     tempSurf["data"]["n^2"].append(pv*(9.8/gsw.f(p.lat)))
                     tempSurf["data"]["alpha"].append(alpha)
                     tempSurf["data"]["beta"].append(beta)
+                    tempSurf["data"]["knownu"].append(u)
+                    tempSurf["data"]["knownv"].append(v)
 
 
                     
@@ -756,6 +836,7 @@ def addStreamFunc(surfaces,profiles):
     ## surfaces are defined
     neutraldepths={}
     for k in surfaces.keys():
+        print(k)
         surfaces[k]["data"]["psi"]=np.empty(np.size(surfaces[k]["ids"]))
         surfaces[k]["data"]["psi"][:] =np.nan
         for i in range(len(surfaces[k]["ids"])):
@@ -886,10 +967,10 @@ def addParametersToSurfaces(region,surfaces,neighbors,distances,ignore=[]):
     surfaces = addVerticalGrad(surfaces)
     #print("after vertical grad")
     #surfaceDiagnostic(surfaces)
-    ptools.saveBathVarTermCache(surfaces,"data/bathVarecco.pickle",region)
+    ptools.saveBathVarTermCache(surfaces,"data/bathVar.pickle",region)
     #print("after bath var term")
     #surfaceDiagnostic(surfaces)
-    surfaces = addK(surfaces,"data/bathVarecco.pickle")
+    surfaces = addK(surfaces,"data/bathVar.pickle")
     return surfaces
 
 def artificialPSIRef(surfaces,reflevel = 1700):
@@ -1126,6 +1207,25 @@ def domainMedianStdev(leftlon,rightlon,bottomlat,toplat,surface,quant):
     s = (np.nanmax(surface["data"][quant][a])-m + np.nanmin(surface["data"][quant][a])-m)/2 
     #s = np.nanstd(surface["data"][quant][a])
     return m,s
+
+def addSomeNoise(surfaces,quant,stdev):
+    for k in surfaces:
+        noise = np.random.normal(0,stdev,len(surfaces[k]["data"][quant]))
+        surfaces[k]["data"][quant] = surfaces[k]["data"][quant] + noise 
+    return surfaces
+
+def neutralityError(surfaces):
+    for k in surfaces.keys():
+        surfaces[k]["data"]["nserror"] = np.full_like(surfaces[k]["data"]["t"],np.nan)
+    for k in surfaces.keys():
+        for l in range(len(surfaces[k]["lats"])):
+            s,t,p = surfaces[k]["data"]["s"][l],surfaces[k]["data"]["t"][l],surfaces[k]["data"]["pres"][l]
+            dsdx,dsdy = surfaces[k]["data"]["dsdx"][l],surfaces[k]["data"]["dsdy"][l]
+            dtdx,dtdy = surfaces[k]["data"]["dtdx"][l],surfaces[k]["data"]["dtdy"][l]
+            ps,pt,pp = gsw.rho_first_derivatives(s,t,p)
+            nserror = np.linalg.norm(((ps*dsdx + pt*dtdx),(ps*dsdy + pt*dtdy)))
+            surfaces[k]["data"]["nserror"][l] = nserror
+    return surfaces
 
 
     

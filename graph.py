@@ -110,8 +110,8 @@ def mapSetup(coords,region,newax=True):
         ax=None
     mapy = Basemap(projection='ortho', lat_0=region.mapbounds["lat_0"],lon_0=region.mapbounds["lon_0"],area_thresh=10)
     mapy.drawmapboundary(fill_color='aqua')
-    mapy.fillcontinents(color='coral',lake_color='aqua')
-    #mapy.drawcoastlines()
+    #mapy.fillcontinents(color='coral',lake_color='aqua')
+    mapy.drawcoastlines()
 
     parallels = np.arange(-90.,91,10.)
     mapy.drawparallels(parallels)
@@ -160,13 +160,22 @@ def threedTransect(profiles,ks):
 
 
     
+def minmaxBound(d,s):
+    return np.nanmin(d),np.nanmax(d)
+
+def stdevBound(d,stds):
+    m = np.nanmean(d)
+    s = np.nanstd(d)
+    return m-stds*s,m+stds*s
+
+
 
 ## given a surfaces object, a quantity index, graph quantity
 ## if you really want you can supply a profiles object and a deepest index to display a point
 ## controls to save, graph or maximize
 def graphSurfaces(region,surfaces,quantindex,stds=2,contour=False,profiles=None,deepestindex=None,\
         show=True,maximize=True,savepath=None,idlabels=False,\
-        colorlimit=True,select=range(0,10000),secondsurface=None,centerfunction=False):
+        colorlimit=True,select=range(0,10000),secondsurface=None,centerfunction=False,boundfunc=stdevBound):
     if savepath:
         try:
             os.makedirs(savepath+quantindex)
@@ -210,7 +219,7 @@ def graphSurfaces(region,surfaces,quantindex,stds=2,contour=False,profiles=None,
                 plt.scatter(x,y,c=secondsurface[i]["data"][quantindex],vmin=m-stds*s,vmax=m+stds*s,cmap=cmocean.cm.haline)
 
             if colorlimit:
-                plt.clim(m-stds*s,m+stds*s)
+                plt.clim(boundfunc(d,stds))
                 #plt.clim(i-400,i+400)
                 mapy.colorbar()
             if idlabels:
@@ -443,8 +452,8 @@ def graphStaggeredSurface(surfaces,neighbors,debug=False):
 
 ## graph a vector field given a surfaces object on a map
 ## any quantity can be supplied as a background field
-def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",select=range(0,10000),\
-        transform=True,savepath=False,show=True,metadata={},contour=True,scale=1):
+def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",select=range(0,10000),stdevs=2,\
+        transform=True,savepath=False,show=True,metadata={},contour=True,scale=1,boundfunc=stdevBound):
 
     if savepath:
         try:
@@ -462,24 +471,25 @@ def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",select=range
             for p in range(0,len(surfaces[k]["data"][key1])):
                 u = surfaces[k]["data"][key1][p] 
                 v = surfaces[k]["data"][key2][p]
-                x = surfaces[k]["x"][p]
-                y = surfaces[k]["y"][p]
-                if transform:
-                    theta = np.deg2rad(surfaces[k]["lons"][p])
-                    #ur = u*np.cos(theta) + v*np.sin(theta)
-                    r = np.sqrt(x**2+y**2)
-                    ur = -(x*u +y*v)/r
+                if ~np.isnan(u) and ~np.isnan(v):
+                    if transform:
+                        x = surfaces[k]["x"][p]
+                        y = surfaces[k]["y"][p]
+                        theta = np.deg2rad(surfaces[k]["lons"][p])
+                        #ur = u*np.cos(theta) + v*np.sin(theta)
+                        r = np.sqrt(x**2+y**2)
+                        ur = -(x*u +y*v)/r
 
-                    #utheta = v*np.cos(theta) - v*np.sin(theta)
-                    utheta = r*(x*v-y*u)/(r**2)
+                        #utheta = v*np.cos(theta) - v*np.sin(theta)
+                        utheta = r*(x*v-y*u)/(r**2)
 
-                    urs.append(ur)
-                    uthetas.append(utheta)
-                else:
-                    urs.append(v)
-                    uthetas.append(u)
-                lons.append(surfaces[k]["lons"][p])
-                lats.append(surfaces[k]["lats"][p])
+                        urs.append(ur)
+                        uthetas.append(utheta)
+                    else:
+                        urs.append(v)
+                        uthetas.append(u)
+                    lons.append(surfaces[k]["lons"][p])
+                    lats.append(surfaces[k]["lats"][p])
 
             urs.append(0.01)
             uthetas.append(0)
@@ -511,9 +521,7 @@ def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",select=range
                 else:
                     plt.scatter(xpv,ypv,c=bgfield,cmap="viridis")
                 #plt.scatter(xpv,ypv,c=bgfield)
-                m = np.nanmedian(bgfield)
-                s = np.nanstd(bgfield)
-                plt.clim(m-2*s,m+2*s)
+                plt.clim(boundfunc(bgfield,stdevs))
                 mapy.colorbar()
                 mapy.quiver(x,y,u*2,v*2,mag,scale=scale,cmap="autumn",width = 0.004)
                 if savepath:
