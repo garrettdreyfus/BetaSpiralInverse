@@ -72,6 +72,42 @@ def graphTransects(surfaces,quantindex,contour=False,profiles=None,deepestindex=
         plt.show()
     plt.close()
 
+def graphProfileTransect(profiles,quant,lat=None,lon=None,contour=False,\
+        deepestindex=None,show=True,maximize=True):
+    fig,ax = plt.subplots(1,1)
+    xcoord = []
+    ycoord = []
+    quants = []
+    for p in profiles:
+        if (lat and abs(lat-p.lat)<0.5) or (lon and abs(lon-p.lon)<0.5):
+            for d in range(len(p.ipres)):
+                if p.ipres[d] > 500:
+                    quants.append(getattr(p,quant)[d])
+                    ycoord.append(-p.ipres[d])
+
+                    if lat:
+                        xcoord.append(p.lon)
+                    if lon:
+                        xcoord.append(p.lat)
+    #ax.set_xlim([-38,-16])
+    plt.scatter(xcoord,ycoord,c=quants)
+    plt.colorbar()
+    if lat:
+        fig.suptitle("Transect at "+str(lat)+" degrees Latitude"  )
+        ax.set_xlabel("Longitude")
+    if lon:
+        fig.suptitle("Transect at "+str(lon)+" degrees Longitude"  )
+        ax.set_xlabel("Latitude")
+
+    if maximize:
+        fig.set_size_inches(16.5,12)
+    if show:
+        plt.legend()
+        plt.show()
+    plt.close()
+
+
+
 ##diagnostic tool to show that the calculated nearest points for each
 ## point is correct
 def graphNeighbors(surfaces,neighbors):
@@ -471,7 +507,7 @@ def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",select=range
             for p in range(0,len(surfaces[k]["data"][key1])):
                 u = surfaces[k]["data"][key1][p] 
                 v = surfaces[k]["data"][key2][p]
-                if ~np.isnan(u) and ~np.isnan(v):
+                if ~np.isnan(u) and ~np.isnan(v) and np.sqrt(u**2 + v**2)<0.01 :
                     if transform:
                         x = surfaces[k]["x"][p]
                         y = surfaces[k]["y"][p]
@@ -509,21 +545,21 @@ def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",select=range
             u,v,x,y = mapy.rotate_vector(uthetas,urs,lons,lats,returnxy=True)
             mag = np.sqrt(u**2+v**2)
             fig.set_size_inches(16.5,12)
-            a = tuple([(abs(surfaces[k]["lats"]-90)>0.5) & (~np.isnan(surfaces[k]["data"][backgroundfield]))])
+            a = ~np.isnan(surfaces[k]["data"][backgroundfield])
             if np.count_nonzero(a)>4:
-                xpv,ypv = mapy(surfaces[k]["lons"][a],surfaces[k]["lats"][a])
-                if backgroundfield != "f/h":
-                    bgfield = surfaces[k]["data"][backgroundfield][a]
-                else:
-                    bgfield = gsw.f(surfaces[k]["lats"][a])/surfaces[k]["data"]["z"][a]
+                lons = np.asarray(surfaces[k]["lons"])[a]
+                lats = np.asarray(surfaces[k]["lats"])[a]
+                xpv,ypv = mapy(lons,lats)
+                bgfield = np.asarray(surfaces[k]["data"][backgroundfield])[a]
                 if contour:
                     plt.tricontourf(xpv,ypv,bgfield,levels=50,cmap="viridis")
                 else:
                     plt.scatter(xpv,ypv,c=bgfield,cmap="viridis")
                 #plt.scatter(xpv,ypv,c=bgfield)
                 plt.clim(boundfunc(bgfield,stdevs))
-                mapy.colorbar()
-                mapy.quiver(x,y,u*2,v*2,mag,scale=scale,cmap="autumn",width = 0.004)
+                plt.colorbar()
+                mapy.quiver(x,y,u,v,mag,scale=scale,cmap="autumn",width = 0.004)
+                plt.colorbar()
                 if savepath:
                     plt.savefig(savepath+key1+key2+"/ns"+str(k)+".png")
 
@@ -873,7 +909,7 @@ def distanceHist(distances):
 
 def saveAllQuants(region,surfaces,savepath,select=range(0,100000),contour=False,secondsurface=None):
     for d in Bar("Saving Fields").iter(surfaces[list(surfaces.keys())[0]]["data"].keys()):
-        if len(surfaces[list(surfaces.keys())[0]]["data"][d])>0:
+        if len(surfaces[list(surfaces.keys())[0]]["data"][d])>0 and (~np.isnan(surfaces[list(surfaces.keys())[0]]["data"][d])).any():
             graphSurfaces(region,surfaces,d,show=False,savepath=savepath,select=select,contour=contour,secondsurface=secondsurface)
 
 def velocityHeatMap(surfaces,uvel,lon):
@@ -926,13 +962,14 @@ def northSouthTransect(surfaces,quant,lat=None,lon=None,\
     m = np.nanmean(cs)
     s = np.nanstd(cs)
     plt.scatter(xs,ps,c=cs)
-    plt.clim(m-1*s,m+1*s)
+    plt.clim(m-s,m+2*s)
     if lat:
         plt.xlabel("Longitude in Degrees")
     if lon:
         plt.xlabel("Latitude in Degrees ")
     plt.ylabel("Depth in Dbar")
     plt.gca().invert_yaxis()
+    #plt.gca().set_xlim([-38,-16])
     cbar = plt.colorbar()
     
     if lat:

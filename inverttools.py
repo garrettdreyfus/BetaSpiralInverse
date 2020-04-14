@@ -177,18 +177,18 @@ def constructBetaRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True,
     r = np.sqrt(x**2 + y**2)
     #use mean gradient instead
     ## (-1/f)dAr/dy*dQnotdx
-    if threepoint and not latlongrid:
+    if threepoint:
         values = [0]*3
         d01 = distances[(s[0],s[1])]
         d02 = distances[(s[0],s[2])]
 
-        values[0] = (-1/(2*f*d02))*(dqnotdx-x*beta*pv/(f*r))\
-                                   + (1/(2*f*d01))*(dqnotdy-y*beta*pv/(f*r))
+        values[0] = (-1/(1*f*d02))*(dqnotdx-x*beta*pv/(f*r))\
+                                   + (1/(1*f*d01))*(dqnotdy-y*beta*pv/(f*r))
 
-        values[1] = (-1/(2*f*d01))*(dqnotdy-y*beta*pv/(f*r))
+        values[1] = (-1/(1*f*d01))*(dqnotdy-y*beta*pv/(f*r))
                                   
 
-        values[2] = (1/(2*f*d02))*(dqnotdx-x*beta*pv/(f*r))\
+        values[2] = (1/(1*f*d02))*(dqnotdx-x*beta*pv/(f*r))\
 
         ## (-1/f)dAr/dx*dQnotdx
         Apsirow[columnindexs[0]] = -values[0]
@@ -196,7 +196,7 @@ def constructBetaRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True,
         Apsirow[columnindexs[2]] = -values[2]
         crow = (-u)*(dqnotdx-x*beta*pv/(f*r))+(-v)*(dqnotdy-y*beta*pv/(f*r))
  
-    elif not threepoint and not latlongrid:
+    elif not threepoint:
         values = [0]*4
         d01 = distances[(s[0],s[1])]
         d02 = distances[(s[0],s[2])]
@@ -220,30 +220,6 @@ def constructBetaRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True,
         Apsirow[columnindexs[2]] = -values[2]
         Apsirow[columnindexs[3]] = -values[3]
         crow = (-u)*(dqnotdx-x*beta*pv/(f*r))+(-v)*(dqnotdy-y*beta*pv/(f*r))
-    elif not threepoint and latlongrid:
-        values = [0]*4
-        d01 = distances[(s[0],s[1])]
-        d02 = distances[(s[0],s[2])]
-        d23 = distances[(s[2],s[3])]
-        d13 = distances[(s[1],s[3])]
-
-        values[0] = (-1/(2*f*d02))*(dqnotdx)\
-                                   + (1/(2*f*d01))*(dqnotdy+beta*pv/(f))
-
-        values[1] = (-1/(2*f*d01))*(dqnotdy+beta*pv/(f))+(-1/(2*f*d13))*(dqnotdx)\
-                                  
-
-        values[2] = (1/(2*f*d02))*(dqnotdx)\
-                                   + (1/(2*f*d23))*(dqnotdy+beta*pv/(f))
-        ## (-1/f)dAr/dx*dQnotdx
-        values[3] = (1/(2*f*d13))*(dqnotdx)\
-                                  + (-1/(2*f*d23))*(dqnotdy+beta*pv/(f))
-
-        Apsirow[columnindexs[0]] = -values[0]
-        Apsirow[columnindexs[1]] = -values[1]
-        Apsirow[columnindexs[2]] = -values[2]
-        Apsirow[columnindexs[3]] = -values[3]
-        crow = (-u)*(dqnotdx)+(-v)*(dqnotdy+beta*pv/(f)) 
     if np.count_nonzero(np.isnan(Apsirow)) or np.count_nonzero(np.isnan(values)) or np.count_nonzero(np.isnan(values)):
         print("boop")
     return np.asarray(Apsirow)*Arscale,np.asarray(values)*Arscale,np.asarray(crow)
@@ -262,13 +238,13 @@ def constructSalRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True):
         d01 = distances[(s[0],s[1])]
         d02 = distances[(s[0],s[2])]
         
-        values[0] = (-1/(2*f*d02))*dsdx\
-                                   + (1/(2*f*d01))*dsdy
+        values[0] = (-1/(1*f*d02))*dsdx\
+                                   + (1/(1*f*d01))*dsdy
 
         ## (-1/f)dAr/dx*dsdx
-        values[1] =  (-1/(2*f*d01))*dsdy
+        values[1] =  (-1/(1*f*d01))*dsdy
 
-        values[2] = (1/(2*f*d02))*dsdx\
+        values[2] = (1/(1*f*d02))*dsdx\
 
         Apsirow[columnindexs[0]] = -values[0]
         Apsirow[columnindexs[1]] = -values[1]

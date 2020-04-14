@@ -5,10 +5,13 @@ import numpy as np
 import pickle
 import xarray as xr
 from regionlib import brasil
+import matplotlib.pyplot as plt
 from geopy.distance import great_circle
 import pdb
 import graph
 import pdb
+import xmitgcm
+from scipy.io import loadmat
 
 ##return index of certain coord
 def closestGridPoint(x,y,prefix):
@@ -59,15 +62,12 @@ def getVelAt(x,y,d,prefix):
 def mixDataArray(arr,depth,tilenumber,lons,lats):
     arr = arr[105300*depth:105300*(depth+1)]
     arr = arr.byteswap().reshape([105300,1])
-    arr = xr.DataArray(arr[(tilenumber-1)*8100:(tilenumber)*8100,0].reshape([90,90]),coords=[np.ravel(lons),np.ravel(lats)],
+    arr = xr.DataArray(arr[(tilenumber-1)*8100:(tilenumber)*8100,0].reshape([90,90]),coords=[range(90),range(90)],
                             dims=['lon','lat'])
-    #ds = xr.Dataset(data_vars={"m":(["i","j"],arr[(tilenumber-1)*8100:(tilenumber)*8100,0].reshape([90,90])), 
-           #"lat":(["i","j"],lats),
-           #"lon":(["i","j"],lons)}, 
-        #coords={"x": (["i"],range(90)), 
-            #"y": (["j"], range(90))})
-
-    #ds = ds.set_coords(["lat","lon"])
+    #arr = arr[(tilenumber-1)*405000:(tilenumber)*405000]
+    #arr = arr.byteswap().reshape([405000,1])
+    #arr = xr.DataArray(arr[(depth)*8100:(depth+1)*8100,0].reshape([90,90]),coords=[range(90),range(90)],
+                            #dims=['lon','lat'])
 
     return arr
 
@@ -86,47 +86,6 @@ def formatMixData(var,prefix):
         dat.append(geoflx06)
     return dat
 
-
-
-def getMixAt(lon,lat,d,prefix):
-    if not hasattr(getMixAt,"nvelset"):
-        getMixAt.nvelset = xr.open_dataset('ecco/TILEDATA/'+prefix+'NVEL.nc',decode_times=False)
-        getMixAt.depths = getMixAt.nvelset["dep"].values
-        getMixAt.diffkr = formatMixData("diffkr")
-        getMixAt.kapredi = formatMixData("kapredi")
-        getMixAt.kapgm = formatMixData("kapgm")
-    if d >= getMixAt.depths[0] and d <= getMixAt.depths[-1]:
-        before = np.argwhere(getMixAt.depths<=d)[-1][0]
-        after = np.argwhere(getMixAt.depths>=d)[0][0]
-        for k in range(len(getMixAt.diffkr)):
-            lonlow = np.nanmin(getMixAt.diffkr[k][before]["lon"])
-            lonhigh = np.nanmax(getMixAt.diffkr[k][before]["lon"])
-            latlow = np.nanmin(getMixAt.diffkr[k][before]["lat"])
-            lathigh = np.nanmax(getMixAt.diffkr[k][before]["lat"])
-            print(k,lonlow,lon,latlow)
-            print(k,lonhigh,lat,lathigh)
-            if lonlow< lon < lonhigh and latlow < lat < lathigh: 
-                depthset = [getMixAt.depths[before],getMixAt.depths[after]]
-                closest = (getMixAt.diffkr[k][before].lon-lon)**2 + (getMixAt.diffkr[k][before].lat-lat)**2
-                print(np.argmin(closest))
-                print("-"*5)
-                print(getMixAt.diffkr[k][before][np.argmin(closest)])
-                diffkrset= [getMixAt.diffkr[k][before][np.argmin(closest)]\
-                        ,getMixAt.diffkr[k][after].sel(lon=lon,lat=lat,method="nearest")]
-                kaprediset= [getMixAt.kapredi[k][before].sel(lon=lon,lat=lat,method="nearest")\
-                        ,getMixAt.kapredi[k][after].sel(lon=lon,lat=lat,method="nearest")]
-                kapgmset= [getMixAt.kapgm[k][before].sel(lon=lon,lat=lat,method="nearest")\
-                        ,getMixAt.kapgm[k][after].sel(lon=lon,lat=lat,method="nearest")]
-                diffkr = np.interp(d,depthset,diffkrset)
-                kapredi = np.interp(d,depthset,kaprediset)
-                kapgm = np.interp(d,depthset,kapgmset)
-                #print(diffkr,kapredi,kapgm)
-                return diffkr,kapredi,kapgm
-        return np.nan,np.nan,np.nan
-    else:
-        return np.nan,np.nan,np.nan
-
-
 def addModelEccoUV(surfaces,prefix):
     for k in Bar("Adding model uv").iter(surfaces.keys()):
         surfaces[k]["data"]["knownu"] =  np.full(len(surfaces[k]["lons"]),np.nan)
@@ -139,23 +98,6 @@ def addModelEccoUV(surfaces,prefix):
             surfaces[k]["data"]["knownu"][l] = u
             surfaces[k]["data"]["knownv"][l] = v
     return surfaces
-
-def addModelEccoMix(surfaces,prefix):
-    for k in Bar("Adding model mix").iter(surfaces.keys()):
-        surfaces[k]["data"]["diffkr"] =  np.full(len(surfaces[k]["lons"]),np.nan)
-        surfaces[k]["data"]["kapredi"] =  np.full(len(surfaces[k]["lons"]),np.nan)
-        surfaces[k]["data"]["kapgm"] =  np.full(len(surfaces[k]["lons"]),np.nan)
-        for l in range(len(surfaces[k]["lats"])):
-            lon = surfaces[k]["lons"][l]
-            lat = surfaces[k]["lats"][l]
-            d = surfaces[k]["data"]["pres"][l]
-            #print(getMixAt(lons,lats,d,prefix))
-            diffkr,kapredi,kapgm = getMixAt(lon,lat,d,prefix)
-            surfaces[k]["data"]["diffkr"][l] = diffkr
-            surfaces[k]["data"]["kapgm"][l] = kapgm
-            surfaces[k]["data"]["kapredi"][l] = kapredi
-    return surfaces
-
 
 
 #generate a unique id
@@ -180,6 +122,7 @@ def brasilRestrict(lat,lon):
 
 #read nc files, load into profiles and save into pickle
 def generateProfilesNative(prefix,coordFilter,savepath='data/eccoprofiles.pickle'):
+    prefixToMixCoord={"BRASILEAST":(90,0),"BRASILWEST":(90,270)}
     thetaset= xr.open_dataset('ecco/TILEDATA/'+prefix+'THETA.nc',decode_times=False)
     saltset = xr.open_dataset('ecco/TILEDATA/'+prefix+'SALT.nc',decode_times=False)
     uset = xr.open_dataset('ecco/TILEDATA/'+prefix+'EVEL.nc',decode_times=False)
@@ -188,13 +131,29 @@ def generateProfilesNative(prefix,coordFilter,savepath='data/eccoprofiles.pickle
     ecco_grid = xr.open_dataset('ecco/TILEDATA/'+prefix+'GRID.nc')
     lons = ecco_grid.XC
     lats = ecco_grid.YC
-    diffkr,kapredi,kapgm = formatMixData("diffkr"),formatMixData("kapredi"),formatMixData("kapgm")
+    #diffkr,kapredi,kapgm = formatMixData("diffkr",prefix),formatMixData("kapredi",prefix),formatMixData("kapgm",prefix)
     profiles = []
+    llc90_extra_metadata = xmitgcm.utils.get_extra_metadata(domain='llc', nx=90)
+    grid = xmitgcm.utils.get_grid_from_input('./ecco/mixingdata/nctiles_grid/tile<NFACET>.mitgrid',geometry='llc',extra_metadata=llc90_extra_metadata)
     print("LETS RIP")
+    diffkrField  = loadmat('./ecco/mixingdata/diffkr.mat')["finalField"]
+    kaprediField  = loadmat('./ecco/mixingdata/kapredi.mat')["finalField"]
+    kapgmField  = loadmat('./ecco/mixingdata/kapgm.mat')["finalField"]
+    #plt.imshow(diffkrField[:,:,3])
+
+    #plt.colorbar()
+    #plt.show()
+    latgraph,longraph,diffkrgraph = [], [],[]
+    print(np.min(lats))
     for i in Bar("Row: ").iter(range(90)):
         for j in range(90):
             lon = lons[i][j]
             lat = lats[i][j]
+            #latgraph.append(lat)
+            #longraph.append(lon)
+            #diffkrgraph.append(diffkrField[prefixToMixCoord[prefix][0]+89-j,prefixToMixCoord[prefix][1]+i,3])
+    #plt.scatter(longraph,latgraph,c=diffkrgraph)
+    #plt.show()
             if coordFilter(lat,lon):
                 data = {}
                 data["lat"]=lat
@@ -204,9 +163,12 @@ def generateProfilesNative(prefix,coordFilter,savepath='data/eccoprofiles.pickle
                 data["pres"]=[]
                 data["knownu"]=[]
                 data["knownv"]=[]
+                data["kapredi"]=[]
+                data["kapgm"]=[]
+                data["diffkr"]=[]
                 for depthindex in range(len(depths)):
-                    if ~np.isnan(thetaset["THETA"].values[0][depthindex][i][j]) and ~np.isnan(saltset["SALT"].values[0][depthindex][i][j]) \
-                            and ~np.isnan(thetaset["land"].values[0][i][j]):
+                    if (~np.isnan(thetaset["THETA"].values[0][depthindex][i][j]) and ~np.isnan(saltset["SALT"].values[0][depthindex][i][j]) \
+                            and ~np.isnan(thetaset["land"].values[0][i][j])):
 
                         data["pres"].append(float(depths.values[depthindex]))
                         t,s,u,v = [],[],[],[]
@@ -220,9 +182,15 @@ def generateProfilesNative(prefix,coordFilter,savepath='data/eccoprofiles.pickle
                         data["knownu"].append(np.mean(u))
                         data["knownv"].append(np.mean(v))
 
-                        data["kapredi"].append(kapredi[depthindex][i][j])
-                        data["diffkr"].append(diffkr[depthindex][i][j])
-                        data["kapgm"].append(kapgm[depthindex][i][j])
+                        #data["diffkr"].append(diffkr[depthindex][i][j])
+                        if prefix=="BRASILEAST":
+                            data["diffkr"].append(diffkrField[prefixToMixCoord[prefix][0]+i,prefixToMixCoord[prefix][1]+j,depthindex])
+                            data["kapgm"].append(kapgmField[prefixToMixCoord[prefix][0]+i,prefixToMixCoord[prefix][1]+j,depthindex])
+                            data["kapredi"].append(kaprediField[prefixToMixCoord[prefix][0]+i,prefixToMixCoord[prefix][1]+j,depthindex])
+                        if prefix=="BRASILWEST":
+                            data["diffkr"].append(diffkrField[prefixToMixCoord[prefix][0]+89-j,prefixToMixCoord[prefix][1]+i,depthindex])
+                            data["kapgm"].append(kapgmField[prefixToMixCoord[prefix][0]+89-j,prefixToMixCoord[prefix][1]+i,depthindex])
+                            data["kapredi"].append(kaprediField[prefixToMixCoord[prefix][0]+89-j,prefixToMixCoord[prefix][1]+i,depthindex])
 
                 if len(data["pres"])>4 and max(data["pres"])>1500:
                     eyed=idgenerator()
@@ -230,13 +198,13 @@ def generateProfilesNative(prefix,coordFilter,savepath='data/eccoprofiles.pickle
                     profiles.append(p)
                 
 
-    graph.plotProfiles(brasil,profiles,"profs")
+    ##graph.plotProfiles(brasil,profiles,"profs")
     return profiles
 
 
-#p1 = generateProfilesNative("BRASILWEST",brasilRestrict,"data/eccobrasilprofiles.pickle")
-#p2 = generateProfilesNative("BRASILEAST",brasilRestrict,"data/eccobrasilprofiles.pickle")
-#with open("data/eccobrasilprofiles.pickle", 'wb') as outfile:
-    #pickle.dump(p1+p2, outfile)
+p2 = generateProfilesNative("BRASILEAST",brasilRestrict,"data/eccobrasilprofiles.pickle")
+p1 = generateProfilesNative("BRASILWEST",brasilRestrict,"data/eccobrasilprofiles.pickle")
+with open("data/eccobrasilprofiles.pickle", 'wb') as outfile:
+    pickle.dump(p1+p2, outfile)
 #generateProfilesNative("ARCTIC",arcticRestrict,"data/ecconprofiles.pickle")
 #generateProfilesNative("NEPB",nepbRestrict,"data/ecconepbprofiles.pickle")

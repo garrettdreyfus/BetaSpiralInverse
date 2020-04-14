@@ -275,7 +275,7 @@ def emptySurface():
     return {"lats":[],"lons":[],"ids":[],\
             "data":{"pres":[],"t":[],"s":[],"pv":[],"n^2":[],"alpha":[],\
             "beta":[],"dalphadp":[],"dalphadtheta":[],"dthetads":[],\
-            "psi":[],"drhodz":[],"knownu":[],"knownv":[]}}
+            "psi":[],"drhodz":[],"knownu":[],"knownv":[],"kapredi":[],"kapgm":[],"diffkr":[]}}
 
 ##given a seed profile, finds neutral surfaces by comparing each profile 
 ## to the nearest profile with an identified neutral surface. Only quits
@@ -407,12 +407,14 @@ def addDataToSurfaces(region,profiles,surfaces,debug=True,noise=0):
                     dthetads = p.dthetads(nspres)
                     t,s,alpha,beta,dalphadtheta,dalphadp = p.atPres(abs(surfaces[k]["data"]["pres"][l]),full=True,interp=True)
                     u,v = p.velAtPres(nspres)
+                    kapredi,kapgm,diffkr = p.mixAtPres(nspres)
                 else:
                     pv = np.nan
                     dsdz = np.nan
                     dthetads = np.nan
                     t,s,alpha,beta,dalphadtheta,dalphadp = p.atPres(abs(surfaces[k]["data"]["pres"][l]),full=True,interp=True)
                     u,v = p.velAtPres(nspres)
+                    kapredi,kapgm,diffkr = p.mixAtPres(nspres)
                 #monthcount[p.time.month]=monthcount[p.time.month]+1
                 #if (pv and pv<0) or pv==0:
                     #print("second block: ",pv,drhodz)
@@ -438,6 +440,9 @@ def addDataToSurfaces(region,profiles,surfaces,debug=True,noise=0):
                     tempSurf["data"]["beta"].append(beta)
                     tempSurf["data"]["knownu"].append(u)
                     tempSurf["data"]["knownv"].append(v)
+                    tempSurf["data"]["kapredi"].append(kapredi)
+                    tempSurf["data"]["kapgm"].append(kapgm)
+                    tempSurf["data"]["diffkr"].append(diffkr)
 
 
                     
@@ -533,7 +538,7 @@ def nanCopySurfaces(surfaces,simple=False):
                     "d2sdx2","d2sdy2","dtdx","dtdy","dpdx","dpdy","n^2",\
                     "dqnotdx","dqnotdy","d2thetads2","dalphadtheta",\
                     "alpha","beta","dalphads","dalphadp","drhodz",\
-                    "psi","psinew","dqdz","dqdx","dqdy",\
+                    "psi","psinew","dqdz","dqdx","dqdy","ddiffkrdz","d2diffkrdz2",\
                     "d2qdz2","d2qdx2","d2qdy2","khp","khpterm","khpdz","toph",\
                     "both","dpsidx","dpsidy","ssh","ids","z","knownu"\
                     ,"knownv","diffkr","kapgm","kapredi",\
@@ -597,6 +602,7 @@ def addVerticalGrad(surfaces):
                 foundbelow = foundbelow[0][0]
                 foundabove = foundabove[0][0]
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"pv","dqdz",factor=-1)
+                surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"diffkr","ddiffkrdz",factor=-1)
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"s","dsdz",factor=-1)
                 surfaces = quantVertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"dthetads","s","d2thetads2")
                 surfaces[depths[j]]["data"]["khp"][found] = ptools.calculateKHP(surfaces,depths[j],found)
@@ -610,6 +616,7 @@ def addVerticalGrad(surfaces):
             foundabove = np.where(np.asarray(surfaces[depths[j-1]]["ids"])==eyed)
             if eyed != -999 and len(foundbelow)!=0 and len(foundbelow[0]) != 0 and len(foundabove)!=0 and len(foundabove[0]) != 0:
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"dqdz","d2qdz2",factor=-1)
+                surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"ddiffkrdz","d2diffkrdz2",factor=-1)
                 surfaces = vertGrad(surfaces,surfaces,depths,j,foundabove,found,foundbelow,"khpterm","khpdz",factor=-1)
     return surfaces
 

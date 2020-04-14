@@ -42,6 +42,10 @@ class Profile:
         if "knownu" in data.keys():
             self.knownu = data["knownu"]
             self.knownv = data["knownv"]
+        if "kapredi" in data.keys():
+            self.kapredi = data["kapredi"]
+            self.kapgm = data["kapgm"]
+            self.diffkr = data["diffkr"]
         #Temerature Salinity and Pressure
         self.temps = np.asarray(data["temp"])
         self.sals = np.asarray(data["sal"])
@@ -107,6 +111,11 @@ class Profile:
             if hasattr(self,"knownu"):
                 self.iknownu = np.interp(self.ipres,self.pres,self.knownu)
                 self.iknownv = np.interp(self.ipres,self.pres,self.knownv)
+
+            if hasattr(self,"kapredi"):
+                self.ikapredi = np.interp(self.ipres,self.pres,self.kapredi)
+                self.idiffkr = np.interp(self.ipres,self.pres,self.diffkr)
+                self.ikapgm = np.interp(self.ipres,self.pres,self.kapgm)
             #plt.plot(self.temps,self.pres)
             #plt.plot(self.itemps,self.ipres)
             #plt.show()
@@ -256,6 +265,13 @@ class Profile:
         if hasattr(self,"knownu"):
             i = np.where(np.asarray(self.ipres) == int(pres))[0][0]
             return self.iknownu[i], self.iknownv[i]
+        else:
+            return np.nan,np.nan
+
+    def mixAtPres(self,pres):
+        if hasattr(self,"knownu"):
+            i = np.where(np.asarray(self.ipres) == int(pres))[0][0]
+            return self.ikapredi[i], self.ikapgm[i],self.idiffkr[i]
         else:
             return np.nan,np.nan
  
