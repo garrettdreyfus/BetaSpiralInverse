@@ -50,7 +50,11 @@ def saveBathVarTermCache(surfaces,outfilename,region):
 
 ## extracts bathVar data from pickle but only does so once
 def bathVarTermCache(lat,lon,filename):
-    if not hasattr(bathVarTermCache,"p"):
+    if not hasattr(bathVarTermCache,"p") :
+        bathVarTermCache.p = pickle.load(open(filename, 'rb'))
+
+        print("loaded bath variance file")
+    if not bathVarTermCache.p:
         bathVarTermCache.p = pickle.load(open(filename, 'rb'))
 
         print("loaded bath variance file")
@@ -300,6 +304,8 @@ def calcFQ(surfaces,k,found,scales,kpvs,distances,debug=False):
     dqdy = fetchWithFallback(surfaces,k,"dqdy",found)
     dqdz = fetchWithFallback(surfaces,k,"dqdz",found)
     d2qdz2 = fetchWithFallback(surfaces,k,"d2qdz2",found)
+    d2qdx2 = fetchWithFallback(surfaces,k,"d2qdx2",found)
+    d2qdy2 = fetchWithFallback(surfaces,k,"d2qdy2",found)
     dqnotdx = fetchWithFallback(surfaces,k,"dqnotdx",found)
     dqnotdy = fetchWithFallback(surfaces,k,"dqnotdy",found)
     ddiffkrdz = fetchWithFallback(surfaces,k,"ddiffkrdz",found)
@@ -309,7 +315,7 @@ def calcFQ(surfaces,k,found,scales,kpvs,distances,debug=False):
     pv = fetchWithFallback(surfaces,k,"pv",found)
 
     missingpiece = -(2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv)*scales["kh"]
-    if False:
+    if debug:
         print("#"*5)
         print("diffkr: ",surfaces[k]["data"]["diffkr"][found])
         print("q: ", pv)
@@ -323,7 +329,8 @@ def calcFQ(surfaces,k,found,scales,kpvs,distances,debug=False):
     FQ = surfaces[k]["data"]["diffkr"][found]*d2qdz2 +\
             2*ddiffkrdz*dqdz+ d2diffkrdz2*pv +  \
             f*khpdz+\
-            surfaces[k]["data"]["kapgm"][found]*(missingpiece)
+            surfaces[k]["data"]["kapgm"][found]*(missingpiece) +\
+            surfaces[k]["data"]["kapredi"][found]*(d2qdx2+d2qdy2)
 
     if np.isnan(FQ):
         FQ=0
@@ -332,16 +339,29 @@ def calcFQ(surfaces,k,found,scales,kpvs,distances,debug=False):
 
 
 def calcFS(surfaces,k,found,scales,ks,distances,debug=False):
-
+    dsdy = fetchWithFallback(surfaces,k,"dqdy",found)
+    dsdx = fetchWithFallback(surfaces,k,"dqdx",found)
+    d2sdy2 = fetchWithFallback(surfaces,k,"d2sdy2",found)
+    d2sdx2 = fetchWithFallback(surfaces,k,"d2sdx2",found)
+    dqnotdx = fetchWithFallback(surfaces,k,"dqnotdx",found)
+    dqnotdy = fetchWithFallback(surfaces,k,"dqnotdy",found)
+    pv = fetchWithFallback(surfaces,k,"pv",found)
+    missingpiece = -(2*(dqnotdx*dsdx+dqnotdy*dsdy)/pv)*scales["kh"]
     FS = surfaces[k]["data"]["diffkr"][found]*ks["kvo"] +\
-            surfaces[k]["data"]["kapredi"][found]*ks["kh"]
-    if debug:
-        print("Skvterm: ",surfaces[k]["data"]["diffkr"][found]*ks["kvo"])
-        print("Skhterm: ",surfaces[k]["data"]["kapredi"][found]*ks["kh"] )
+            surfaces[k]["data"]["kapredi"][found]*(ks["kh"]-missingpiece) +\
+            surfaces[k]["data"]["kapgm"][found]*missingpiece
+    if debug or True:
+        #print("diffkrterm: ",surfaces[k]["data"]["diffkr"][found]*ks["kvo"])
+        #print("kapredi term: ",surfaces[k]["data"]["kapredi"][found]*(ks["kh"]-missingpiece))
+        #print("kapgm term: ",surfaces[k]["data"]["kapgm"][found]*missingpiece)
+        largest = np.max(np.abs([surfaces[k]["data"]["diffkr"][found]*ks["kvo"],surfaces[k]["data"]["kapredi"][found]*(ks["kh"]-missingpiece),surfaces[k]["data"]["kapgm"][found]*missingpiece]))
+        ratio  = surfaces[k]["data"]["kapredi"][found]*(d2sdx2+d2sdy2)/largest
+        if ratio > 100:
+            print("how big",ratio, " where: ",k,surfaces[k]["lats"][found],surfaces[k]["lons"][found])
     surfaces[k]["data"]["FS"][found] = FS
     if np.isinf(-ks["kvo"]):
         print("kvo inf")
-        print(ks)
+        #print(ks)
     if np.isinf(-ks["kh"]):
         print("kh inf")
     return FS

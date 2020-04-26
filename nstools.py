@@ -100,6 +100,11 @@ def extractProfiles(fnames):
                     deepestdepth=data[p]["pres"][-1]
     return profiles, deepestindex
 
+def salCurveInspect(region,surfaces):
+    for k in surfaces.keys():
+        surfaces[k]["data"]["salcurvedebug"]=surfaces[k]["data"]["kapredi"]*(surfaces[k]["data"]["d2sdx2"]+surfaces[k]["data"]["d2sdy2"])
+    graph.graphSurfaces(region,surfaces,"salcurvedebug",show=False,savepath="refpics/surfaces/salcurvedebug/nepbminmax/",boundfunc=graph.minmaxBound)
+
 
 ##finds deepest profile from given profiels
 def deepestProfile(profiles):

@@ -279,11 +279,10 @@ def constructSalRow(surfaces,k,distances,s,columnindexs,scales,threepoint=True):
 
 def fillDefault(params):
     params.setdefault("debug",False)
-    params.setdefault("threepoint",True)
     params.setdefault("lowerbound",2600)
     params.setdefault("upperbound",1000)
     params.setdefault("reflevel",1000)
-    params.setdefault("mixs",{"kvh":True,"kvb":False,"kvo":True})
+    params.setdefault("mixs",{"kvh":True,"kvb":True,"kvo":True})
     params.setdefault("scalecoeffs",{"Ar":0.05,"kvo":5*10**-6,"kvb":5*10**-5,"kh":500})
     params.setdefault("3point",True)
     params.setdefault("edgeguard",True)

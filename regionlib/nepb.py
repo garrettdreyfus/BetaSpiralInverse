@@ -18,11 +18,19 @@ import graph
 
 linedata = sio.loadmat("data/aleutianline.mat")
 
-def hautalaGrid():
-    grd = np.meshgrid(\
-            np.concatenate((np.linspace(170,178,5),np.linspace(-180,-122,30))),
+##lat lon to x y
+def singleXY(coord):
+    theta = np.deg2rad(coord[0])
+    r = ((90-coord[1]) *111*1000)
+    x = (r*np.cos(theta))
+    y = (r*np.sin(theta))
+    return x,y
 
-            np.linspace(18,58,21))
+
+def hautalaGrid():
+    a = np.linspace(-190,-122,34)
+    a[a<-180] = a[a<-180]+360
+    grd = np.meshgrid(a,np.linspace(18,58,20))
     for i in range(grd[0].shape[0]):
         for j in range(grd[0].shape[1]):
             x,y = singleXY((grd[0][i][j],grd[1][i][j]))
@@ -49,16 +57,17 @@ def createMesh(xvals,yvals,coord="xy",spacingscale=25):
 def geoFilter(lon,lat):
     allat = linedata["lat_BS"].T
     allon = linedata["lon_BS"]
-    allat = list(lat[0])
+    allat = list(allat[0])
     allat.insert(0,56.084)
     allat.insert(0,59.13)
-    allat = np.asarray(lat)
-    allon = list(lon[0])
+    allat = np.asarray(allat)
+    allon = list(allon[0])
     allon.insert(0,-160.02)
     allon.insert(0,-158.89)
-    allon = np.asarray(lon)
+    allon = np.asarray(allon)
 
     if lon > 0: lon=-180-(abs(lon)-180)
+
     if lon>=np.min(allon) and lon<=np.max(allon):
         if lat-np.interp(lon,allon,allat)>-2:
             #IN THE ALEUTIANS

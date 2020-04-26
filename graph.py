@@ -73,15 +73,16 @@ def graphTransects(surfaces,quantindex,contour=False,profiles=None,deepestindex=
     plt.close()
 
 def graphProfileTransect(profiles,quant,lat=None,lon=None,contour=False,\
-        deepestindex=None,show=True,maximize=True):
+        deepestindex=None,show=True,maximize=True,presrange=[2000,np.inf],\
+        cbarrange=None,savepath=None,coordrange=None):
     fig,ax = plt.subplots(1,1)
     xcoord = []
     ycoord = []
     quants = []
     for p in profiles:
-        if (lat and abs(lat-p.lat)<0.5) or (lon and abs(lon-p.lon)<0.5):
+        if (lat and abs(lat-p.lat)<1) or (lon and abs(lon-p.lon)<1):
             for d in range(len(p.ipres)):
-                if p.ipres[d] > 500:
+                if p.ipres[d] > presrange[0] and p.ipres[d] < presrange[1]:
                     quants.append(getattr(p,quant)[d])
                     ycoord.append(-p.ipres[d])
 
@@ -89,8 +90,11 @@ def graphProfileTransect(profiles,quant,lat=None,lon=None,contour=False,\
                         xcoord.append(p.lon)
                     if lon:
                         xcoord.append(p.lat)
-    #ax.set_xlim([-38,-16])
+    if coordrange:
+        plt.gca().set_xlim(coordrange)
     plt.scatter(xcoord,ycoord,c=quants)
+    if cbarrange:
+        plt.clim(cbarrange)
     plt.colorbar()
     if lat:
         fig.suptitle("Transect at "+str(lat)+" degrees Latitude"  )
@@ -104,6 +108,16 @@ def graphProfileTransect(profiles,quant,lat=None,lon=None,contour=False,\
     if show:
         plt.legend()
         plt.show()
+    if savepath:
+        try:
+            os.makedirs(savepath)
+        except FileExistsError as e:
+            print(e)
+        if lat:
+            plt.savefig(savepath+"/lat"+str(lat)+".png")
+        if lon:
+            plt.savefig(savepath+"/lon"+str(lon)+".png")
+
     plt.close()
 
 
@@ -176,7 +190,6 @@ def graphSurfacesComparison(surfaces,overlay,quantindex,contour=False,stds=1,pro
         if "ids" in surfaces.keys() and "ids" in overlay.keys():
             tempSurf["ids"] = np.concatenate((surfaces[k]["ids"],overlay[k]["ids"]))
         newsurfaces[k]=tempSurf
-    print(newsurfaces.keys())
     graphSurfaces(region,newsurfaces,quantindex,contour,profiles,deepestindex,show,maximize,savepath)
 
 def threedTransect(profiles,ks):
@@ -488,7 +501,7 @@ def graphStaggeredSurface(surfaces,neighbors,debug=False):
 
 ## graph a vector field given a surfaces object on a map
 ## any quantity can be supplied as a background field
-def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",select=range(0,10000),stdevs=2,\
+def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",refarrow=0.01,select=range(0,10000),stdevs=2,\
         transform=True,savepath=False,show=True,metadata={},contour=True,scale=1,boundfunc=stdevBound):
 
     if savepath:
@@ -507,7 +520,7 @@ def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",select=range
             for p in range(0,len(surfaces[k]["data"][key1])):
                 u = surfaces[k]["data"][key1][p] 
                 v = surfaces[k]["data"][key2][p]
-                if ~np.isnan(u) and ~np.isnan(v) and np.sqrt(u**2 + v**2)<0.01 :
+                if ~np.isnan(u) and ~np.isnan(v) and np.sqrt(u**2 + v**2)<0.01:
                     if transform:
                         x = surfaces[k]["x"][p]
                         y = surfaces[k]["y"][p]
@@ -527,13 +540,13 @@ def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",select=range
                     lons.append(surfaces[k]["lons"][p])
                     lats.append(surfaces[k]["lats"][p])
 
-            urs.append(0.01)
+            urs.append(refarrow)
             uthetas.append(0)
             lons.append(region.mapbounds["lon_0"])
             lats.append(region.mapbounds["lat_0"])
 
             urs.append(0)
-            uthetas.append(0.01)
+            uthetas.append(refarrow)
             lons.append(region.mapbounds["lon_0"])
             lats.append(region.mapbounds["lat_0"])
 
@@ -554,6 +567,7 @@ def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",select=range
                 if contour:
                     plt.tricontourf(xpv,ypv,bgfield,levels=50,cmap="viridis")
                 else:
+                    #print("no graph")
                     plt.scatter(xpv,ypv,c=bgfield,cmap="viridis")
                 #plt.scatter(xpv,ypv,c=bgfield)
                 plt.clim(boundfunc(bgfield,stdevs))
@@ -923,7 +937,7 @@ def velocityHeatMap(surfaces,uvel,lon):
         for l in range(len(surfaces[k]["lons"])):
             if surfaces[k]["lons"][l] == -168:
                 i = int(round((surfaces[k]["lats"][l]-20)/2))
-                print(i,surfaces[k]["lats"][l])
+                #print(i,surfaces[k]["lats"][l])
                 #print(i)
                 depthrow[i] = -surfaces[k]["data"]["pres"][l]
                 latrow[i] = surfaces[k]["lats"][l]
@@ -945,24 +959,32 @@ def velocityHeatMap(surfaces,uvel,lon):
     plt.show()
 
 def northSouthTransect(surfaces,quant,lat=None,lon=None,\
-        show=False,savepath=None,maximize=True):
+        show=False,savepath=None,maximize=True,\
+        presrange=[2000,np.inf],cbarrange=None,coordrange=None):
     xs = []
     ps = []
     cs = []
     for k in surfaces.keys():
         for i in range(len(surfaces[k]["data"][quant])):
-            if lat and abs(surfaces[k]["lats"][i]-lat)<0.5:
-                xs.append(surfaces[k]["lons"][i])
-                cs.append(surfaces[k]["data"][quant][i])
-                ps.append(surfaces[k]["data"]["pres"][i])
-            if lon and abs(surfaces[k]["lons"][i]-lon)<0.5:
-                xs.append(surfaces[k]["lats"][i])
-                cs.append(surfaces[k]["data"][quant][i])
-                ps.append(surfaces[k]["data"]["pres"][i])
+            if presrange[0]<surfaces[k]["data"]["pres"][i]<presrange[1]:
+                if lat and abs(surfaces[k]["lats"][i]-lat)<0.5:
+                    xs.append(surfaces[k]["lons"][i])
+                    cs.append(surfaces[k]["data"][quant][i])
+                    ps.append(surfaces[k]["data"]["pres"][i])
+                if lon and abs(surfaces[k]["lons"][i]-lon)<0.5:
+                    xs.append(surfaces[k]["lats"][i])
+                    cs.append(surfaces[k]["data"][quant][i])
+                    ps.append(surfaces[k]["data"]["pres"][i])
     m = np.nanmean(cs)
     s = np.nanstd(cs)
+    #print(ps)
     plt.scatter(xs,ps,c=cs)
-    plt.clim(m-s,m+2*s)
+    if coordrange:
+        plt.gca().set_xlim(coordrange)
+    if cbarrange:
+        plt.clim(cbarrange)
+    else:
+        plt.clim(m-2*s,m+2*s)
     if lat:
         plt.xlabel("Longitude in Degrees")
     if lon:
@@ -971,7 +993,6 @@ def northSouthTransect(surfaces,quant,lat=None,lon=None,\
     plt.gca().invert_yaxis()
     #plt.gca().set_xlim([-38,-16])
     cbar = plt.colorbar()
-    
     if lat:
         degline = " along " + str(lat) + " latitude"
     if lon:

@@ -8,6 +8,7 @@ from progress.bar import Bar
 import pdb
 import alphashape
 from shapely.geometry import Point
+from shapely import affinity
 import matplotlib.pyplot as plt
 from descartes import PolygonPatch
 
@@ -100,12 +101,14 @@ def geoMask(gridx,gridy,datax,datay,radius):
             if mask[l][j]:
                 points.append((gridx[l][j],gridy[l][j]))
     shape = alphashape.alphashape(points,alpha=0)
+    shape = affinity.scale(shape,xfact=0.99,yfact=0.99)
     newmask = np.zeros(gridx.shape)
     #plt.plot(*shape.exterior.xy)
     #plt.show()
     for l in range(len(newmask)):
         for j in range(len(newmask[l])):
-            if shape.contains(Point(gridx[l][j],gridy[l][j])):
+            p =Point(gridx[l][j],gridy[l][j])
+            if shape.contains(p):
                 newmask[l][j] = 1
     return newmask
 
@@ -170,7 +173,7 @@ def bathVarCacheWrapper(lat,lon,region):
     if not hasattr(bathVarCacheWrapper,"bvardict"):
         bathVarCacheWrapper.bvardict={}
     if (lat,lon) not in bathVarCacheWrapper.bvardict.keys():
-        bathVarCacheWrapper.bvardict[(lat,lon)] = np.var(bathtools.bathBox(lat,lon,region))
+        bathVarCacheWrapper.bvardict[(lat,lon)] = np.var(bathtools.bathBox(lat,lon))
     return np.abs(bathVarCacheWrapper.bvardict[(lat,lon)])
 
 def bathVarMask(gridx,gridy,region,mask=[]):
@@ -192,7 +195,7 @@ def bathVarMask(gridx,gridy,region,mask=[]):
                     #ybathchange = abs(bathtools.searchBath(lat,lon,"nepb")-bathtools.searchBath(lat3,lon3,"nepb"))
                     #if xbathchange<300 and ybathchange < 300:
                     bvar = bathVarCacheWrapper(lat,lon,region)
-                    if bvar < 15000:
+                    if bvar < 4000:
                         mask[row][col]=False
 
     return mask
@@ -254,7 +257,7 @@ def surfacePrune(surfaces):
 ## create the mesh, use gam interpolation
 ##also returns neighboring points for each points
 ## and the distance between those points
-def interpolateSurface(surface,region,coord="xy",debug=True,interpmethod="gam",smart=True):
+def interpolateSurface(surface,region,coord="xy",debug=True,interpmethod="gam",smart=True,splines=10):
     #print("######")
     interpsurf={}
     X = np.zeros((len(surface["x"]),2))
@@ -275,21 +278,23 @@ def interpolateSurface(surface,region,coord="xy",debug=True,interpmethod="gam",s
         for d in Bar("Interpolating: ").iter(surface["data"].keys()):
             notnan = ~np.isnan(surface["data"][d])
             if np.count_nonzero(notnan)>10:
-                gam = pygam.GAM(pygam.te(0,1)).fit(X[notnan],np.asarray(surface["data"][d])[notnan])
+                gam = pygam.GAM(pygam.te(0,1,n_splines=[splines,splines])).fit(X[notnan],np.asarray(surface["data"][d])[notnan])
                 Xgrid = np.zeros((yi.shape[0],2))
                 Xgrid[:,0] = xi
                 Xgrid[:,1] = yi
                 interpdata[d] = gam.predict(Xgrid)
             else:
                 interpdata[d] = np.asarray([np.nan]*len(xi))
-    elif interpmethod=="linear":
+    elif interpmethod in ["linear","nearest"] :
         for d in Bar("Interpolating: ").iter(surface["data"].keys()):
-            notnan = (~np.isnan(surface["data"][d]) & ~np.isnan(X[:,0]) & ~np.isnan(X[:,1]))
+            notnan = ~np.isnan(surface["data"][d])
             if np.count_nonzero(notnan)>10:
                 Xgrid = np.zeros((yi.shape[0],2))
                 Xgrid[:,0] = xi
                 Xgrid[:,1] = yi
-                f = nstools.griddata(X[notnan],np.asarray(surface["data"][d])[notnan],Xgrid)
+                f = nstools.griddata(X[notnan],np.asarray(surface["data"][d])[notnan],Xgrid,method=interpmethod)
+                if np.isinf(f).any():
+                    print("oh no!")
                 interpdata[d] = f
             else:
                 interpdata[d] = np.asarray([np.nan]*len(xi))
@@ -304,7 +309,7 @@ def interpolateSurface(surface,region,coord="xy",debug=True,interpmethod="gam",s
 
 ## interpolate all the surfaces vertically and store
 ## neighbors, and distances as well
-def interpolateSurfaces(region,surfaces,coord="xy",debug=True,interpmethod="gam",smart=False):
+def interpolateSurfaces(region,surfaces,coord="xy",debug=True,interpmethod="gam",smart=False,splines=10):
     surfaces = addXYToSurfaces(surfaces)
     interpolatedsurfaces = {}
     neighbors={}
@@ -312,7 +317,7 @@ def interpolateSurfaces(region,surfaces,coord="xy",debug=True,interpmethod="gam"
     for k in surfaces.keys():
         if (~np.isnan(surfaces[k]["data"]["pres"])).any():
             #surfaces[k] = removeDiscontinuities(surfaces[k],radius=0.1)
-            interpolatedsurfaces[k],neighbors[k] = interpolateSurface(surfaces[k],region,coord=coord,interpmethod=interpmethod,smart=smart)
+            interpolatedsurfaces[k],neighbors[k] = interpolateSurface(surfaces[k],region,coord=coord,interpmethod=interpmethod,smart=smart,splines=splines)
             lookups[k] = trueDistanceLookup(interpolatedsurfaces[k],neighbors[k])
     interpolatedsurfaces = fillOutEmptyFields(interpolatedsurfaces)
     return interpolatedsurfaces,neighbors,lookups

@@ -273,7 +273,7 @@ class Profile:
             i = np.where(np.asarray(self.ipres) == int(pres))[0][0]
             return self.ikapredi[i], self.ikapgm[i],self.idiffkr[i]
         else:
-            return np.nan,np.nan
+            return np.nan,np.nan, np.nan
  
     ##returns the index at pressure
     def presIndex(self,pres):
