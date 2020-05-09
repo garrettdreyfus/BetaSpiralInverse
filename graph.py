@@ -6,6 +6,7 @@ import os
 import datetime
 import git
 import cmocean
+from copy import copy
 
 quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV",\
                  "u":"relative U","v":"relative V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X",\
@@ -213,7 +214,7 @@ def minmaxBound(d,s):
     return np.nanmin(d),np.nanmax(d)
 
 def stdevBound(d,stds):
-    m = np.nanmean(d)
+    m = np.nanmedian(d)
     s = np.nanstd(d)
     return m-stds*s,m+stds*s
 
@@ -223,7 +224,7 @@ def stdevBound(d,stds):
 ## if you really want you can supply a profiles object and a deepest index to display a point
 ## controls to save, graph or maximize
 def graphSurfaces(region,surfaces,quantindex,stds=2,contour=False,profiles=None,deepestindex=None,\
-        show=True,maximize=True,savepath=None,idlabels=False,\
+        show=True,maximize=True,savepath=None,idlabels=False,additional="",\
         colorlimit=True,select=range(0,10000),secondsurface=None,centerfunction=False,boundfunc=stdevBound):
     if savepath:
         try:
@@ -231,6 +232,7 @@ def graphSurfaces(region,surfaces,quantindex,stds=2,contour=False,profiles=None,
         except FileExistsError as e:
             print(e)
         writeInfoFile(savepath)
+
     for i in list(surfaces.keys()):
         if abs(i) in select\
             and quantindex in surfaces[i]["data"].keys() and \
@@ -253,9 +255,13 @@ def graphSurfaces(region,surfaces,quantindex,stds=2,contour=False,profiles=None,
                 s = np.nanstd(d)
 
             if contour:
-                a = tuple([(abs(np.asarray(surfaces[i]["lats"])-90)>0.5) & (~np.isnan(surfaces[i]["data"][quantindex]))])
+                a = np.logical_and((abs(np.asarray(surfaces[i]["lats"])-90)>0.5) , (~np.isnan(surfaces[i]["data"][quantindex])))
+                b,inds = np.unique(list(zip(x,y)),axis=0,return_index=True)
+                c=np.full_like(a,False)
+                c[inds] = True
+                a=np.logical_and(a,c)
                 if np.count_nonzero(a)>4:
-                    plt.tricontourf(x[a],y[a],np.asarray(surfaces[i]["data"][quantindex])[a],cmap=cmocean.cm.haline,levels=30,vmin=m-stds*s,vmax=m+stds*s)
+                    plt.tripcolor(x[a],y[a],np.asarray(surfaces[i]["data"][quantindex])[a],cmap=cmocean.cm.haline,vmin=m-stds*s,vmax=m+stds*s)
             else:
                 plt.scatter(x,y,c=d,cmap=cmocean.cm.haline,vmin=m-stds*s,vmax=m+stds*s)
             #map the reference profile
@@ -284,7 +290,7 @@ def graphSurfaces(region,surfaces,quantindex,stds=2,contour=False,profiles=None,
             if show:
                 plt.show()
             if savepath:
-                plt.savefig(savepath+quantindex+"/ns"+str(i)+".png")
+                plt.savefig(savepath+quantindex+"/ns"+additional+str(i)+".png")
 
             plt.close()
 

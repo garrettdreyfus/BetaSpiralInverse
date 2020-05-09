@@ -29,6 +29,7 @@ from prettytable import PrettyTable
 import pdb
 import interptools
 from pygamma_n import gamma_n
+from scipy import interpolate,integrate
 
 def addGammaN(surfaces):
     savedata = {"s":[],"t":[],"p":[],"lons":[],"lats":[]}
@@ -1239,5 +1240,52 @@ def neutralityError(surfaces):
             surfaces[k]["data"]["nserror"][l] = nserror
     return surfaces
 
-
-    
+def addKnownPsiFromModelUV(region,surfaces,profiles):
+    #lets find the minimum and construct some key arrays
+    for k in Bar("adding psi from model uv").iter(list(surfaces.keys())[::3]):
+        surfaces[k]["data"]["knownpsi"] =np.full_like(surfaces[k]["ids"],np.nan,dtype=np.double)
+        x = []
+        y = []
+        u = []
+        v = []
+        minmag= np.inf
+        mincoord = None
+        for p in profiles:
+            if k in p.neutraldepth.keys():
+                if region.geoFilter(p.lon,p.lat):
+                    x.append(p.relcoord[0])
+                    y.append(p.relcoord[1])
+                    u.append(p.iknownu[p.presIndex(p.neutraldepth[k])])
+                    v.append(p.iknownv[p.presIndex(p.neutraldepth[k])])
+                    if  100000< p.relcoord[0]**2 + p.relcoord[1]**2 < minmag:
+                        mincoord = p.relcoord
+                        minmag = p.relcoord[0]**2 + p.relcoord[1]**2
+        x,y,u,v = np.asarray(x),np.asarray(y),np.asarray(u),np.asarray(v)
+        coords = np.asarray([np.asarray(x),np.asarray(y)])
+        unique, ui = np.unique(coords, axis=1,return_index=True)
+        print("hey")
+        print(ui)
+        print(len(x)-len(ui))
+        ufield = interpolate.Rbf(x[ui], y[ui], u[ui], kind='linear')
+        vfield = interpolate.Rbf(x[ui], y[ui], v[ui], kind='linear')
+        x0 = mincoord[0]
+        y0 = mincoord[1]
+        for p in profiles:
+            if k in p.neutraldepth.keys():
+                if region.geoFilter(p.lon,p.lat):
+                    x1,y1 = p.relcoord
+                    length = np.sqrt(x1**2+y1**2)
+                    xline = np.linspace(x0,x1,length/10000.0)
+                    yline = np.linspace(y0,y1,length/10000.0)
+                    # uline = ufield(xline,ylinecc)
+                    uline = [float(ufield(XX,YY)) for XX,YY in zip(xline,yline)]
+                    # vline = vfield(xline,yline)
+                    vline = [float(vfield(XX,YY)) for XX,YY in zip(xline,yline)]
+                    udy = integrate.trapz(uline,x=yline)
+                    vdx = integrate.trapz(vline,x=xline)
+                    ind = surfaces[k]["ids"].index(p.eyed)
+                    surfaces[k]["data"]["knownpsi"][ind] = -(udy - vdx)*gsw.f(p.lat)
+                else:
+                    ind = surfaces[k]["ids"].index(p.eyed)
+                    surfaces[k]["data"]["knownpsi"][ind] = np.nan
+    return surfaces

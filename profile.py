@@ -38,10 +38,13 @@ class Profile:
             self.knownns = data["knownns"]
         else:
             self.knownns = {}
-
+        if "relcoord" in data.keys():
+            self.relcoord = data["relcoord"]
         if "knownu" in data.keys():
             self.knownu = data["knownu"]
             self.knownv = data["knownv"]
+        if "knownpsi" in data.keys():
+            self.knownpsi = data["knownpsi"]
         if "kapredi" in data.keys():
             self.kapredi = data["kapredi"]
             self.kapgm = data["kapgm"]
@@ -111,6 +114,8 @@ class Profile:
             if hasattr(self,"knownu"):
                 self.iknownu = np.interp(self.ipres,self.pres,self.knownu)
                 self.iknownv = np.interp(self.ipres,self.pres,self.knownv)
+            if hasattr(self,"knownpsi"):
+                self.iknownpsi = np.interp(self.ipres,self.pres,self.knownpsi)
 
             if hasattr(self,"kapredi"):
                 self.ikapredi = np.interp(self.ipres,self.pres,self.kapredi)

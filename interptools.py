@@ -287,7 +287,7 @@ def interpolateSurface(surface,region,coord="xy",debug=True,interpmethod="gam",s
                 interpdata[d] = np.asarray([np.nan]*len(xi))
     elif interpmethod in ["linear","nearest"] :
         for d in Bar("Interpolating: ").iter(surface["data"].keys()):
-            notnan = ~np.isnan(surface["data"][d])
+            notnan = np.logical_and(~np.isnan(X[:,0]),~np.isnan(surface["data"][d]))
             if np.count_nonzero(notnan)>10:
                 Xgrid = np.zeros((yi.shape[0],2))
                 Xgrid[:,0] = xi

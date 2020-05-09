@@ -10,9 +10,10 @@ import matplotlib.pyplot as plt
 from geopy.distance import great_circle
 import pdb
 import graph
-import pdb
+import gsw
 import xmitgcm
 from scipy.io import loadmat
+from random import randint
 
 ##return index of certain coord
 def closestGridPoint(x,y,prefix):
@@ -33,7 +34,6 @@ def closestGridPoint(x,y,prefix):
         return loc
     else:
         return np.nan
-    
     #return the ssh at a coord
 def getSSHAt(latin,lonin):
     latindex,lonindex,dist = getLatLonIndex(latin,lonin)
@@ -94,6 +94,59 @@ def brasilRestrict(lat,lon):
     loninrange = (lon>-69 and lon < -12)
     return (latinrange and loninrange)
 
+def genPsi(uvel,vvel,dx,dy,xc,yc):
+     uvel = np.asarray(uvel)
+     vvel = np.asarray(vvel)
+     uvel = np.nanmean(uvel,axis=0)
+     vvel = np.nanmean(vvel,axis=0)
+     psi = np.full_like(uvel,-99999)
+     queue = [np.asarray((0,89))]
+     for l in range(psi.shape[0]):
+         psi[l][queue[0][0]][queue[0][1]] = 0
+     tuplesteps = ((1,0),(0,1),(-1,0),(0,-1))
+     steps=[]
+     dx = np.asarray(dx)
+     dy = np.asarray(dy)
+     for s in tuplesteps:
+         steps.append(np.asarray(s))
+
+     count = 0
+     figcount=0
+     while len(queue)>0:
+         curr = queue.pop(randint(0,len(queue)-1))
+         # curr = queue.pop(0)
+         for step in steps:
+             n = step+curr
+             if np.max(n) <90 and np.min(n)>=0 and psi[0][n[0]][n[1]] < -90000 and ~np.isnan(psi[0][n[0]][n[1]]):
+                queue.append(step+curr)
+                for d in range(uvel.shape[0]):
+                    if ~np.isnan(psi[d][curr[0]][curr[1]]):
+                        vavg = np.mean((vvel[d][n[0]][n[1]],vvel[d][curr[0]][curr[1]]))
+                        uavg = np.mean((uvel[d][n[0]][n[1]],uvel[d][curr[0]][curr[1]]))
+                        psid = np.array(uavg*dy[curr[0]][curr[1]],-vavg*dx[curr[0]][curr[1]])
+                        newpsi = gsw.f(yc[curr[0]][curr[1]])*np.sum(psid.dot(step)) + psi[d][curr[0]][curr[1]]
+                        if ~np.isnan(newpsi):
+                            psi[d][n[0]][n[1]] = newpsi
+                        else:
+                            psi[d][n[0]][n[1]] = np.nan
+         if count>1000:
+             figcount+=1
+             count=0
+             g = np.full_like(psi[10],np.nan)
+             g[psi[10] > -90000] = psi[10][psi[10] > -90000]
+             print(np.nanmin(g))
+             plt.imshow(g)
+             plt.colorbar()
+             plt.savefig("../arcticcirc-pics/surfaces/psisearch/"+str(figcount))
+             plt.close()
+         count+=1
+     fig, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2)
+     ax1.imshow(uvel[10])
+     ax2.imshow(np.multiply(np.diff(psi[10],axis=1),1.0/gsw.f(yc[:90,:89]))/dy[:90,:89])
+     ax3.imshow(vvel[10])
+     ax4.imshow(np.multiply(np.diff(psi[10],axis=0),1.0/gsw.f(yc[:89,:90]))/dx[:89,:90])
+     plt.show()
+     return psi
 
 
 #read nc files, load into profiles and save into pickle
@@ -107,6 +160,9 @@ def generateProfilesNative(prefix,coordFilter,savepath='data/eccoprofiles.pickle
     ecco_grid = xr.open_dataset('ecco/TILEDATA/'+prefix+'GRID.nc')
     lons = ecco_grid.XC
     lats = ecco_grid.YC
+    dy = ecco_grid.DYC
+    dx = ecco_grid.DXC
+    psi = genPsi(uset["EVEL"],vset["NVEL"],dx,dy,lons,lats)
     #diffkr,kapredi,kapgm = formatMixData("diffkr",prefix),formatMixData("kapredi",prefix),formatMixData("kapgm",prefix)
     profiles = []
     llc90_extra_metadata = xmitgcm.utils.get_extra_metadata(domain='llc', nx=90)
@@ -134,6 +190,7 @@ def generateProfilesNative(prefix,coordFilter,savepath='data/eccoprofiles.pickle
             if coordFilter(lat,lon):
                 data = {}
                 data["lat"]=lat
+                data["relcoord"] = []
                 data["lon"]=lon
                 data["temp"]=[]
                 data["sal"]=[]
@@ -155,6 +212,7 @@ def generateProfilesNative(prefix,coordFilter,savepath='data/eccoprofiles.pickle
                             u.append(float(uset["EVEL"].values[month][depthindex][i][j]))
                             v.append(float(vset["NVEL"].values[month][depthindex][i][j]))
                         data["temp"].append(np.mean(t))
+                        data["relcoord"] = (x[i][j],y[i][j])
                         data["sal"].append(np.mean(s))
                         data["knownu"].append(np.mean(u))
                         data["knownv"].append(np.mean(v))
@@ -179,7 +237,6 @@ def generateProfilesNative(prefix,coordFilter,savepath='data/eccoprofiles.pickle
                     profiles.append(p)
                 
 
-    graph.plotProfiles(nepb,profiles,"profs")
     return profiles
 
 
