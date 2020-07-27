@@ -16,6 +16,7 @@ from scipy.io import loadmat
 from random import randint
 import itertools
 import inverttools
+import pdb
 
 ##return index of certain coord
 def closestGridPoint(x,y,prefix):
@@ -207,6 +208,7 @@ def retrieveColRef(c,coord):
 
 
 def doubleLaplacian(div,dx,dy):
+    print(div.shape)
     div = np.asarray(div)
     phi = np.full_like(div,np.nan)
     sol = []
@@ -218,65 +220,65 @@ def doubleLaplacian(div,dx,dy):
             if not outlierCheck(div,i,j) and ~np.isnan(div[i][j]):
                 result.append(div[i][j])
                 center = retrieveColRef(colref,(i,j))
-                if i==0:
-                    i+=1
-                if j==0:
-                    j+=1
-                if j==div.shape[1]-1:
-                    j+=-1
-                if i==div.shape[0]-1:
-                    i+=-1
-                if ~np.isnan(div[i+1][j]):
+                if i != div.shape[0]-1 and ~np.isnan(div[i+1][j]):
                     iplus1 = retrieveColRef(colref,(i+1,j))
-                else:
+                elif i != div.shape[0]-1 and np.isnan(div[i+1][j]):
                     iplus1 = retrieveColRef(colref,(i+1,j))
                     result.append(0)
                     row = np.zeros(colref["m"])
                     row[iplus1] = 1/(dy[i][j])
                     row[center] = -1/(dy[i][j])
                     sol.append(np.asarray(row))
-                    iplus1 = None
-                if ~np.isnan(div[i-1][j]):
-                    iminus1 = retrieveColRef(colref,(i-1,j))
                 else:
+                    iplus1 = None
+                if i!= 0 and ~np.isnan(div[i-1][j]):
+                    iminus1 = retrieveColRef(colref,(i-1,j))
+                elif i!= 0 and np.isnan(div[i-1][j]):
                     iminus1 = retrieveColRef(colref,(i-1,j))
                     result.append(0)
                     row = np.zeros(colref["m"])
                     row[iminus1] = -1/(dy[i-1][j])
                     row[center] = 1/(dy[i-1][j])
                     sol.append(np.asarray(row))
-                    iminus1 = None
-                if ~np.isnan(div[i][j+1]):
-                    jplus1 = retrieveColRef(colref,(i,j+1))
                 else:
+                    iminus1 = None
+                if j!=div.shape[1]-1 and ~np.isnan(div[i][j+1]):
+                    jplus1 = retrieveColRef(colref,(i,j+1))
+                elif j!=div.shape[1]-1 and  np.isnan(div[i][j+1]):
                     jplus1 = retrieveColRef(colref,(i,j+1))
                     result.append(0)
                     row = np.zeros(colref["m"])
                     row[jplus1] = 1/(dx[i][j])
                     row[center] = -1/(dx[i][j])
                     sol.append(np.asarray(row))
-                    jplus1 = None
-                if ~np.isnan(div[i][j-1]):
-                    jminus1 = retrieveColRef(colref,(i,j-1))
                 else:
+                    jplus1 = None
+                if j!=0 and ~np.isnan(div[i][j-1]):
+                    jminus1 = retrieveColRef(colref,(i,j-1))
+                elif j!=0 and np.isnan(div[i][j-1]):
                     jminus1 = retrieveColRef(colref,(i,j-1))
                     result.append(0)
                     row = np.zeros(colref["m"])
                     row[jminus1] = -1/(dx[i][j-1])
                     row[center] = 1/(dx[i][j-1])
                     sol.append(np.asarray(row))
+                else:
                     jminus1 = None
                 row = np.zeros(colref["m"])
+                row[center] = 0
                 if jminus1:
                     row[jminus1] = 1/((dx[i][j-1])*((dx[i][j-1]+dx[i][j])/2))
+                    row[center] = row[center]  - 1/((dx[i][j-1])*((dx[i][j-1]+dx[i][j])/2))
                 if jplus1:
                     row[jplus1] = 1/((dx[i][j])*((dx[i][j-1]+dx[i][j])/2))
+                    row[center] = row[center] -1/((dx[i][j])*((dx[i][j-1]+dx[i][j])/2)) 
                 if iminus1:
                     row[iminus1] = 1/((dy[i-1][j])*((dy[i-1][j]+dy[i][j])/2))
+                    row[center] = row[center] - 1/((dy[i-1][j])*((dy[i-1][j]+dy[i][j])/2))
                 if iplus1:
                     row[iplus1] = 1/((dy[i][j])*((dy[i-1][j]+dy[i][j])/2))
-                row[center] = -1/((dy[i][j])*((dy[i-1][j]+dy[i][j])/2)) + -1/((dy[i-1][j])*((dy[i-1][j]+dy[i][j])/2))
-                row[center] = row[center] + -1/((dx[i][j])*((dx[i][j-1]+dx[i][j])/2)) - 1/((dx[i][j-1])*((dx[i][j-1]+dx[i][j])/2))
+                    row[center] = row[center] - 1/((dy[i][j])*((dy[i-1][j]+dy[i][j])/2)) 
+
                 sol.append(np.asarray(row))
     start = np.zeros(colref["m"])
     start[int(len(start)/2)]=1
@@ -301,11 +303,64 @@ def boxIntegral(uvel,vvel,psi,botleft,topright,dx,dy):
     line4 = psi[botleft[0],botleft[1]:topright[1]].dot(dy[botleft[0],botleft[1]:topright[1]])
     print(line1 +line2 + line3 +line4)
 
+def helmholtzStitch(prefix1,prefix2):
+    uset1 = np.asarray(xr.open_dataset('ecco/TILEDATA/'+prefix1+'EVEL.nc',decode_times=False)["EVEL"])
+    vset1 = np.asarray(xr.open_dataset('ecco/TILEDATA/'+prefix1+'NVEL.nc',decode_times=False)["NVEL"])
+    uset2 = np.asarray(xr.open_dataset('ecco/TILEDATA/'+prefix2+'EVEL.nc',decode_times=False)["EVEL"])
+    vset2 = np.asarray(xr.open_dataset('ecco/TILEDATA/'+prefix2+'NVEL.nc',decode_times=False)["NVEL"])
+
+
+    depths = xr.open_dataset('ecco/TILEDATA/'+prefix1+'NVEL.nc',decode_times=False)["dep"].values
+    print(depths[42:])
+    ecco_grid1 = xr.open_dataset('ecco/TILEDATA/'+prefix1+'GRID.nc')
+    lons1 = ecco_grid1.XC
+    lats1 = ecco_grid1.YC
+    dy1 = ecco_grid1.DYC
+    dx1 = ecco_grid1.DXC
+
+    ecco_grid2 = xr.open_dataset('ecco/TILEDATA/'+prefix2+'GRID.nc')
+    lons2 = ecco_grid2.XC
+    lats2 = ecco_grid2.YC
+    dy2 = ecco_grid2.DYC
+    dx2 = ecco_grid2.DXC
+
+    uset1 = np.nanmean(uset1,axis=0)
+    vset1 = np.nanmean(vset1,axis=0)
+    uset2 = np.nanmean(uset2,axis=0)
+    vset2 = np.nanmean(vset2,axis=0)
+    dx = np.concatenate((dx1,dx2))
+    dy = np.concatenate((dy1,dy2))
+    lats = np.concatenate((lats1,lats2))
+    lons = np.concatenate((lons1,lons2)).T
+    ud1,vd1 = [],[]
+    ud2,vd2 = [],[]
+
+    for j in Bar("helmholtz decomp").iter(range(uset1.shape[0])):
+        uset = np.concatenate((uset1[j],uset2[j]))
+        vset = np.concatenate((vset1[j],vset2[j]))
+
+
+        div = generateDivMatrix(uset.T,vset.T,dx.T,dy.T,lats.T)
+        # fig, (ax1,ax2) = plt.subplots(1,2)
+        # ax1.imshow(div)
+        # ax2.imshow(divb)
+        # plt.show()
+
+        div[np.logical_and(lons[:lons.shape[0]-1,:lons.shape[1]-1]>-110,lons[:lons.shape[0]-1,:lons.shape[1]-1]<150)] = np.nan
+        phi = doubleLaplacian(div,dx.T,dy.T)
+        ud,vd = uvFromPhi(phi,dx.T,dy.T,np.asarray(lats).T)
+
+        ud1.append(ud[0:90,0:89].T)
+        vd1.append(vd[0:90,0:89].T)
+        ud2.append(ud[0:89,90:179].T)
+        vd2.append(vd[0:89,90:179].T)
+    return (ud1,ud2),(vd1,vd2)
+
 #read nc files, load into profiles and save into pickle
-def generateProfilesNative(prefix,coordFilter,savepath='data/eccoprofiles.pickle'):
+def generateProfilesNative(prefix,coordFilter,savepath='data/eccoprofiles.pickle',knownu=None,knownv=None):
     prefixToMixCoord={"BRASILEAST":(90,0),"BRASILWEST":(90,270),"NEPBWEST":(180,180),"NEPBEAST":(180,270)}
-    thetaset= xr.open_dataset('ecco/TILEDATA/'+prefix+'THETA.nc',decode_times=False)
     saltset = xr.open_dataset('ecco/TILEDATA/'+prefix+'SALT.nc',decode_times=False)
+    thetaset = xr.open_dataset('ecco/TILEDATA/'+prefix+'THETA.nc',decode_times=False)
     uset = xr.open_dataset('ecco/TILEDATA/'+prefix+'EVEL.nc',decode_times=False)
     vset = xr.open_dataset('ecco/TILEDATA/'+prefix+'NVEL.nc',decode_times=False)
     depths = thetaset.dep
@@ -315,57 +370,8 @@ def generateProfilesNative(prefix,coordFilter,savepath='data/eccoprofiles.pickle
     dy = ecco_grid.DYC
     dx = ecco_grid.DXC
     # psi = genPsi(uset["EVEL"],vset["NVEL"],dx,dy,lons,lats,10)
-    print(depths[30])
-    print(uset["EVEL"].shape)
-    div = generateDivMatrix(np.nanmean(uset["EVEL"],axis=0)[10].T,np.nanmean(vset["NVEL"],axis=0)[10].T,dx.T,dy.T,lats.T)
-    curl = generateCurlMatrix(np.nanmean(uset["EVEL"],axis=0)[10].T,np.nanmean(vset["NVEL"],axis=0)[10].T,dx.T,dy.T,lats.T)
-    fig, (ax1,ax2) = plt.subplots(1,2)
-    ax1.imshow(div)
-    ax2.imshow(curl)
-    plt.show()
-    phi = doubleLaplacian(div,dx,dy)
     # psi = doubleLaplacian(curl,dx,dy)
-    fig, (ax1,ax2,ax3) = plt.subplots(1,3)
-    psi = phi
-    ax1.imshow(phi)
-    ax2.imshow(psi)
-    ax3.imshow(phi+psi)
-    plt.show()
-    fig, ((ax11,ax12,ax13,ax14),(ax21,ax22,ax23,ax24)) = plt.subplots(2,4)
 
-    ud,vd = uvFromPhi(phi,dx,dy,np.asarray(lats))
-    ur,vr = uvFromPsi(psi,dx,dy,np.asarray(lats))
-    curl2 = generateCurlMatrix(ud,vd,dx.T,dy.T,lats.T)
-    div2 = generateDivMatrix(ud,vd,dx.T,dy.T,lats.T)
-    div = generateDivMatrix(np.nanmean(uset["EVEL"],axis=0)[10].T,np.nanmean(vset["NVEL"],axis=0)[10].T,dx.T,dy.T,lats.T)
-    curl = generateCurlMatrix(np.nanmean(uset["EVEL"],axis=0)[10].T,np.nanmean(vset["NVEL"],axis=0)[10].T,dx.T,dy.T,lats.T)
-
-    c11 = ax11.imshow(ud)
-    ax11.title.set_text("U divergent")
-    c12 = ax12.imshow(vd)
-    ax12.title.set_text("V divergent")
-    c21 = ax21.imshow(np.nanmean(uset["EVEL"],axis=0)[10].T)
-    ax21.title.set_text("U")
-    c22 = ax22.imshow(np.nanmean(vset["NVEL"],axis=0)[10].T)
-    ax22.title.set_text("V")
-    c13 = ax13.imshow(curl2)
-    ax13.title.set_text("Curl of Ud,Vd")
-    c23 = ax23.imshow(div2)
-    ax23.title.set_text("Divergence of Ud,Vd")
-    c14 = ax14.imshow(curl)
-    ax14.title.set_text("Curl of U,V")
-    c24 = ax24.imshow(div)
-    ax24.title.set_text("Divergence of U,V")
-    fig.colorbar(c11,ax=ax11)
-    fig.colorbar(c12,ax=ax12)
-    fig.colorbar(c21,ax=ax21)
-    fig.colorbar(c22,ax=ax22)
-    fig.colorbar(c13,ax=ax13)
-    fig.colorbar(c23,ax=ax23)
-    fig.colorbar(c14,ax=ax14)
-    fig.colorbar(c24,ax=ax24)
-    plt.show()
-    #diffkr,kapredi,kapgm = formatMixData("diffkr",prefix),formatMixData("kapredi",prefix),formatMixData("kapgm",prefix)
     profiles = []
     llc90_extra_metadata = xmitgcm.utils.get_extra_metadata(domain='llc', nx=90)
     grid = xmitgcm.utils.get_grid_from_input('./ecco/mixingdata/nctiles_grid/tile<NFACET>.mitgrid',geometry='llc',extra_metadata=llc90_extra_metadata)
@@ -382,12 +388,6 @@ def generateProfilesNative(prefix,coordFilter,savepath='data/eccoprofiles.pickle
         for j in range(90):
             lon = lons[i][j]
             lat = lats[i][j]
-            #latgraph.append(lat)
-            #if lon<0:lon+=360
-            #longraph.append(lon)
-            #diffkrgraph.append(diffkrField[prefixToMixCoord[prefix][0]+89-j,prefixToMixCoord[prefix][1]+i,1])
-    #plt.scatter(longraph,latgraph,c=diffkrgraph)
-    #plt.show()
             if coordFilter(lat,lon):
                 data = {}
                 data["lat"]=lat
@@ -413,10 +413,13 @@ def generateProfilesNative(prefix,coordFilter,savepath='data/eccoprofiles.pickle
                             u.append(float(uset["EVEL"].values[month][depthindex][i][j]))
                             v.append(float(vset["NVEL"].values[month][depthindex][i][j]))
                         data["temp"].append(np.mean(t))
-                        data["relcoord"] = (x[i][j],y[i][j])
                         data["sal"].append(np.mean(s))
-                        data["knownu"].append(ud[i][j])
-                        data["knownv"].append(vd[i][j])
+                        if not knownu:
+                            data["knownu"].append(u[i][j])
+                            data["knownv"].append(v[i][j])
+                        else:
+                            data["knownu"].append(knownu[depthindex][i][j])
+                            data["knownv"].append(knownv[depthindex][i][j])
 
                         #data["diffkr"].append(diffkr[depthindex][i][j])
                         if prefix=="BRASILEAST":
@@ -445,7 +448,44 @@ def generateProfilesNative(prefix,coordFilter,savepath='data/eccoprofiles.pickle
 #with open("data/eccobrasilprofiles.pickle", 'wb') as outfile:
     #pickle.dump(p1+p2, outfile)
 #generateProfilesNative("ARCTIC",arcticRestrict,"data/ecconprofiles.pickle")
-p1  = generateProfilesNative("NEPBWEST",nepbRestrict,"data/ecconepbprofiles.pickle")
-p2  = generateProfilesNative("NEPBEAST",nepbRestrict,"data/ecconepbprofiles.pickle")
+# ud,vd = helmholtzStitch("NEPBWEST","NEPBEAST")
+# with open("data/udvd.pickle", 'wb') as outfile:
+    #pickle.dump([ud,vd],outfile)
+with open("data/udvd.pickle", 'rb') as outfile:
+    [ud,vd] = pickle.load( outfile)
+ud = np.asarray(ud)
+vd = np.asarray(vd)
+udprefixwest = []
+udprefixeast = []
+vdprefixwest = []
+vdprefixeast = []
+print(vd.shape)
+print(ud.shape)
+for j in range(len(ud[1])):
+    ud1 = ud[0][j]
+    vd1 = vd[0][j]
+    ud2 = ud[1][j]
+    vd2 = vd[1][j]
+    ud1 = np.vstack([ud1,ud1[-1]])
+    ud1 = np.hstack((ud1, np.tile(ud1[:, [-1]], 2)))
+    ud2 = np.vstack([ud2,ud2[-1]])
+    ud2 = np.vstack([ud2,ud2[-1]])
+    ud2 = np.hstack((ud2, np.tile(ud2[:, [-1]], 2)))
+    vd1 = np.vstack([vd1,vd1[-1]])
+    vd1 = np.hstack((vd1, np.tile(vd1[:, [-1]], 2)))
+    vd2 = np.vstack([vd2,vd2[-1]])
+    vd2 = np.vstack([vd2,vd2[-1]])
+    vd2 = np.hstack((vd2, np.tile(vd2[:, [-1]], 2)))
+    print("vd1",vd1.shape)
+    print("vd2",vd2.shape)
+    print("ud1",ud1.shape)
+    print("ud2",ud2.shape)
+    udprefixwest.append(ud1)
+    udprefixeast.append(ud2)
+    vdprefixwest.append(vd1)
+    vdprefixeast.append(vd2)
+
+p1  = generateProfilesNative("NEPBWEST",nepbRestrict,"data/ecconepbprofiles.pickle",knownu=udprefixwest,knownv=vdprefixwest)
+p2  = generateProfilesNative("NEPBEAST",nepbRestrict,"data/ecconepbprofiles.pickle",knownu=udprefixeast,knownv=vdprefixeast)
 with open("data/ecconepbprofiles.pickle", 'wb') as outfile:
     pickle.dump(p1+p2, outfile)

@@ -303,6 +303,15 @@ def peerSearch(profiles,depth,profilechoice,radius=500,peer=True):
                 #print(closest.neutraldepth)
                 ns = closest.neutralDepth(p,closest.neutraldepth[depth],depthname=depth,searchrange=500) 
                 if ns != None:
+                    dx = closest.x - p.x
+                    dy = closest.y - p.y
+                    pt,ps,_,_,_,_= p.atPres(ns,interp=True)
+                    drhods,drhodt,_ = gsw.rho_first_derivatives(ps,pt,ns)
+                    ct,cs,_,_,_,_ = closest.atPres(closest.neutraldepth[depth],interp=True)
+                    dsdx,dsdy = (ps-cs)/dx,(ps-cs)/dy
+                    dtdx,dtdy = (pt-ct)/dx,(pt-ct)/dy
+                    nserror = np.linalg.norm(((drhods*dsdx + drhodt*dtdx),(drhods*dsdy + drhodt*dtdy)))
+                    print(nserror)
                     surfaces[depth]["lons"].append(p.lon)
                     surfaces[depth]["lats"].append(p.lat)
                     surfaces[depth]["data"]["pres"].append(ns)
@@ -1289,3 +1298,4 @@ def addKnownPsiFromModelUV(region,surfaces,profiles):
                     ind = surfaces[k]["ids"].index(p.eyed)
                     surfaces[k]["data"]["knownpsi"][ind] = np.nan
     return surfaces
+

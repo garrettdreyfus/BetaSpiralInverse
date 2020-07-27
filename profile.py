@@ -33,7 +33,6 @@ class Profile:
             self.cruise = data["cruise"]#+str(self.time.year)
         if "station" in data.keys():
             self.station = data["station"]#+str(self.time.year)
-
         if "knownns" in data.keys():
             self.knownns = data["knownns"]
         else:
@@ -431,7 +430,8 @@ class Profile:
 
             a  =np.asarray(p2offset+zero_crossings)
             p2.neutraldepth[depthname] = np.mean(np.asarray(p2.ipres)[a])
-            #print("More than one crossing")
+            if len(a)>1:
+                print("More than one crossing")
             return p2.neutraldepth[depthname]
         else:
             return None
