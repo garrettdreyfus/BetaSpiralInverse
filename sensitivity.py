@@ -17,6 +17,7 @@ def distanceFromKnown(surfaces):
                 s.append(abs(surfaces[k]["data"]["knownu"][j]-surfaces[k]["data"]["uabs"][j]))
                 s.append(abs(surfaces[k]["data"]["knownv"][j]-surfaces[k]["data"]["vabs"][j]))
     return np.sum(s)
+
 def conditionError(inverse,surfaces,neighbors,distances,fname=False,disp=-1,params={},savepath=False,title=False,show=True):
     conditions = []
     levels = []

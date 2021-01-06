@@ -41,7 +41,7 @@ with open('data/eccosurfaces.pickle', 'rb') as outfile:
 #######graph.graphSurfaces(surfaces,"pres")
 #########graph.tsNeutralExplore(profiles)
 
-surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
+preinterpsurfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
 ##with open('data/eccosurfwithd.pickle', 'wb') as outfile:
     ##pickle.dump(surfaces, outfile)
 
@@ -49,20 +49,27 @@ surfaces = nstools.addDataToSurfaces(profiles,surfaces,2)
     ##surfaces=pickle.load(outfile)
 
 ###nstools.surfaceDiagnostic(surfaces)
-
-surfaces,neighbors,distances = interptools.interpolateSurfaces(surfaces,gaminterpolate=False)
-
 ##with open('data/postinterp.pickle', 'wb') as outfile:
     ##pickle.dump([surfaces,neighbors,distances], outfile)
 ##with open('data/postinterp.pickle', 'rb') as outfile:
     ##[surfaces,neighbors,distances]=pickle.load(outfile)
 
-surfaces = eccotools.addModelEccoMix(surfaces,"ARCTIC")
-surfaces = eccotools.addModelEccoUV(surfaces,"ARCTIC")
-with open('data/preparameter.pickle', 'wb') as outfile:
-    pickle.dump([surfaces,neighbors,distances], outfile)
 
-surfaces = nstools.addParametersToSurfaces(surfaces,neighbors,distances)
+nserrors = {}
+for l in range(4,20):
+    surfaces,neighbors,distances = interptools.interpolateSurfaces(brasil,preinterpsurfaces,\
+                                                                   interpmethod="gam",smart=False,coord="latlon",splines=l)
+    surfaces = nstools.addParametersToSurfaces(brasil,surfaces,\
+        neighbors,distances)
+    surfaces = nstools.neutralityError(surfaces)
+    error = []
+    for k in surfaces.keys():
+        error += list(surfaces[k]["data"]["nserror"])
+    nserrors[l] = np.asarray(error).flatten()
+for k in nserrors.keys():
+    sns.distplot(np.log10(nserrors[k]),kde_kws={"lw": 2, "label": str(k)})
+
+
 with open('data/ready4inverseecco.pickle', 'wb') as outfile:
     pickle.dump([surfaces,neighbors,distances], outfile)
 

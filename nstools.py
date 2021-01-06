@@ -311,7 +311,6 @@ def peerSearch(profiles,depth,profilechoice,radius=500,peer=True):
                     dsdx,dsdy = (ps-cs)/dx,(ps-cs)/dy
                     dtdx,dtdy = (pt-ct)/dx,(pt-ct)/dy
                     nserror = np.linalg.norm(((drhods*dsdx + drhodt*dtdx),(drhods*dsdy + drhodt*dtdy)))
-                    print(nserror)
                     surfaces[depth]["lons"].append(p.lon)
                     surfaces[depth]["lats"].append(p.lat)
                     surfaces[depth]["data"]["pres"].append(ns)

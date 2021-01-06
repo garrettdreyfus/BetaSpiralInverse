@@ -1,11 +1,7 @@
+import matplotlib, os, datetime, git , cmocean, julian
 from nstools import *
 from interptools import *
 from progress.bar import Bar
-import matplotlib
-import os
-import datetime
-import git
-import cmocean
 from copy import copy
 
 quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV",\
@@ -161,7 +157,7 @@ def mapSetup(coords,region,newax=True):
         ax=None
     mapy = Basemap(projection='ortho', lat_0=region.mapbounds["lat_0"],lon_0=region.mapbounds["lon_0"],area_thresh=10)
     mapy.drawmapboundary(fill_color='aqua')
-    #mapy.fillcontinents(color='coral',lake_color='aqua')
+    mapy.fillcontinents(color='coral',lake_color='aqua')
     mapy.drawcoastlines()
 
     parallels = np.arange(-90.,91,10.)
@@ -431,7 +427,8 @@ def plotProfiles(region,profiles,title,specialprofile=None,fig=None,ax=None,show
     fig.suptitle(title)
     x,y = mapy(lons,lats)
     plt.scatter(x,y,c=depths,cmap="plasma")
-    mapy.colorbar()
+    clb = mapy.colorbar()
+    clb.ax.set_title('Depth of CTD cast')
     if specialprofile:
         x,y = mapy(specialprofile.lon,specialprofile.lat)
         plt.scatter(x,y,c="red")
@@ -1028,13 +1025,30 @@ def northSouthTransect(surfaces,quant,lat=None,lon=None,\
             plt.savefig(savepath+"/lon"+str(lon)+".png")
     plt.close()
  
-
-
-        
-
-            
-
-    
-                
-
-            
+def time_diagnostic(profiles,layer,lat,tol):
+    ## Plot change of values with time over neutral surface
+    pressures = []
+    times = []
+    pvs = []
+    lons = []
+    for p in profiles:
+        if abs(p.lat-lat) <tol and layer in p.neutraldepth:
+            d = p.neutraldepth[layer]
+            pv,g = p.potentialVorticityAtHautala(d)
+            if pv:
+                pressures.append(d)
+                times.append(julian.from_jd(p.time).year)
+                pvs.append(pv)
+                lons.append(p.lon.data)
+    fig,(ax1,ax2) = plt.subplots(1,2)
+    fig.suptitle(" {} decibar neutral surface from {} to {} latitude".format(layer,lat-tol,lat+tol))
+    c = ax1.scatter(lons,pressures,c=times)
+    ax1.set_xlabel("Longitude")
+    ax2.set_xlabel("Longitude")
+    ax1.set_ylabel("Pressure")
+    ax2.set_ylabel("Potential Vorticity")
+    plt.colorbar(c,ax=ax1)
+    c = ax2.scatter(lons,np.log10(-np.asarray(pvs)),c=times)
+    plt.colorbar(c,ax=ax2)
+    plt.savefig("/home/garrett/Projects/arcticcirc-pics/20.png")
+    plt.show()

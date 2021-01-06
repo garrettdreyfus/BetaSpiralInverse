@@ -432,6 +432,7 @@ class Profile:
             p2.neutraldepth[depthname] = np.mean(np.asarray(p2.ipres)[a])
             if len(a)>1:
                 print("More than one crossing")
+
             return p2.neutraldepth[depthname]
         else:
             return None

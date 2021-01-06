@@ -1,13 +1,12 @@
-import glob 
 from netCDF4 import Dataset 
 import numpy as np
 from profile import Profile
 from functools import partial
-import sys
+import sys,pdb,julian,glob,csv
 import xarray as xr
-import pdb
 from progress.bar import Bar
 import matplotlib.pyplot as plt
+import datetime
 
 def geoFilter(lon,lat):
     latinrange = (lat<0 and lat >-80)
@@ -33,14 +32,14 @@ def singleXY(coord):
 
 def extractWoceProfiles(ncfolder): 
     profiles= []
-    for f in glob.glob(ncfolder+"/*.nc"):
+    for f in glob.glob(ncfolder+"/*.nc") + glob.glob(ncfolder+"/**/*.nc",recursive=True):
         ncdf = Dataset(f, 'r')  # Dataset is the class behavior to open the file
         profiledata = {}
         profiledata["lon"] = ncdf.variables["longitude"][0]
         profiledata["lat"] = ncdf.variables["latitude"][0]
         profiledata["cruise"] = ncdf.WOCE_ID
         profiledata["station"] = ncdf.STATION_NUMBER
-        profiledata["time"] = ncdf.variables["time"][0]
+        profiledata["time"] = julian.to_jd(datetime.datetime(1980,1,1,0) + datetime.timedelta(minutes=int(ncdf.variables["time"][0])) )
         profiledata["cruise"] = ncdf.WOCE_ID
         profiledata["station"] = ncdf.STATION_NUMBER
         if "temperature" in ncdf.variables.keys():
@@ -64,6 +63,9 @@ def extractWoceProfiles(ncfolder):
 def extractBodcProfiles(ncfolder): 
     profiles= []
     maxs= []
+    fieldspass = 0
+    locationpass = 0
+    depthpass = 0
     for f in Bar(" cdf file: ").iter(glob.glob(ncfolder+"/*.nc")):
         ncdf = Dataset(f, 'r')  # Dataset is the class behavior to open the file
         profiledata = {}
@@ -71,7 +73,7 @@ def extractBodcProfiles(ncfolder):
         profiledata["lat"] = ncdf.variables["LATITUDE"][0]
         #profiledata["cruise"] = ncdf.SDN_CRUISE
         #profiledata["station"] = ncdf.SDN_STATION
-        #profiledata["time"] = ncdf.variables["TIME"][0]
+        profiledata["time"] = ncdf.variables["TIME"][0]
         #profiledata["station"] = ncdf.STATION_NUMBER
         if "POTMCV01" in ncdf.variables.keys():
             profiledata["temp"] = np.asarray(ncdf.variables["POTMCV01"][:][0])
@@ -80,12 +82,16 @@ def extractBodcProfiles(ncfolder):
         if "PRES" in ncdf.variables.keys():
             profiledata["pres"] = np.asarray(ncdf.variables["PRES"][:][0])
         maxs.append(np.max(profiledata["pres"]))
+        if np.max(profiledata["pres"]) >1000:
+            depthpass+=1
         if len(profiledata["pres"])>4 and np.max(profiledata["pres"])>1000\
                 and geoFilter(profiledata["lon"],profiledata["lat"]):
+                locationpass+=1
                 eyed=idgenerator()
                 try:
                     prof=Profile(eyed,profiledata,"potential","practical")
                     profiles.append(prof)
+                    fieldspass+=1
                 except ValueError as e:
                     print(profiledata.keys())
                     for k in ncdf.variables.keys():
@@ -97,7 +103,9 @@ def extractBodcProfiles(ncfolder):
             #print(profiledata["pres"])
             #plt.plot(profiledata["pres"])
             #plt.show()
-
+    print("fieldspass: ",fieldspass)
+    print("depthpass: ",depthpass)
+    print("locationpass: ",locationpass)
     print("above 1000: ",np.count_nonzero(np.asarray(maxs)>1000))
     return profiles
 
@@ -164,6 +172,19 @@ mapbounds = {"lllon":-85,"urlon":16,"lllat":-50,"urlat":8,\
         "lat_0":-17,"lon_0":-33}
 
 
+def getWOCEExpoCodes(ncfolder): 
+    expocodes= {}
+    for f in glob.glob(ncfolder+"/*.nc"):
+        ncdf = Dataset(f, 'r')  # Dataset is the class behavior to open the file
+        expocodes.setdefault(ncdf.EXPOCODE,0)
+        expocodes[ncdf.EXPOCODE] = expocodes[ncdf.EXPOCODE] + 1
+
+    a_file = open("wocecruises.csv", "w")
+    writer = csv.writer(a_file)
+    for key, value in expocodes.items():
+        writer.writerow([key, value])
+    a_file.close()
+ 
 
 
 
