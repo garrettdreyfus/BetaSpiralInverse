@@ -10,7 +10,7 @@ import datetime
 
 def geoFilter(lon,lat):
     latinrange = (lat<0 and lat >-80)
-    loninrange = (lon>-79 and lon < -12)
+    loninrange = (lon>-79 and lon < -8)
     return (latinrange and loninrange)
 
 #generate a unique id
@@ -157,7 +157,7 @@ def createMesh(xvals,yvals,coord="xy",spacingscale=1):
         return np.meshgrid(np.linspace(xmin,xmax,n), np.linspace(ymin,ymax,n),indexing="xy")
     if coord =="latlon":
         grd = np.meshgrid(\
-                np.linspace(-50,-12,35),np.linspace(-41,-2,40))
+                np.linspace(-50,-8,35*spacingscale),np.linspace(-41,-2,40*spacingscale))
         for i in range(grd[0].shape[0]):
             for j in range(grd[0].shape[1]):
                 x,y = singleXY((grd[0][i][j],grd[1][i][j]))

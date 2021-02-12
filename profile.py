@@ -429,11 +429,13 @@ class Profile:
                 return None
 
             a  =np.asarray(p2offset+zero_crossings)
-            p2.neutraldepth[depthname] = np.mean(np.asarray(p2.ipres)[a])
-            if len(a)>1:
-                print("More than one crossing")
-
-            return p2.neutraldepth[depthname]
+            sol = np.asarray(p2.ipres)[a]
+            if len(sol) == 1 or sol[-1]-sol[0] < 40:
+                p2.neutraldepth[depthname] = np.mean(np.asarray(p2.ipres)[a])
+                return p2.neutraldepth[depthname]
+            else:
+                print("More than one crossing {}".format(sol[-1]-sol[0] ))
+                return None
         else:
             return None
 

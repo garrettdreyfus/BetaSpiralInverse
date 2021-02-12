@@ -115,21 +115,21 @@ def geoMask(gridx,gridy,datax,datay,radius):
 
 ## neigbor in "x" direction
 def findRowNeighbor(row,col,mask,indexcount):
-    for i in range(1,3):
+    for i in range(1,20):
         if col+i < len(mask[row]) and mask[row][col+i]:
             if ~np.isnan(indexcount[row][col+i]):
                 return int(indexcount[row][col+i])
     return False
 ## neigbor in "x" direction
 def findColumnNeighbor(row,col,mask,indexcount):
-    for i in range(1,3):
+    for i in range(1,20):
         if row+i < len(mask) and mask[row+i][col]:
             if ~np.isnan(indexcount[row+i][col]):
                 return int(indexcount[row+i][col])
     return False
 #find neighbor in corner
 def findCornerNeighbor(row,col,mask,indexcount):
-    for i in range(1,3):
+    for i in range(1,20):
         if col+i < len(mask[row]) and row+i < len(mask) and mask[row][col+i]:
             if ~np.isnan(indexcount[row+i][col+i]):
                 return int(indexcount[row+i][col+i])
@@ -195,7 +195,7 @@ def bathVarMask(gridx,gridy,region,mask=[]):
                     #ybathchange = abs(bathtools.searchBath(lat,lon,"nepb")-bathtools.searchBath(lat3,lon3,"nepb"))
                     #if xbathchange<300 and ybathchange < 300:
                     bvar = bathVarCacheWrapper(lat,lon,region)
-                    if bvar < 4000:
+                    if bvar < 1200:
                         mask[row][col]=False
 
     return mask
@@ -204,7 +204,7 @@ def bathVarMask(gridx,gridy,region,mask=[]):
 #generate a mesh and remove points in that mesh 
 #which are too far away from locations with observations
 def smartMesh(x,y,region,coord,radius=500):
-    xi,yi = region.createMesh(x,y,coord,spacingscale=2)
+    xi,yi = region.createMesh(x,y,coord,spacingscale=1.5)
     #Make sure grid points are within original data point
     mask = geoMask(xi,yi,x,y,radius)
     mask = bathVarMask(xi,yi,region,mask)
@@ -257,7 +257,7 @@ def surfacePrune(surfaces):
 ## create the mesh, use gam interpolation
 ##also returns neighboring points for each points
 ## and the distance between those points
-def interpolateSurface(surface,region,coord="xy",debug=True,interpmethod="gam",smart=True,splines=10):
+def interpolateSurface(surface,region,coord="xy",debug=True,interpmethod="gam",smart=False,splines=10):
     #print("######")
     interpsurf={}
     X = np.zeros((len(surface["x"]),2))

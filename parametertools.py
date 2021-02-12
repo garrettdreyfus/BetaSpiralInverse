@@ -68,7 +68,7 @@ def Kv(lat,lon,pv,pres,cachename=None):
         bVT,mean = bathVarTermCache(lat,lon,cachename) 
     else:
         bVT,mean = bathVarTerm(lat,lon)
-    return bVT*np.exp(-(abs(mean)-abs(pres))/500),bVT,np.exp(-(abs(mean)-abs(pres))/5500)
+    return bVT*np.exp(-(abs(mean)-abs(pres))/1000),bVT,np.exp(-(abs(mean)-abs(pres))/5500)
 
 #function for exploring k mixing term values
 def kChecker(surfaces,k,found,scales,debug=False):

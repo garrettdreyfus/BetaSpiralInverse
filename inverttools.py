@@ -30,11 +30,12 @@ def SVDdecomp(A,n_elements=2,full=True):
     else:
         return B
 
-def generateMixingRows(columnindexs,mixing,k,n,i=0):
+def generateMixingRows(surfaces,params,columnindexs,mixing,k,n,i=0):
     Akvbrow = [0]*(columnindexs[i]+1)
     Akvbrow[columnindexs[i]]=-mixing["kvb"]/n
-    Akhrow = [0]*(int(k/200))
-    Akhrow[int(k/200-1)] = -mixing["kh"]/n
+    Akhrow = [0]*(indexOfSurface(surfaces,params,k)+1)
+    
+    Akhrow[indexOfSurface(surfaces,params,k)] = -mixing["kh"]/n
     Akvorow = [-mixing["kvo"]/n]
     return Akvbrow,Akhrow,Akvorow
 
@@ -110,7 +111,6 @@ def indexOfSurface(surfaces,params,k):
     for i in surfaces.keys():
         if params["lowerbound"]>=i>=params["upperbound"]:
             cs.append(i)
-    #print(cs)
     return sorted(cs).index(k)
 
 ## apply the solution to surfaces
@@ -121,6 +121,7 @@ def applyPrime(staggeredsurfaces,prime,coldict,params,widths,mixing=False):
         staggeredsurfaces[k]["data"]["psisol"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         staggeredsurfaces[k]["data"]["kvb"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         staggeredsurfaces[k]["data"]["kvo"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
+        staggeredsurfaces[k]["data"]["kv"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         staggeredsurfaces[k]["data"]["kh"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         staggeredsurfaces[k]["data"]["usol"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         staggeredsurfaces[k]["data"]["vsol"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
@@ -134,11 +135,10 @@ def applyPrime(staggeredsurfaces,prime,coldict,params,widths,mixing=False):
                 if params["mixs"]["kvb"] and params["mixs"]["kvo"] and params["mixs"]["kh"]:
                     staggeredsurfaces[k]["data"]["kvb"][i] = prime[widths[0]+coldict[eyed]]*scales["kvb"]
                     if params["lowerbound"]>=k>=params["upperbound"]:
-                        #print(widths,len(prime))
-                        #print(indexOfSurface(staggeredsurfaces,params,k))
                         staggeredsurfaces[k]["data"]["kh"][i] =\
                                 prime[widths[0]+widths[1]+indexOfSurface(staggeredsurfaces,params,k)]*scales["kh"]
                     staggeredsurfaces[k]["data"]["kvo"][i] = prime[widths[0]+widths[1]+widths[2]]*scales["kvo"]
+                    staggeredsurfaces[k]["data"]["kv"][i] = staggeredsurfaces[k]["data"]["kvo"][i]+staggeredsurfaces[k]["data"]["kvb"][i]*staggeredsurfaces[k]["data"]["CKVB"][i]
     return staggeredsurfaces
 
 ## return list of ids of points that are constrained by a given number of equations
@@ -283,7 +283,7 @@ def fillDefault(params):
     params.setdefault("upperbound",1000)
     params.setdefault("reflevel",1000)
     params.setdefault("mixs",{"kvh":True,"kvb":True,"kvo":True})
-    params.setdefault("scalecoeffs",{"Ar":0.05,"kvo":5*10**-6,"kvb":5*10**-5,"kh":500})
+    params.setdefault("scalecoeffs",{"Ar":0.05,"kvo":5*10**-6,"kvb":10**-2,"kh":500})
     params.setdefault("3point",True)
     params.setdefault("edgeguard",True)
     params.setdefault("modelmixing",False)
@@ -382,7 +382,7 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
                 #Apsi.append(np.asarray(betarow)/n)
 
                 #make rows that can fit it 
-                Akvbrow, Akhrow, Akvorow = generateMixingRows(columnindexs,kpv,k,n)
+                Akvbrow, Akhrow, Akvorow = generateMixingRows(surfaces,params,columnindexs,kpv,k,n)
                 #print("pv: ",np.linalg.norm(betavals/n),np.linalg.norm(Akvbrow),np.linalg.norm(Akhrow),np.linalg.norm(Akvorow))
                 #Akvb.append(Akvbrow)
                 #Akh.append(Akhrow)
@@ -396,7 +396,7 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
                         edgekpv,edgeks = ptools.kterms(surfaces,k,s[i],params,fallback=s[0])
                         if len(edgekpv.values())>0 and len(edgeks.values())>0 and not (np.inf in edgeks.values()) or (np.inf in edgekpv.values()):
                             n = normOfRows(np.asarray(betavals),mixSwitch(kpv,params["mixs"]))
-                            newAkvbrow, newAkhrow, newAkvorow = generateMixingRows(columnindexs,edgekpv,k,n,i=i)
+                            newAkvbrow, newAkhrow, newAkvorow = generateMixingRows(surfaces,params,columnindexs,edgekpv,k,n,i=i)
                             Apsi.append(np.asarray(newbetarow)/n)
                             Akvb.append(newAkvbrow)
                             Akh.append(newAkhrow)
@@ -423,7 +423,7 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
                 Apsi.append(np.asarray(salrow)/n)
 
                 ##im a rascal and this is a shorthad way of converting the NS to an index :P
-                Akvbrow, Akhrow, Akvorow = generateMixingRows(columnindexs,ks,k,n)
+                Akvbrow, Akhrow, Akvorow = generateMixingRows(surfaces,params,columnindexs,ks,k,n)
                 #print("sal: ",np.linalg.norm(salvals/n),np.linalg.norm(Akvbrow),np.linalg.norm(Akhrow),np.linalg.norm(Akvorow))
                 Akvb.append(Akvbrow)
                 Akh.append(Akhrow)
@@ -435,7 +435,7 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
                         edgekpv,edgeks = ptools.kterms(surfaces,k,s[i],params,fallback=s[0])
                         if len(edgekpv.values())>0 and len(edgeks.values())>0 and not (np.inf in edgeks.values()) or (np.inf in edgekpv.values()):
                             n = normOfRows(np.asarray(salvals),mixSwitch(ks,params["mixs"]))
-                            newAkvbrow, newAkhrow, newAkvorow = generateMixingRows(columnindexs,ks,k,n,i=i)
+                            newAkvbrow, newAkhrow, newAkvorow = generateMixingRows(surfaces,params,columnindexs,ks,k,n,i=i)
                             Apsi.append(np.asarray(newbetarow)/n)
                             Akvb.append(newAkvbrow)
                             Akh.append(newAkhrow)
@@ -568,6 +568,7 @@ def exportMat(surfaces,columndict,svds,A):
                 outmat[l].append([])
     for eyed in columndict.keys():
         for k in sorted(surfaces.keys()):
+            #FIX
             j = int(int(k-200)/200)
             print(j)
             if eyed in surfaces[k]["ids"]:
@@ -632,7 +633,7 @@ def rectAndWidths(maxlengths,totrim,arrays):
         print("====")
         print("before: ",x.shape)
         if np.all(x == 0, axis=0).any():
-            print("removing 0 columns")
+            print("removing some columns")
         if i in totrim:
             print(~np.all(x == 0, axis=0))
             x = x[:,~np.all(x == 0, axis=0)]
@@ -645,6 +646,7 @@ def rectAndWidths(maxlengths,totrim,arrays):
 ## square off all of the matrixes and combine them
 def combineAs(maxlengths,totrim,*argv):
     new,widths = rectAndWidths(maxlengths,totrim,argv)
+    print(widths)
     return concat(new),widths
 
 #graph solution of mixing terms

@@ -10,23 +10,34 @@ import parametertools as ptools
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pdb
+from scipy.io import savemat
 
 #profiles = brasil.extractArgoProfiles(os.path.abspath("data/brasilargonc"))
 # profiles = brasil.extractBodcProfiles(os.path.abspath("data/brasilmorectd/"))
 # print("BODC: ",len(profiles))
-#profiles = brasil.extractWoceProfiles(os.path.abspath("data/brasilnc/"))
-#print("WOCE and BODC: ",len(profiles))
-#with open('data/argoandwoce.pickle', 'wb') as outfile:
-#    pickle.dump(profiles,outfile)
+# profiles = brasil.extractWoceProfiles(os.path.abspath("data/brasilnc/"))
+# graph.plotProfiles(brasil,profiles,"")
+# print("WOCE and BODC: ",len(profiles))
+# with open('data/argoandwoce.pickle', 'wb') as outfile:
+#     pickle.dump(profiles,outfile)
 
 # with open('data/argoandwoce.pickle', 'rb') as outfile:
 #     profiles = pickle.load(outfile)
 
-# graph.plotProfiles(brasil,profiles,"profiles")
-# profilechoice = nstools.profileInBox(profiles,-40,-20,-31,-20,5000)
+# profilechoice = nstools.profileInBox(profiles,-40,-20,-31,-28,5000)
 # profilechoice = profilechoice[0]
+# #graph.layerChooser(profilechoice)
 # # #print(profilechoice.lat,profilechoice.lon)
-# preinterpsurfaces = nstools.runPeerSearch(profiles,range(100,6000,200),profilechoice,False,10**4)
+# HTLayers = [65,173,360,570,819,1172,1563,1887,2150,2802,4000,4200,4400,4600,4800,5000,5200]
+# HTLE = [65]
+# for i in range(1,len(HTLayers)-1):
+#     HTLE.append(int(HTLayers[i] - (HTLayers[i]-HTLayers[i-1])/3.0))
+#     HTLE.append(int(HTLayers[i] + (HTLayers[i+1]-HTLayers[i])/3.0))
+# HTLE.append(HTLayers[-1])
+# print(HTLE)
+
+# preinterpsurfaces = nstools.runPeerSearch(profiles,HTLE,profilechoice,False,10**4)
 # # #gammavals = [25.875,26.51,26.862,27.158,27.3605,27.526,27.6575,27.7825,27.8700, \
 # #         #27.9275,27.965,27.99,28.015,28.03,28.0475,28.0625,28.08,28.108,28.136,28.164,28.2,28.33,28.36]
 # # ##print(range(100,6000,200)[len(gammavals)-1])
@@ -57,9 +68,47 @@ import seaborn as sns
 #     interpmethod="gam",smart=False,coord="latlon",splines=16)
 # surfaces = nstools.addParametersToSurfaces(brasil,surfaces,neighbors,distances)
 
-
 # with open('data/interpedbrasil.pickle', 'wb') as outfile:
 #     pickle.dump([surfaces,neighbors,distances], outfile)
+# with open('data/interpedbrasil.pickle', 'rb') as outfile:
+#     [surfaces,neighbors,distances] = pickle.load(outfile)
+
+# print(surfaces.keys())
+# params = {"reflevel":int(2062),"upperbound":1000,"lowerbound":4200,\
+#         "mixs":{"kvo":True,"kvb":True,"kh":True},"debug":False,\
+#           "3point":True,"edgeguard":True}
+# # Conditions
+# # All mixing: 201235
+# # No mixing: 147
+# # Kv0 only: 147
+# # KvH and Kv0 only: 148
+# # KvH and Kv0 only with out edgeguard (tm): 489
+
+# out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
+# print(out["metadata"]["condition"])
+# print(out["metadata"]["error"])
+# inv = out["surfaces"]
+# inv = nstools.streamFuncToUV(inv,neighbors,distances)
+
+# with open('data/invertedbrasil.pickle', 'wb') as outfile:
+#     pickle.dump([inv,neighbors,distances], outfile)
+with open('data/invertedbrasil.pickle', 'rb') as outfile:
+    [inv,neighbors,distances] = pickle.load(outfile)
+
+#graph.HTtransports(inv)
+#graph.northSouthTransect(inv,"kv",lat=-20,show=True)
+#nstools.inverseReady(inv)
+#graph.meridionalHeatMap(inv,-30,-180,180,1000,6000,show=True,label="")
+graph.meridionalSurfaces(inv,-30,-50,-25,1000,6000,show=True,label="")
+#graph.graphSurfaces(brasil,inv,"kv",stds=1,show=True,select=range(3000,5000))
+#graph.graphSurfaces(brasil,inv,"bathvar",stds=1,show=True,select=range(200,5000))
+
+# with open('data/interpedbrasil.pickle', 'rb') as outfile:
+#     [surfaces,neighbors,distances] = pickle.load(outfile)
+# graph.graphVectorField(brasil,inv,"uabs","vabs","pres",# \
+#                         metadata=out["metadata"],\
+#                         transform=False,show=False,
+#                         savepath="../arcticcirc-pics/vectorfields/farthereast/",scale=0.1)
 ################### SAVE WITH DIFFERENT REF LEVELS
 # with open('data/interpedbrasil.pickle', 'rb') as outfile:
 #     [surfaces,neighbors,distances] = pickle.load(outfile)
@@ -79,19 +128,19 @@ import seaborn as sns
 #             pickle.dump([out,neighbors,distances], outfile)
 
 # ################### PLOT DIFFERENT REF LEVELS
-with open('data/interpedbrasil.pickle', 'rb') as outfile:
-    [surfaces,neighbors,distances] = pickle.load(outfile)
-levels = surfaces.keys()
-for k in levels:
-    if int(k) >1000 and int(k) < 4000:
-        with open('data/reflevelchoice/{}.pickle'.format(k), 'rb') as outfile:
-            [out,neighbors,distances] = pickle.load(outfile)
-        inv = out["surfaces"]
-        inv = nstools.streamFuncToUV(inv,neighbors,distances)
-        graph.graphVectorField(brasil,inv,"uabs","vabs","pres",# \
-                                metadata=out["metadata"],\
-                                transform=False,show=False,
-                                savepath="../articcirc-pics/vectorfields/reflevelchoice/{}".format(k),scale=0.1)
+# with open('data/interpedbrasil.pickle', 'rb') as outfile:
+#     [surfaces,neighbors,distances] = pickle.load(outfile)
+# levels = surfaces.keys()
+# for k in levels:
+#     if int(k) >1000 and int(k) < 4000:
+#         with open('data/reflevelchoice/{}.pickle'.format(k), 'rb') as outfile:
+#             [out,neighbors,distances] = pickle.load(outfile)
+#         inv = out["surfaces"]
+#         inv = nstools.streamFuncToUV(inv,neighbors,distances)
+#         graph.graphVectorField(brasil,inv,"uabs","vabs","pres",# \
+#                                 metadata=out["metadata"],\
+#                                 transform=False,show=False,
+#                                 savepath="../articcirc-pics/vectorfields/reflevelchoice/{}".format(k),scale=0.1)
 
 
 

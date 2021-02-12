@@ -523,7 +523,7 @@ def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",refarrow=0.0
             for p in range(0,len(surfaces[k]["data"][key1])):
                 u = surfaces[k]["data"][key1][p] 
                 v = surfaces[k]["data"][key2][p]
-                if ~np.isnan(u) and ~np.isnan(v) and np.sqrt(u**2 + v**2)<0.01:
+                if ~np.isnan(u) and ~np.isnan(v) and np.sqrt(u**2 + v**2)<10:
                     if transform:
                         x = surfaces[k]["x"][p]
                         y = surfaces[k]["y"][p]
@@ -828,8 +828,148 @@ def transportLine(surfaces,startcoord,endcoord,silldepth,uway=False,show=False):
         plt.show()
     return inflow,outflow
 
+
+def meridionalTransport(surfaces,lat,startlon,endlon,startpres,endpres,show=False,label="",ax=None):
+    transportsums = {}
+    for k in surfaces.keys():
+        if  startpres < int(k) < endpres:
+            lons = []
+            vabs = []
+            height = []
+            rhos = []
+            for l in range(len(surfaces[k]["lats"])):
+                if np.abs(surfaces[k]["lats"][l] - lat)<0.01 and  startlon< surfaces[k]["lons"][l] <endlon:
+                    lons.append(surfaces[k]["lons"][l])
+                    vabs.append(surfaces[k]["data"]["v"][l])
+                    height.append(surfaces[k]["data"]["h"][l])
+                    rho = gsw.rho(surfaces[k]["data"]["s"][l],surfaces[k]["data"]["t"][l],surfaces[k]["data"]["pres"][l])
+                    rhos.append(rho)
+            lons=np.asarray(lons)
+            vabs=np.asarray(vabs)
+            height=np.asarray(height)
+            s = np.argsort(lons)
+            lons = lons[s]
+            vabs = vabs[s]
+            height = height[s]
+            #width = np.gradient(np.asarray(lons))*np.cos(np.deg2rad(lat))*111*10**3
+            width =107438
+            transport = (width*np.asarray(height)*np.asarray(vabs))*rho
+            for i in range(len(lons)):
+                transportsums.setdefault(lons[i],0)
+                if ~np.isnan(transport[i]):
+                    transportsums[lons[i]] = transportsums[lons[i]]+transport[i]
+    lons = []
+    finaltransport = []
+    for k in transportsums.keys():
+        lons.append(k)
+        finaltransport.append(transportsums[k])
+    lons = np.asarray(lons)
+    finaltransport = np.asarray(finaltransport)
+    s = np.argsort(lons)
+    ax.plot(lons[s],np.nancumsum(finaltransport[s])*(10**-9),label=label)
+    ax.legend()
+    if show:
+        plt.show()
+
+
+def meridionalHeatMap(surfaces,lat,startlon,endlon,startpres,endpres,show=False,label="",ax=None):
+    transportsums = {}
+    lons = []
+    vabs = []
+    pres = []
+    bottom=[]
+    for k in surfaces.keys():
+        if  startpres < int(k) < endpres:
+            j=len(lons)
+            height = []
+            rhos = []
+            for l in range(len(surfaces[k]["lats"])):
+                if np.abs(surfaces[k]["lats"][l] - lat)<0.01 and  startlon< surfaces[k]["lons"][l] <endlon:
+                    lons.append(surfaces[k]["lons"][l])
+                    vabs.append(surfaces[k]["data"]["v"][l])
+                    pres.append(-surfaces[k]["data"]["pres"][l])
+                    height.append(surfaces[k]["data"]["h"][l])
+                    rho = gsw.rho(surfaces[k]["data"]["s"][l],surfaces[k]["data"]["t"][l],surfaces[k]["data"]["pres"][l])
+                    rhos.append(rho)
+                    bottom.append(surfaces[k]["data"]["z"][l])
+            plt.plot(lons[j:],pres[j:],c="gray",zorder=0)
+    lons = np.asarray(lons)
+    bottom = np.asarray(bottom)
+    pres = np.asarray(pres)
+    vabs = np.asarray(vabs)
+    s= np.argsort(lons)
+    bottom = bottom[s]
+    lons = lons[s]
+    pres = pres[s]
+    vabs=vabs[s]
+    plt.fill_between(lons,-5000,bottom,color="black")
+    plt.xlabel("Longitude")
+    plt.ylabel("Pressure (dbar)")
+    plt.scatter(lons,pres,s=(np.abs(vabs))*2*10**5,c=vabs,vmax =0.007,vmin=-0.007,zorder=5,cmap="coolwarm")
+    cbar = plt.colorbar()
+    cbar.ax.set_ylabel("North-South Velocity")
+    plt.show()
+
+
+def meridionalSurfaces(surfaces,lat,startlon,endlon,startpres,endpres,show=False,label="",ax=None):
+    transportsums = {}
+    lons = []
+    vabs = []
+    pres = []
+    bottom=[]
+    for k in surfaces.keys():
+        if  startpres < int(k) < endpres:
+            j=len(lons)
+            height = []
+            rhos = []
+            for l in range(len(surfaces[k]["lats"])):
+                if np.abs(surfaces[k]["lats"][l] - lat)<0.01 and  startlon< surfaces[k]["lons"][l] <endlon:
+                    lons.append(surfaces[k]["lons"][l])
+                    vabs.append(surfaces[k]["data"]["v"][l])
+                    pres.append(-surfaces[k]["data"]["pres"][l])
+                    height.append(surfaces[k]["data"]["h"][l])
+                    rho = gsw.rho(surfaces[k]["data"]["s"][l],surfaces[k]["data"]["t"][l],surfaces[k]["data"]["pres"][l])
+                    rhos.append(rho)
+                    bottom.append(surfaces[k]["data"]["z"][l])
+            plt.plot(lons[j:],pres[j:],zorder=0)
+    lons = np.asarray(lons)
+    bottom = np.asarray(bottom)
+    pres = np.asarray(pres)
+    vabs = np.asarray(vabs)
+    s= np.argsort(lons)
+    bottom = bottom[s]
+    lons = lons[s]
+    pres = pres[s]
+    vabs=vabs[s]
+    plt.fill_between(lons,-5000,bottom,color="black")
+    plt.xlabel("Longitude")
+    plt.ylabel("Pressure (dbar)")
+    plt.show()
+
+
+
+
+def HTtransports(inv):
+    fig,(ax1,ax2,ax3) = plt.subplots(3,1)
+    graph.meridionalTransport(inv,-30,-180,180,0,819,show=False,label="1-5",ax=ax1)
+    #ax1.set_ylim(-60,30)
+    ax1.set_xlabel("Longitude")
+    ax1.set_ylabel("Mass Transport in 10^9 kg*s^-1")
+    ax1.set_title("Accumulated mass transport in layers 1-6")
+    graph.meridionalTransport(inv,-30,-180,180,819,2150,show=False,label="6-9",ax=ax2)
+    #ax2.set_ylim(-50,20)
+    ax2.set_ylabel("Mass Transport in 10^9 kg*s^-1")
+    ax2.set_xlabel("Longitude")
+    ax2.set_title("Accumulated mass transport in layers 6-9")
+    graph.meridionalTransport(inv,-30,-180,180,2150,100000,show=False,label="9-",ax=ax3)
+    #ax3.set_ylim(-10,15)
+    ax3.set_ylabel("Mass Transport in 10^9 kg*s^-1")
+    ax3.set_xlabel("Longitude")
+    ax3.set_title("Accumulated mass transport in layers 9 to the bottom")
+    plt.show()
+                
 ##plot ts diagrams with neutral surfaces annotated
-def tsNeutralExplore(profiles):
+def tsNeutralExploreProfiles(profiles):
     fig,ax1 = plt.subplots()
     ns = {}
     for k in range(200,3900,200):
@@ -855,6 +995,11 @@ def tsNeutralExplore(profiles):
     ax1.set_ylabel("Temperature (C)")
     plt.show()
 
+
+def tsNeutralExploreSurfaces(surfaces):
+    for k in surfaces.keys():
+        plt.plot(surfaces[k]["data"]["s"],surfaces[k]["data"]["t"])
+    plt.show()
 
 ## graph a vector field given a surfaces object on a map
 ## any quantity can be supplied as a background field
@@ -929,44 +1074,14 @@ def saveAllQuants(region,surfaces,savepath,select=range(0,100000),contour=False,
         if len(surfaces[list(surfaces.keys())[0]]["data"][d])>0 and (~np.isnan(surfaces[list(surfaces.keys())[0]]["data"][d])).any():
             graphSurfaces(region,surfaces,d,show=False,savepath=savepath,select=select,contour=contour,secondsurface=secondsurface)
 
-def velocityHeatMap(surfaces,uvel,lon):
-    depth=[]
-    lat = []
-    u = []
-    for k in surfaces.keys():
-        depthrow=np.asarray([-int(k)]*20,dtype=np.double)
-        latrow=np.asarray(range(20,60,2),dtype=np.double)
-        urow =np.asarray([np.nan]*20,dtype=np.double)
-        for l in range(len(surfaces[k]["lons"])):
-            if surfaces[k]["lons"][l] == -168:
-                i = int(round((surfaces[k]["lats"][l]-20)/2))
-                #print(i,surfaces[k]["lats"][l])
-                #print(i)
-                depthrow[i] = -surfaces[k]["data"]["pres"][l]
-                latrow[i] = surfaces[k]["lats"][l]
-                urow[i] = surfaces[k]["data"][uvel][l]
-        depth.append(np.asarray(depthrow))
-        lat.append(np.asarray(latrow))
-        u.append(np.asarray(urow))
-    #print(np.asarray(depth).shape)
-    #print(np.asarray(lat).shape)
-    #print(np.asarray(u).shape)
-    #plt.contourf(lat,depth,u,levels=60,cmap="Spectral_r"\
-            #,vmin=-10**-3,vmax=10**-3)
-    plt.imshow(u,vmin=-3*10**-3,vmax=3*10**-3)
-    ax = plt.gca()
-    xticks = range(20,60,2)
-    depths = sorted(surfaces.keys())
-    yticks = list(range(depths[0],depths[-1],1000))
-    plt.colorbar()
-    plt.show()
 
 def northSouthTransect(surfaces,quant,lat=None,lon=None,\
         show=False,savepath=None,maximize=True,\
-        presrange=[2000,np.inf],cbarrange=None,coordrange=None):
+        presrange=[1000,np.inf],cbarrange=None,coordrange=None):
     xs = []
     ps = []
     cs = []
+    zs = []
     for k in surfaces.keys():
         for i in range(len(surfaces[k]["data"][quant])):
             if presrange[0]<surfaces[k]["data"]["pres"][i]<presrange[1]:
@@ -974,14 +1089,18 @@ def northSouthTransect(surfaces,quant,lat=None,lon=None,\
                     xs.append(surfaces[k]["lons"][i])
                     cs.append(surfaces[k]["data"][quant][i])
                     ps.append(surfaces[k]["data"]["pres"][i])
+                    zs.append(surfaces[k]["data"]["z"][i])
                 if lon and abs(surfaces[k]["lons"][i]-lon)<0.5:
                     xs.append(surfaces[k]["lats"][i])
                     cs.append(surfaces[k]["data"][quant][i])
                     ps.append(surfaces[k]["data"]["pres"][i])
+                    zs.append(surfaces[k]["data"]["z"][i])
     m = np.nanmean(cs)
     s = np.nanstd(cs)
     #print(ps)
-    plt.scatter(xs,ps,c=cs)
+    srt = np.argsort(xs)
+    plt.fill_between(np.asarray(xs)[srt],-np.asarray(zs)[srt],6000)
+    plt.scatter(xs,ps, c=cs)
     if coordrange:
         plt.gca().set_xlim(coordrange)
     if cbarrange:
@@ -1025,6 +1144,7 @@ def northSouthTransect(surfaces,quant,lat=None,lon=None,\
             plt.savefig(savepath+"/lon"+str(lon)+".png")
     plt.close()
  
+
 def time_diagnostic(profiles,layer,lat,tol):
     ## Plot change of values with time over neutral surface
     pressures = []
@@ -1052,3 +1172,17 @@ def time_diagnostic(profiles,layer,lat,tol):
     plt.colorbar(c,ax=ax2)
     plt.savefig("/home/garrett/Projects/arcticcirc-pics/20.png")
     plt.show()
+
+def layerChooser(profile):
+    fig,((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2)
+    ax1.plot(profile.isals,-np.asarray(profile.ipres))
+    ax2.axvline(x=1031.53,c="g")
+    ax2.axvline(x=1031.98,c="g")
+    ax2.axvline(x=1032.30,c="yellow")
+    ax3.plot(profile.itemps,-np.asarray(profile.ipres))
+    ax3.axvline(x=2,c="blue")
+    ax1.plot(gsw.SA_from_SP([34.86]*len(profile.ipres),profile.ipres,profile.lon,profile.lat),-np.asarray(profile.ipres),c="blue")
+
+    ax2.plot(gsw.rho(profile.isals,profile.itemps,1000),-np.asarray(profile.ipres))
+    plt.show()
+    #ax3.plot(profile.isals,profile.ipres)
