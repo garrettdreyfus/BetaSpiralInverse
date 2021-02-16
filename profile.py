@@ -384,7 +384,7 @@ class Profile:
 
     def neutralDepth(self,p2,depth,debug=False,searchrange=100,depthname=None):
         depth = int(depth)
-        plowerbound = min(self.ipres[0],p2.ipres[0])
+        plowerbound = max(self.ipres[0],p2.ipres[0])
         pupperbound = min(self.ipres[-1],p2.ipres[-1])
         at = np.where(np.asarray(self.ipres) == depth)[0][0]
         prange = pupperbound - plowerbound
@@ -439,6 +439,62 @@ class Profile:
         else:
             return None
 
+    def neutralDepthSCV(self,p2,depth,debug=False,searchrange=100,depthname=None):
+        depth = int(depth)
+        plowerbound = max(self.ipres[0],p2.ipres[0])
+        pupperbound = min(self.ipres[-1],p2.ipres[-1])
+        at = np.where(np.asarray(self.ipres) == depth)[0][0]
+        prange = pupperbound - plowerbound
+        p2offset = p2.ipres[0] - plowerbound
+        selfoffset = self.ipres[0] - plowerbound
+        #print(self.ipres,p2.ipres)
+        if self.ipres[-1] < p2.ipres[0] or p2.ipres[-1] <self.ipres[0]:
+            return None
+        if self.ipres[0] < p2.ipres[0] :
+            p2offset = 0
+            selfoffset = np.where(np.asarray(self.ipres) == p2.ipres[0])[0][0]
+        elif p2.ipres[0] < self.ipres[0]:
+            selfoffset = 0
+            p2offset = np.where(np.asarray(p2.ipres) == self.ipres[0])[0][0]
+        else:
+            selfoffset = 0
+            p2offset = 0
+
+        if p2.ipres[p2offset] != self.ipres[selfoffset]:
+            print(p2.ipres[p2offset],self.ipres[selfoffset])
+    
+        depths =  [self.ipres[at]]*(prange)        
+
+        p2densities = gsw.rho(p2.isals[p2offset:p2offset+len(depths)],\
+                p2.itemps[p2offset:p2offset+len(depths)],\
+                depths)
+
+
+        selfdensities = gsw.rho([self.isals[at]]*(len(depths)),\
+                [self.itemps[at]]*(len(depths)),\
+                depths)
+
+        minlen = min(len(p2densities),len(selfdensities))
+        Es = p2densities[:minlen]-selfdensities[:minlen]
+        if len(Es)<2:
+            return None
+
+        zero_crossings = np.where(np.diff(np.sign(Es)))[0]
+        smallest = np.argmin(np.abs(Es))
+        if len(zero_crossings)>=1 :
+            if abs(p2.ipres[zero_crossings[0]] - p2.ipres[zero_crossings[-1]])>100:
+                return None
+
+            a  =np.asarray(p2offset+zero_crossings)
+            sol = np.asarray(p2.ipres)[a]
+            if len(sol) == 1 or sol[-1]-sol[0] < 40:
+                p2.neutraldepth[depthname] = np.mean(np.asarray(p2.ipres)[a])
+                return p2.neutraldepth[depthname]
+            else:
+                print("More than one crossing {}".format(sol[-1]-sol[0] ))
+                return None
+        else:
+            return None
 
     ## this thing is a little bit wild
     ## so in the matlab version of gsw they have a function that 

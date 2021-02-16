@@ -38,6 +38,7 @@ from scipy.io import savemat
 # print(HTLE)
 
 # preinterpsurfaces = nstools.runPeerSearch(profiles,HTLE,profilechoice,False,10**4)
+
 # # #gammavals = [25.875,26.51,26.862,27.158,27.3605,27.526,27.6575,27.7825,27.8700, \
 # #         #27.9275,27.965,27.99,28.015,28.03,28.0475,28.0625,28.08,28.108,28.136,28.164,28.2,28.33,28.36]
 # # ##print(range(100,6000,200)[len(gammavals)-1])
@@ -60,13 +61,16 @@ from scipy.io import savemat
 #     preinterpsurfaces,profiles = pickle.load(outfile)
 # print("hi")
 # #graph.time_diagnostic(profiles,3100,-30,2.5)
-# graph.time_diagnostic(profiles,3100,-25,2.5)
-# graph.time_diagnostic(profiles,3100,-10,2.5)
+# #graph.time_diagnosuItic(profiles,3100,-25,2.5)
+# #graph.time_diagnostic(profiles,3100,-10,2.5)
 # # nserrors = {}
 # surfaces,neighbors,distances = \
 #     interptools.interpolateSurfaces(brasil,preinterpsurfaces,\
 #     interpmethod="gam",smart=False,coord="latlon",splines=16)
 # surfaces = nstools.addParametersToSurfaces(brasil,surfaces,neighbors,distances)
+# #nstools.neutralityError(surfaces)
+# #graph.graphSurfaces(brasil,surfaces,"nserror",stds=2,show=False,savepath="../arcticcirc-pics/surfaces/normneutralerror/")
+# #graph.nsHist(surfaces)
 
 # with open('data/interpedbrasil.pickle', 'wb') as outfile:
 #     pickle.dump([surfaces,neighbors,distances], outfile)
@@ -95,11 +99,11 @@ from scipy.io import savemat
 with open('data/invertedbrasil.pickle', 'rb') as outfile:
     [inv,neighbors,distances] = pickle.load(outfile)
 
-#graph.HTtransports(inv)
+graph.HTtransports(inv,ht="data/hgt.pickle")
 #graph.northSouthTransect(inv,"kv",lat=-20,show=True)
 #nstools.inverseReady(inv)
 #graph.meridionalHeatMap(inv,-30,-180,180,1000,6000,show=True,label="")
-graph.meridionalSurfaces(inv,-30,-50,-25,1000,6000,show=True,label="")
+# graph.meridionalSurfaces(inv,-30,-50,-25,1000,6000,show=True,label="")
 #graph.graphSurfaces(brasil,inv,"kv",stds=1,show=True,select=range(3000,5000))
 #graph.graphSurfaces(brasil,inv,"bathvar",stds=1,show=True,select=range(200,5000))
 

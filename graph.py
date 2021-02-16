@@ -949,7 +949,7 @@ def meridionalSurfaces(surfaces,lat,startlon,endlon,startpres,endpres,show=False
 
 
 
-def HTtransports(inv):
+def HTtransports(inv,ht = None):
     fig,(ax1,ax2,ax3) = plt.subplots(3,1)
     graph.meridionalTransport(inv,-30,-180,180,0,819,show=False,label="1-5",ax=ax1)
     #ax1.set_ylim(-60,30)
@@ -966,6 +966,13 @@ def HTtransports(inv):
     ax3.set_ylabel("Mass Transport in 10^9 kg*s^-1")
     ax3.set_xlabel("Longitude")
     ax3.set_title("Accumulated mass transport in layers 9 to the bottom")
+    if ht:
+        with open(ht,"rb") as f:
+            output = pickle.load(f)
+            for l in output:
+                ax1.plot(l["lons"],l["upper"]*10**-9,c="grey")
+                ax2.plot(l["lons"],l["middle"]*10**-9,c="grey")
+                ax3.plot(l["lons"],l["lower"]*10**-9,c="grey")
     plt.show()
                 
 ##plot ts diagrams with neutral surfaces annotated
@@ -1186,3 +1193,11 @@ def layerChooser(profile):
     ax2.plot(gsw.rho(profile.isals,profile.itemps,1000),-np.asarray(profile.ipres))
     plt.show()
     #ax3.plot(profile.isals,profile.ipres)
+
+def nsHist(surfaces):
+    errors = []
+    for k in surfaces.keys():
+        errors += list(np.log10(surfaces[k]["data"]["nserror"]))
+    plt.hist(errors)
+    plt.show()
+        
