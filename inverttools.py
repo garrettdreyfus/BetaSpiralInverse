@@ -137,7 +137,7 @@ def applyPrime(staggeredsurfaces,prime,coldict,params,widths,mixing=False):
                     if params["lowerbound"]>=k>=params["upperbound"]:
                         staggeredsurfaces[k]["data"]["kh"][i] =\
                                 prime[widths[0]+widths[1]+indexOfSurface(staggeredsurfaces,params,k)]*scales["kh"]
-                    staggeredsurfaces[k]["data"]["kvo"][i] = prime[widths[0]+widths[1]+widths[2]]*scales["kvo"]
+                    staggeredsurfaces[k]["data"]["kvo"][i] = prime[-1]*scales["kvo"]
                     staggeredsurfaces[k]["data"]["kv"][i] = staggeredsurfaces[k]["data"]["kvo"][i]+staggeredsurfaces[k]["data"]["kvb"][i]*staggeredsurfaces[k]["data"]["CKVB"][i]
     return staggeredsurfaces
 
