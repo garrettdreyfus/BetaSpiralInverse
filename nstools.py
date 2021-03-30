@@ -1298,3 +1298,108 @@ def addKnownPsiFromModelUV(region,surfaces,profiles):
                     surfaces[k]["data"]["knownpsi"][ind] = np.nan
     return surfaces
 
+def addOldUnits(surfaces):
+    for k in surfaces.keys():
+        surfaces[k]["data"]["pottemp"] = gsw.CT_from_t(surfaces[k]["data"]["s"],surfaces[k]["data"]["t"],surfaces[k]["data"]["pres"])
+        surfaces[k]["data"]["psu"] = gsw.SP_from_SA(surfaces[k]["data"]["s"],surfaces[k]["data"]["pres"],surfaces[k]["lons"],surfaces[k]["lats"])
+    return surfaces
+
+
+def meridionalTransport(surfaces,lat,startlon,endlon,startpres,endpres):
+    transportsums = {}
+    for k in surfaces.keys():
+        if  startpres < int(k) < endpres:
+            lons = []
+            vabs = []
+            height = []
+            rhos = []
+            for l in range(len(surfaces[k]["lats"])):
+                if np.abs(surfaces[k]["lats"][l] - lat)<0.01 and  startlon< surfaces[k]["lons"][l] <endlon:
+                    lons.append(surfaces[k]["lons"][l])
+                    vabs.append(surfaces[k]["data"]["vabs"][l])
+                    height.append(surfaces[k]["data"]["h"][l])
+                    rho = gsw.rho(surfaces[k]["data"]["s"][l],surfaces[k]["data"]["t"][l],surfaces[k]["data"]["pres"][l])
+                    rhos.append(rho)
+            lons=np.asarray(lons)
+            vabs=np.asarray(vabs)
+            height=np.asarray(height)
+            s = np.argsort(lons)
+            lons = lons[s]
+            vabs = vabs[s]
+            height = height[s]
+            width = np.nanmin(np.gradient(np.asarray(lons))*np.cos(np.deg2rad(lat))*111*10**3)
+            transport = (width*np.asarray(height)*np.asarray(vabs))*rho
+            for i in range(len(lons)):
+                transportsums.setdefault(lons[i],0)
+                if ~np.isnan(transport[i]):
+                    transportsums[lons[i]] = transportsums[lons[i]]+transport[i]
+    lons = []
+    finaltransport = []
+    for k in transportsums.keys():
+        lons.append(k)
+        finaltransport.append(transportsums[k])
+    lons = np.asarray(lons)
+    finaltransport = np.asarray(finaltransport)
+    s = np.argsort(lons)
+    totaltransport = np.nansum(finaltransport)
+    return totaltransport
+
+def transportDiagnostics(surfaces):
+    print("vema")
+    vema = transportAcross(surfaces,-30,-180,-33,3600,100000,"lats","lons","vabs")
+    print("hunter")
+    hunter = transportAcross(surfaces,-30,-33,180,3600,100000,"lats","lons","vabs")
+    print("northern")
+    northern = transportAcross(surfaces,-35,-40,-30,3600,100000,"lons","lats","uabs")
+    print("southern")
+    southern = transportAcross(surfaces,-35,-30,-20,3600,100000,"lons","lats","uabs")
+
+    curl = (northern-southern)-(hunter-vema)
+
+    results = {"vema":vema,\
+               "hunter":hunter,\
+               "northern":northern,\
+               "curl":curl,\
+               "southern":southern}
+    return results
+
+
+def transportAcross(surfaces,lat,startlon,endlon,startpres,endpres,normalcoord,alongcoord,normalvelocity):
+    transportsums = {}
+    for k in surfaces.keys():
+        if  startpres < int(k) < endpres:
+            lons = []
+            vabs = []
+            height = []
+            rhos = []
+            for l in range(len(surfaces[k]["lats"])):
+                if np.abs(surfaces[k][normalcoord][l] - lat)<0.01 and  startlon< surfaces[k][alongcoord][l] <endlon:
+                    lons.append(surfaces[k][alongcoord][l])
+                    vabs.append(surfaces[k]["data"][normalvelocity][l])
+                    height.append(surfaces[k]["data"]["h"][l])
+                    rho = gsw.rho(surfaces[k]["data"]["s"][l],surfaces[k]["data"]["t"][l],surfaces[k]["data"]["pres"][l])
+                    rhos.append(rho)
+            lons=np.asarray(lons)
+            vabs=np.asarray(vabs)
+            height=np.asarray(height)
+            s = np.argsort(lons)
+            lons = lons[s]
+            vabs = vabs[s]
+            height = height[s]
+            if len(lons)>1:
+                width = np.nanmin(np.gradient(np.asarray(lons))*np.cos(np.deg2rad(lat))*111*10**3)
+                transport = (width*np.asarray(height)*np.asarray(vabs))*rho
+                for i in range(len(lons)):
+                    transportsums.setdefault(lons[i],0)
+                    if ~np.isnan(transport[i]):
+                        transportsums[lons[i]] = transportsums[lons[i]]+transport[i]
+    lons = []
+    finaltransport = []
+    for k in transportsums.keys():
+        lons.append(k)
+        finaltransport.append(transportsums[k])
+    lons = np.asarray(lons)
+    finaltransport = np.asarray(finaltransport)
+    s = np.argsort(lons)
+    totaltransport = np.nansum(finaltransport)
+    return totaltransport

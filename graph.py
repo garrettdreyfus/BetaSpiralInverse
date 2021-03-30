@@ -11,7 +11,8 @@ quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU",
                 "uprime":"reference U velocity","vprime":"reference V velocity","h":"Thickness of ",\
                 "CKVB":"KV term with roughness","CKVO":"KV term without roughness","dsdx":"Salinity X gradient",\
                 "dsdy":"Salinity Y gradient","d2sdx2":"Salinity X curvature",\
-                "d2sdy2":"Salinity Y curvature","n^2":"N^2"}
+                  "d2sdy2":"Salinity Y curvature","n^2":"N^2",\
+                  "kv": "Diapycnal Diffusivity"}
 
 ##Graph a given quantity over a transect given a surfaces object
 ## savepath and show control whether the images should be saved and whether graphs should be displayed
@@ -144,20 +145,18 @@ def zoomGraph(m,ax,region):
         xmin, ymin = m(region.mapbounds["lllon"], region.mapbounds["lllat"])
         xmax, ymax = m(region.mapbounds["urlon"], region.mapbounds["urlat"])
 
-        ax = plt.gca()
+        if not ax:
+            ax = plt.gca()
 
         ax.set_xlim([xmin, xmax])
         ax.set_ylim([ymin, ymax])
 
-def mapSetup(coords,region,newax=True):
+def mapSetup(coords,region,newax=True,fig=None,ax=None):
     if newax:
         fig,ax = plt.subplots(1,1)
-    else:
-        fig=None
-        ax=None
-    mapy = Basemap(projection='ortho', lat_0=region.mapbounds["lat_0"],lon_0=region.mapbounds["lon_0"],area_thresh=10)
+    mapy = Basemap(projection='ortho', lat_0=region.mapbounds["lat_0"],lon_0=region.mapbounds["lon_0"],area_thresh=10,ax=ax)
     mapy.drawmapboundary(fill_color='aqua')
-    mapy.fillcontinents(color='coral',lake_color='aqua')
+    mapy.fillcontinents(color='white',lake_color='aqua')
     mapy.drawcoastlines()
 
     parallels = np.arange(-90.,91,10.)
@@ -165,9 +164,9 @@ def mapSetup(coords,region,newax=True):
     meridians = np.arange(0.,351.,10.)
     mapy.drawmeridians(meridians)
     for i in np.arange(len(meridians)):
-        plt.annotate(np.str(meridians[i]),xy=mapy(meridians[i],region.mapbounds["lllat"]),xycoords='data')
+        ax.annotate(np.str(meridians[i]-360),xy=mapy(meridians[i],region.mapbounds["lllat"]+7),xycoords='data')
     for i in np.arange(len(parallels)):
-        plt.annotate(np.str(parallels[i]),xy=mapy(region.mapbounds["urlon"]-10,parallels[i]),xycoords='data')
+        ax.annotate(np.str(parallels[i]),xy=mapy(region.mapbounds["urlon"]-27,parallels[i]),xycoords='data')
     zoomGraph(mapy,ax,region)
     return fig,ax,mapy
 
@@ -238,7 +237,7 @@ def graphSurfaces(region,surfaces,quantindex,stds=2,contour=False,profiles=None,
             mapy.drawparallels(np.linspace(-90,90,19))
             mapy.drawmeridians(np.linspace(-180, 180, 37))
             x,y = mapy(surfaces[i]["lons"],surfaces[i]["lats"])
-            d = np.asarray(surfaces[i]["data"][quantindex])
+            d = surfaces[i]["data"][quantindex]
             ids = np.asarray(surfaces[i]["ids"])
             x = np.asarray(x)
             y = np.asarray(y)
@@ -257,9 +256,9 @@ def graphSurfaces(region,surfaces,quantindex,stds=2,contour=False,profiles=None,
                 c[inds] = True
                 a=np.logical_and(a,c)
                 if np.count_nonzero(a)>4:
-                    plt.tripcolor(x[a],y[a],np.asarray(surfaces[i]["data"][quantindex])[a],cmap=cmocean.cm.haline,vmin=m-stds*s,vmax=m+stds*s)
+                    c = plt.tricontourf(x[a],y[a],np.asarray(surfaces[i]["data"][quantindex])[a],cmap=cmocean.cm.haline,vmin=m-stds*s,vmax=m+stds*s)
             else:
-                plt.scatter(x,y,c=d,cmap=cmocean.cm.haline,vmin=m-stds*s,vmax=m+stds*s)
+                c = plt.scatter(x,y,c=d,cmap=cmocean.cm.haline,vmin=m-stds*s,vmax=m+stds*s)
             #map the reference profile
             if profiles and deepestindex:
                 x,y = mapy(profiles[deepestindex].lon,profiles[deepestindex].lat)
@@ -272,7 +271,8 @@ def graphSurfaces(region,surfaces,quantindex,stds=2,contour=False,profiles=None,
             if colorlimit:
                 plt.clim(boundfunc(d,stds))
                 #plt.clim(i-400,i+400)
-                mapy.colorbar()
+                cbar = mapy.colorbar(c)
+
             if idlabels:
                 for j, eyed in enumerate(ids):
                     ax.annotate(eyed,(x[j],y[j]))
@@ -431,7 +431,7 @@ def plotProfiles(region,profiles,title,specialprofile=None,fig=None,ax=None,show
     clb.ax.set_title('Depth of CTD cast')
     if specialprofile:
         x,y = mapy(specialprofile.lon,specialprofile.lat)
-        plt.scatter(x,y,c="red")
+        plt.scatter(x,y,c="black",marker="x",s=150,linewidth=5)
     if show:
         plt.show()
 
@@ -584,6 +584,88 @@ def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",refarrow=0.0
                     plt.show()
         plt.close()
 
+
+def fourpanelVectorField(region,surfaces,key1,key2,backgroundfield="pv",refarrow=0.01,select=None,stdevs=2,\
+        transform=True,savepath=False,show=True,metadata={},contour=True,scale=1,boundfunc=stdevBound):
+
+    if savepath:
+        try:
+            os.makedirs(savepath+key1+key2)
+        except FileExistsError as e:
+            print(e)
+        writeInfoFile(savepath,metadata)
+    
+    fig, axes = plt.subplots(2,2)
+    axes = [axes[0][0],axes[0][1],axes[1][0],axes[1][1]]
+    titles = ["AAIW","UCDW","NADW","AABW"]
+    for j in range(len(select)):
+        k = select[j]
+        ax = axes[j]
+        fig,__,mapy = mapSetup([],region=region,newax=False,fig=fig,ax=axes[j])
+        urs=[]
+        uthetas=[]
+        lons = []
+        lats = []
+        for p in range(0,len(surfaces[k]["data"][key1])):
+            u = surfaces[k]["data"][key1][p] 
+            v = surfaces[k]["data"][key2][p]
+            if ~np.isnan(u) and ~np.isnan(v) and np.sqrt(u**2 + v**2)<0.5:
+                if transform:
+                    x = surfaces[k]["x"][p]
+                    y = surfaces[k]["y"][p]
+                    theta = np.deg2rad(surfaces[k]["lons"][p])
+                    #ur = u*np.cos(theta) + v*np.sin(theta)
+                    r = np.sqrt(x**2+y**2)
+                    ur = -(x*u +y*v)/r
+
+                    #utheta = v*np.cos(theta) - v*np.sin(theta)
+                    utheta = r*(x*v-y*u)/(r**2)
+
+                    urs.append(ur)
+                    uthetas.append(utheta)
+                else:
+                    urs.append(v)
+                    uthetas.append(u)
+                lons.append(surfaces[k]["lons"][p])
+                lats.append(surfaces[k]["lats"][p])
+
+        urs.append(refarrow)
+        uthetas.append(0)
+        lons.append(-48)
+        lats.append(-11)
+
+        urs.append(0)
+        uthetas.append(refarrow)
+        lons.append(-48)
+        lats.append(-11)
+        ax.annotate("0.01 m/s",mapy(-49,-13))
+
+        urs = np.asarray(urs)
+        uthetas = np.asarray(uthetas)
+        lons = np.asarray(lons)
+        lats = np.asarray(lats)
+        u,v,x,y = mapy.rotate_vector(uthetas,urs,lons,lats,returnxy=True)
+        mag = np.sqrt(u**2+v**2)
+        #fig.set_size_inches(16.5,12)
+        a = ~np.isnan(surfaces[k]["data"][backgroundfield])
+        if np.count_nonzero(a)>4:
+            lons = np.asarray(surfaces[k]["lons"])[a]
+            lats = np.asarray(surfaces[k]["lats"])[a]
+            xpv,ypv = mapy(lons,lats)
+            bgfield = np.asarray(surfaces[k]["data"][backgroundfield])[a]
+            if contour:
+                levels=10
+                #level_boundaries = np.linspace(0, np.nanmin(bgfield), levels + 1)[::-1]
+                cbar = ax.tricontourf(xpv,ypv,bgfield,cmap="viridis")
+                fig.colorbar(cbar,ax=ax,orientation='vertical')
+            else:
+                #print("no graph")
+                ax.scatter(xpv,ypv,c=bgfield,cmap="viridis")
+            #plt.scatter(xpv,ypv,c=bgfield)
+            #ax.set_clim(boundfunc(bgfield,stdevs))
+            ax.set_title(titles[j])
+            ax.quiver(x,y,u,v,color="red",scale=scale,width = 0.006,zorder=3)
+    plt.show()
 
 
 def writeInfoFile(savepath,metadata=None):
@@ -851,8 +933,7 @@ def meridionalTransport(surfaces,lat,startlon,endlon,startpres,endpres,show=Fals
             lons = lons[s]
             vabs = vabs[s]
             height = height[s]
-            #width = np.gradient(np.asarray(lons))*np.cos(np.deg2rad(lat))*111*10**3
-            width =107438
+            width = np.nanmin(np.gradient(np.asarray(lons))*np.cos(np.deg2rad(lat))*111*10**3)
             transport = (width*np.asarray(height)*np.asarray(vabs))*rho
             for i in range(len(lons)):
                 transportsums.setdefault(lons[i],0)
@@ -866,13 +947,52 @@ def meridionalTransport(surfaces,lat,startlon,endlon,startpres,endpres,show=Fals
     lons = np.asarray(lons)
     finaltransport = np.asarray(finaltransport)
     s = np.argsort(lons)
-    ax.plot(lons[s],np.nancumsum(finaltransport[s])*(10**-9),label=label)
-    ax.legend()
+    ax.plot(lons[s],np.nancumsum(finaltransport[s])*(10**-9),label="Run_0",linewidth=2,c="black")
     if show:
         plt.show()
 
+def pseudopolzin(surfaces,lat,startlon,endlon,startpres,endpres,quant="v",show=False,label="",ax=None):
+    transportsums = {}
+    lons = []
+    vabs = []
+    pres = []
+    bottom=[]
+    for k in surfaces.keys():
+        if  startpres < int(k) < endpres:
+            j=len(lons)
+            height = []
+            rhos = []
+            for l in range(len(surfaces[k]["lats"])):
+                if np.abs(surfaces[k]["lats"][l] - lat)<0.05 and  startlon< surfaces[k]["lons"][l] <endlon:
+                    lons.append(surfaces[k]["lons"][l])
+                    vabs.append(surfaces[k]["data"][quant][l])
+                    pres.append(-surfaces[k]["data"]["pres"][l])
+                    height.append(surfaces[k]["data"]["h"][l])
+                    rho = gsw.rho(surfaces[k]["data"]["s"][l],surfaces[k]["data"]["t"][l],surfaces[k]["data"]["pres"][l])
+                    rhos.append(rho)
+                    bottom.append(surfaces[k]["data"]["z"][l])
+            plt.plot(lons[j:],pres[j:],c="gray",zorder=0)
+    lons = np.asarray(lons)
+    bottom = np.asarray(bottom)
+    pres = np.asarray(pres)
+    vabs = np.asarray(vabs)
+    s= np.argsort(lons)
+    bottom = bottom[s]
+    lons = lons[s]
+    pres = pres[s]
+    vabs=vabs[s]
+    vabs = np.log10(vabs)
+    plt.fill_between(lons,-6000,bottom,color="black")
+    plt.xlabel("Longitude")
+    plt.ylabel("Pressure (dbar)")
+    plt.scatter(lons,pres,c=vabs,vmax =-3,vmin=-7,zorder=5,cmap="jet")
+    cbar = plt.colorbar()
+    cbar.ax.set_ylabel("North-South Velocity")
+    plt.show()
 
-def meridionalHeatMap(surfaces,lat,startlon,endlon,startpres,endpres,show=False,label="",ax=None):
+
+
+def meridionalHeatMap(surfaces,lat,startlon,endlon,startpres,endpres,quant="vabs",show=False,label="",ax=None):
     transportsums = {}
     lons = []
     vabs = []
@@ -886,7 +1006,7 @@ def meridionalHeatMap(surfaces,lat,startlon,endlon,startpres,endpres,show=False,
             for l in range(len(surfaces[k]["lats"])):
                 if np.abs(surfaces[k]["lats"][l] - lat)<0.01 and  startlon< surfaces[k]["lons"][l] <endlon:
                     lons.append(surfaces[k]["lons"][l])
-                    vabs.append(surfaces[k]["data"]["v"][l])
+                    vabs.append(surfaces[k]["data"][quant][l])
                     pres.append(-surfaces[k]["data"]["pres"][l])
                     height.append(surfaces[k]["data"]["h"][l])
                     rho = gsw.rho(surfaces[k]["data"]["s"][l],surfaces[k]["data"]["t"][l],surfaces[k]["data"]["pres"][l])
@@ -908,6 +1028,45 @@ def meridionalHeatMap(surfaces,lat,startlon,endlon,startpres,endpres,show=False,
     plt.scatter(lons,pres,s=(np.abs(vabs))*2*10**5,c=vabs,vmax =0.007,vmin=-0.007,zorder=5,cmap="coolwarm")
     cbar = plt.colorbar()
     cbar.ax.set_ylabel("North-South Velocity")
+    plt.show()
+
+def latitudinalHeatMap(surfaces,lon,startlat,endlat,startpres,endpres,quant="u",show=False,label="",ax=None):
+    transportsums = {}
+    lats = []
+    vabs = []
+    pres = []
+    bottom=[]
+    for k in surfaces.keys():
+        if  startpres < int(k) < endpres:
+            j=len(lats)
+            height = []
+            rhos = []
+            for l in range(len(surfaces[k]["lons"])):
+                print(surfaces[k]["lons"][l])
+                if np.abs(surfaces[k]["lons"][l] - lon)<0.1 and  startlat< surfaces[k]["lats"][l] <endlat:
+                    lats.append(surfaces[k]["lats"][l])
+                    vabs.append(surfaces[k]["data"][quant][l])
+                    pres.append(-surfaces[k]["data"]["pres"][l])
+                    height.append(surfaces[k]["data"]["h"][l])
+                    rho = gsw.rho(surfaces[k]["data"]["s"][l],surfaces[k]["data"]["t"][l],surfaces[k]["data"]["pres"][l])
+                    rhos.append(rho)
+                    bottom.append(surfaces[k]["data"]["z"][l])
+            plt.plot(lats[j:],pres[j:],c="gray",zorder=0)
+    lats = np.asarray(lats)
+    bottom = np.asarray(bottom)
+    pres = np.asarray(pres)
+    vabs = np.asarray(vabs)
+    s= np.argsort(lats)
+    bottom = bottom[s]
+    lats = lats[s]
+    pres = pres[s]
+    vabs=vabs[s]
+    plt.fill_between(lats,-5000,bottom,color="black")
+    plt.xlabel("Latitude")
+    plt.ylabel("Pressure (dbar)")
+    plt.scatter(lats,pres,s=(np.abs(vabs))*2*10**5,c=vabs,vmax =0.007,vmin=-0.007,zorder=5,cmap="coolwarm")
+    cbar = plt.colorbar()
+    cbar.ax.set_ylabel("East-West Velocity")
     plt.show()
 
 
@@ -956,23 +1115,37 @@ def HTtransports(inv,ht = None):
     ax1.set_xlabel("Longitude")
     ax1.set_ylabel("Mass Transport in 10^9 kg*s^-1")
     ax1.set_title("Accumulated mass transport in layers 1-6")
-    graph.meridionalTransport(inv,-30,-180,180,819,2150,show=False,label="6-9",ax=ax2)
+    graph.meridionalTransport(inv,-30,-180,180,819,3600,show=False,label="6-9",ax=ax2)
     #ax2.set_ylim(-50,20)
     ax2.set_ylabel("Mass Transport in 10^9 kg*s^-1")
     ax2.set_xlabel("Longitude")
     ax2.set_title("Accumulated mass transport in layers 6-9")
-    graph.meridionalTransport(inv,-30,-180,180,2150,100000,show=False,label="9-",ax=ax3)
+    graph.meridionalTransport(inv,-30,-180,180,3600,100000,show=False,label="9-",ax=ax3)
     #ax3.set_ylim(-10,15)
     ax3.set_ylabel("Mass Transport in 10^9 kg*s^-1")
     ax3.set_xlabel("Longitude")
     ax3.set_title("Accumulated mass transport in layers 9 to the bottom")
+    ax1.set_xlim(-47.5,-10)
+    ax2.set_xlim(-47.5,-10)
+    ax3.set_xlim(-47.5,-10)
+    styles = {"2003 - A":["blue","solid"],"2011 - A":["blue","dashed"],\
+              "2003 - B":["red","solid"],"2011 - B":["red","dashed"],\
+              "2003 - C":["green","solid"],"2011 - C":["green","dashed"],\
+              }
+    
     if ht:
         with open(ht,"rb") as f:
             output = pickle.load(f)
             for l in output:
-                ax1.plot(l["lons"],l["upper"]*10**-9,c="grey")
-                ax2.plot(l["lons"],l["middle"]*10**-9,c="grey")
-                ax3.plot(l["lons"],l["lower"]*10**-9,c="grey")
+                print(l)
+                modelyear = l["year"] + " - "+ l["model"]
+                ax1.plot(l["lons"],l["upper"]*10**-9,c=styles[modelyear][0],\
+                         linestyle=styles[modelyear][1],label=modelyear,linewidth=1)
+                ax2.plot(l["lons"],l["middle"]*10**-9,c=styles[modelyear][0],\
+                         linestyle=styles[modelyear][1],label=modelyear,linewidth=1)
+                ax3.plot(l["lons"],l["lower"]*10**-9,c=styles[modelyear][0],\
+                         linestyle=styles[modelyear][1],label=modelyear,linewidth=1)
+    plt.legend()
     plt.show()
                 
 ##plot ts diagrams with neutral surfaces annotated
@@ -1201,3 +1374,13 @@ def nsHist(surfaces):
     plt.hist(errors)
     plt.show()
         
+def AABWFinder(surf):
+    surf = nstools.addOldUnits(surf)
+    for k in surf.keys():
+        plt.scatter(surf[k]["data"]["psu"],surf[k]["data"]["pottemp"],label=str(k))
+    plt.axhline(2)
+    plt.axvline(34.86)
+    plt.legend()
+    plt.show()
+
+
