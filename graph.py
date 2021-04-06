@@ -443,43 +443,44 @@ def graphComparisonTransects(surfaces,interpsurfaces,profiles,quantindex,contour
     for k in surfaces.keys():
         if len(surfaces[k][0])>3:
             fig,ax = plt.subplots(1,1)
+            
+# Function to compare neutarl depths (pre-interpolation) to approximate neutral surfaces (post-interpolation)
+def NSGAMCompare(preinterpsurfaces,surfaces,lat,startlon,endlon):
+    lons = []
+    pres = []
+    bottom=[]
+    for k in surfaces.keys():
+        j=len(lons)
+        height = []
+        rhos = []
+        for l in range(len(surfaces[k]["lats"])):
+            if np.abs(surfaces[k]["lats"][l] - lat)<0.01 and  startlon< surfaces[k]["lons"][l] <endlon:
+                lons.append(surfaces[k]["lons"][l])
+                pres.append(-surfaces[k]["data"]["pres"][l])
+                bottom.append(surfaces[k]["data"]["z"][l])
+        plt.plot(lons[j:],pres[j:],zorder=0)
+        rawlon =[]
+        rawpres=[]
+        for l in range(len(preinterpsurfaces[k]["lats"])):
+            if np.abs(preinterpsurfaces[k]["lats"][l] - lat)<0.5 and  startlon< preinterpsurfaces[k]["lons"][l] <endlon:
+               rawlon.append(preinterpsurfaces[k]["lons"][l]) 
+               rawpres.append(-preinterpsurfaces[k]["data"]["pres"][l]) 
+        plt.scatter(rawlon,rawpres,c=plt.gca().lines[-1].get_color())
+                
+    lons = np.asarray(lons)
+    bottom = np.asarray(bottom)
+    pres = np.asarray(pres)
+    s= np.argsort(lons)
+    bottom = bottom[s]
+    lons = lons[s]
+    pres = pres[s]
+    plt.fill_between(lons,-5000,bottom,color="black")
+    plt.xlabel("Longitude")
+    plt.ylabel("Pressure (dbar)")
+    plt.show()
+
 
             #Plot the interpolated surface 
-
-            lats = interpsurfaces[k][1]
-            for i in range(len(interpsurfaces[k][0])):
-                if interpsurfaces[k][0][i] <0:
-                    lats[i] = -(lats[i]-80)+100
-            lats = (lats-70)*111
-            sort = np.argsort(lats)
-            lats = lats[sort]
-            depths = interpsurfaces[k][2][quantindex][sort]
-            a = np.where(abs(np.gradient(depths,lats))<7.5)
-            lats = lats[a]
-            depths = depths[a]
-            plt.plot(lats,depths,label=str(k))
-            ax.set_xlim(0,40*111)
-            fig.suptitle("Transect at 40/-140 degrees Lon at "+str(k) +" meters"  )
-
-            #plot raw Neutral depth readings colorcoded by year
-            years=[]
-            lats = surfaces[k][1]
-            for i in range(len(surfaces[k][1])):
-                years.append(getProfileById(profiles,surfaces[k][3][i]).time.year)
-                if surfaces[k][0][i] <0:
-                    lats[i] = -(surfaces[k][1][i]-80)+100
-            lats = (lats-70)*111
-
-            plt.scatter(lats,surfaces[k][2][quantindex],c=years)
-            plt.colorbar()
-
-            if maximize:
-                fig.set_size_inches(16.5,12)
-            if savepath:
-                plt.savefig(savepath+quantfilehash[quantindex]+"/ns"+str(k)+".png")
-            if show:
-                plt.show()
-
 ##graph surface with neighbors to test calculation of nearest points
 def graphStaggeredSurface(surfaces,neighbors,debug=False):
     for k in surfaces.keys():
@@ -1030,6 +1031,7 @@ def meridionalHeatMap(surfaces,lat,startlon,endlon,startpres,endpres,quant="vabs
     cbar.ax.set_ylabel("North-South Velocity")
     plt.show()
 
+
 def latitudinalHeatMap(surfaces,lon,startlat,endlat,startpres,endpres,quant="u",show=False,label="",ax=None):
     transportsums = {}
     lats = []
@@ -1384,3 +1386,4 @@ def AABWFinder(surf):
     plt.show()
 
 
+# Interpolation Error Histogram

@@ -1354,7 +1354,8 @@ def transportDiagnostics(surfaces):
     print("southern")
     southern = transportAcross(surfaces,-35,-30,-20,3600,100000,"lons","lats","uabs")
 
-    curl = (northern-southern)-(hunter-vema)
+    curl = regionCurl(surfaces,3600,-39,-36,-38,-27)
+    print(curl)
 
     results = {"vema":vema,\
                "hunter":hunter,\
@@ -1403,3 +1404,56 @@ def transportAcross(surfaces,lat,startlon,endlon,startpres,endpres,normalcoord,a
     s = np.argsort(lons)
     totaltransport = np.nansum(finaltransport)
     return totaltransport
+
+
+#Calculate the curl within a box using greens theorem
+
+def regionCurl(surfaces,k,leftlon,rightlon,bottomlat,toplat):
+    curltotal=0
+
+    lons = []
+    uabs = []
+    for l in range(len(surfaces[k]["lats"])):
+        if np.abs(surfaces[k]["lats"][l] - toplat)<0.01 and  leftlon< surfaces[k]["lons"][l] <rightlon:
+            lons.append(surfaces[k]["lons"][l])
+            uabs.append(surfaces[k]["data"]["uabs"][l])
+    s=np.argsort(lons)
+    lons, uabs = np.asarray(lons)[s], np.asarray(uabs)[s]
+    minwidth = np.nanmin(np.gradient(lons))
+    curltotal += np.nansum(minwidth*uabs)
+
+    lons = []
+    uabs = []
+    for l in range(len(surfaces[k]["lats"])):
+        if np.abs(surfaces[k]["lats"][l] - bottomlat)<0.05 and  leftlon< surfaces[k]["lons"][l] <rightlon:
+            lons.append(surfaces[k]["lons"][l])
+            uabs.append(surfaces[k]["data"]["uabs"][l])
+    s=np.argsort(lons)
+    lons, uabs = np.asarray(lons)[s], np.asarray(uabs)[s]
+    minwidth = -np.nanmin(np.gradient(lons))
+    curltotal += np.nansum(minwidth*uabs)
+
+    lats = []
+    vabs = []
+    for l in range(len(surfaces[k]["lons"])):
+        if np.abs(surfaces[k]["lons"][l] - leftlon)<0.5 and  bottomlat< surfaces[k]["lats"][l] <toplat:
+            lats.append(surfaces[k]["lats"][l])
+            vabs.append(surfaces[k]["data"]["vabs"][l])
+    s=np.argsort(lats)
+    lats, vabs = np.asarray(lats)[s], np.asarray(vabs)[s]
+    minwidth = -np.nanmin(np.gradient(lats))
+    curltotal += np.nansum(minwidth*vabs)
+
+    lats = []
+    vabs = []
+    for l in range(len(surfaces[k]["lons"])):
+        if np.abs(surfaces[k]["lons"][l] - rightlon)<0.5 and  bottomlat< surfaces[k]["lats"][l] <toplat:
+            lats.append(surfaces[k]["lats"][l])
+            vabs.append(surfaces[k]["data"]["vabs"][l])
+    s=np.argsort(lats)
+    lats, vabs = np.asarray(lats)[s], np.asarray(vabs)[s]
+    minwidth = np.nanmin(np.gradient(lats))
+    curltotal += np.nansum(minwidth*vabs)
+
+    return curltotal
+
