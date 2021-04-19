@@ -13,17 +13,30 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pdb
 from scipy.io import savemat
+import sensitivity
 
 #profiles = brasil.extractArgoProfiles(os.path.abspath("data/brasilargonc"))
-# profiles = brasil.extractBodcProfiles(os.path.abspath("data/brasilmorectd/"))
-# print("BODC: ",len(profiles))
-# profiles = brasil.extractWoceProfiles(os.path.abspath("data/brasilnc/"))
+#profiles = brasil.extractBodcProfiles(os.path.abspath("data/brasilmorectd/"))
+#print("BODC: ",len(profiles))
+profilesDeep = brasil.extractDeepArgoProfiles(os.path.abspath("data/brasildeepargo.json"))
+print(len(profilesDeep))
+profilesWoce = brasil.extractWoceProfiles(os.path.abspath("data/brasilnc/"))
+for p in profilesWoce:
+    s=p.pres>3500
+    plt.plot(p.sals[s],p.temps[s],color="blue",label="Ship Based")
+for p in profilesDeep:
+    s=p.pres>3500
+    plt.plot(p.sals[s],p.temps[s],color="red",label="Deep Argo")
+plt.legend()
+plt.show()
+
+# profiles = profilesWoce + profilesDeep
 # print("WOCE and BODC: ",len(profiles))
 # with open('data/argoandwoce.pickle', 'wb') as outfile:
 #     pickle.dump(profiles,outfile)
-
 # with open('data/argoandwoce.pickle', 'rb') as outfile:
 #    profiles = pickle.load(outfile)
+
 # profilechoice = nstools.profileInBox(profiles,-40,-20,-31,-28,5000)
 # #profilechoice = nstools.profileInBox(profiles,-42,-37,-31,-28,4500)
 # profilechoice = profilechoice[0]
@@ -41,7 +54,7 @@ from scipy.io import savemat
 #    HTLE.append(int(HTLayers[i] + (HTLayers[i+1]-HTLayers[i])/3.0))
 # HTLE.append(HTLayers[-1])
 # print(HTLE)
-# preinterpsurfaces = nstools.runPeerSearch(profiles,HTLE,profilechoice,False,10**4)
+# preinterpsurfaces = nstools.runPeerSearch(profiles,HTLE,profilechoice,False,10**10)
 
 # # # # #gammavals = [25.875,26.51,26.862,27.158,27.3605,27.526,27.6575,27.7825,27.8700, \
 # # # #         #27.9275,27.965,27.99,28.015,28.03,28.0475,28.0625,28.08,28.108,28.136,28.164,28.2,28.33,28.36]
@@ -54,7 +67,7 @@ from scipy.io import savemat
 
 # with open('data/annotatedbrasilargowoce.pickle', 'rb') as outfile:
 #      preinterpsurfaces,profiles = pickle.load(outfile)
-
+# #graph.NSGAMCompareCruise(preinterpsurfaces,"A10")
 # preinterpsurfaces = nstools.addDataToSurfaces(brasil,profiles,preinterpsurfaces)
 # #nstools.addGammaN(surfaces)
 
@@ -70,18 +83,18 @@ from scipy.io import savemat
 # # # nserrors = {}
 # surfaces,neighbors,distances = \
 #     interptools.interpolateSurfaces(brasil,preinterpsurfaces,\
-#     interpmethod="gam",smart=False,coord="latlon",splines=16)
+#     interpmethod="gam",smart=False,coord="latlon",splines=40)
 # #nstools.neutralityError(surfaces)
 # #graph.graphSurfaces(brasil,surfaces,"nserror",stds=2,show=False,savepath="../arcticcirc-pics/surfaces/normneutralerror/")
 # #graph.nsHist(surfaces)
 
-# surfaces = nstools.addParametersToSurfaces(brasil,surfaces,neighbors,distances)
 
 # with open('data/interpedbrasil.pickle', 'wb') as outfile:
 #     pickle.dump([surfaces,neighbors,distances], outfile)
 # with open('data/interpedbrasil.pickle', 'rb') as outfile:
 #     [surfaces,neighbors,distances] = pickle.load(outfile)
 
+# surfaces = nstools.addParametersToSurfaces(brasil,surfaces,neighbors,distances)
 # # graph.NSGAMCompare(preinterpsurfaces,surfaces,-30,-180,180)
 
 # # print(surfaces.keys())
@@ -96,6 +109,7 @@ from scipy.io import savemat
 # # KvH and Kv0 only with out edgeguard (tm): 489
 
 # out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
+# print(out["metadata"])
 # inv = out["surfaces"]
 # inv = nstools.streamFuncToUV(inv,neighbors,distances)
 
@@ -104,9 +118,9 @@ from scipy.io import savemat
 with open('data/invertedbrasil.pickle', 'rb') as outfile:
     [inv,neighbors,distances] = pickle.load(outfile)
 print(nstools.regionCurl(inv,3600,-39,-36,-38,-27))
-# graph.graphVectorField(brasil,inv,"uabs","vabs","pres",# \
-#                         transform=False,show=True,\
-#                         scale=0.1,select=range(3500,4000))
+graph.graphVectorField(brasil,inv,"uabs","vabs","pres",# \
+                        transform=False,show=True,\
+                        scale=0.1,select=range(3500,4000))
 # transports = nstools.transportDiagnostics(inv)
 # u = [0,transports["northern"],0,transports["southern"]]
 # v = [transports["vema"],0,transports["hunter"],0]
@@ -120,6 +134,8 @@ print(nstools.regionCurl(inv,3600,-39,-36,-38,-27))
 #graph.northSouthTransect(inv,"kv",lat=-20,show=True)
 #nstools.inverseReady(inv)
 graph.meridionalHeatMap(inv,-30,-180,180,1000,6000,show=True,label="")
+result = nstools.transportDiagnostics(inv)
+print(result)
 #graph.latitudinalHeatMap(inv,-35.1,-40,-20,1000,6000,show=True,label="")
 # graph.meridionalSurfaces(inv,-30,-50,-25,1000,6000,show=True,label="")
 # graph.fourpanelVectorField(brasil,inv,"uabs","vabs",backgroundfield="s",\

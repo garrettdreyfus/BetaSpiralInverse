@@ -278,7 +278,7 @@ def profileInBox(profiles,lonleft,lonright,latbot,lattop,depth):
 
 ##create an empty surface
 def emptySurface():
-    return {"lats":[],"lons":[],"ids":[],\
+    return {"lats":[],"lons":[],"ids":[],"cruise":[],\
             "data":{"pres":[],"t":[],"s":[],"pv":[],"n^2":[],"alpha":[],\
             "beta":[],"dalphadp":[],"dalphadtheta":[],"dthetads":[],\
             "psi":[],"drhodz":[],"knownu":[],"knownv":[],"kapredi":[],"kapgm":[],"diffkr":[]}}
@@ -302,6 +302,7 @@ def peerSearch(profiles,depth,profilechoice,radius=500,peer=True):
                 closestcounter+=1
                 #print(closest.neutraldepth)
                 ns = closest.neutralDepth(p,closest.neutraldepth[depth],depthname=depth,searchrange=500) 
+                #ns = closest.neutralDepthInSituAnom(p,closest.neutraldepth[depth],depthname=depth,searchrange=500)
                 if ns != None:
                     dx = closest.x - p.x
                     dy = closest.y - p.y
@@ -315,6 +316,9 @@ def peerSearch(profiles,depth,profilechoice,radius=500,peer=True):
                     surfaces[depth]["lats"].append(p.lat)
                     surfaces[depth]["data"]["pres"].append(ns)
                     surfaces[depth]["ids"].append(p.eyed)
+                    surfaces[depth]["cruise"].append(p.cruise)
+                    if p.cruise == "A20":
+                        print(p.cruise)
                     profiles.remove(p)
                     foundcounter +=1
                     if peer:

@@ -8,6 +8,8 @@ import parametertools as ptools
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import pygam
+import seaborn as sns
 
 def distanceFromKnown(surfaces):
     s =  []
@@ -95,3 +97,49 @@ def mixSens(inverse,surfaces,neighbors,distances,disp=-1,savepath=False,params={
                 newmix[j] = newmix[j]*(10**i)
                 params["mixcoeffs"] = newmix
                 conditionError(inverse,surfaces,neighbors,distances,fname=name+str(i),disp=disp,params=params,savepath=savepath,title=name+": "+str(i),show=False)
+
+def gamSplineSens(preinterpsurfaces):
+    sumerrors=[]
+    for splines in range(4,16):
+        error=[]
+        for k in preinterpsurfaces.keys():
+            if int(k)>2000:
+                surface = preinterpsurfaces[k]
+                X = np.zeros((len(surface["lons"]),2))
+                X[:,0]=surface["lons"]
+                X[:,1]=surface["lats"]
+                #for d in Bar("Interpolating: ").iter(surface["data"].keys()):
+                d = "pres"
+                notnan = ~np.isnan(surface["data"][d])
+                if np.count_nonzero(notnan)>10:
+                    gam = pygam.GAM(pygam.te(0,1,n_splines=[splines,splines])).fit(X[notnan],np.asarray(surface["data"][d])[notnan])
+                    #random_gam =  pygam.LinearGAM(pygam.s(0) + pygam.s(1) ).gridsearch(X, surface["data"][d])
+                    error += list(np.log10(np.abs(surface["data"][d]-gam.predict(X))))
+        sns.distplot(error,kde_kws={"fill":False,"label": str(splines)})
+    #plt.plot(range(4,16),sumerrors)
+    plt.legend()
+    plt.show()
+
+
+def cruiseSpline(preinterpsurfaces,cruise):
+    sumerrors=[]
+    splines=20
+    error=[]
+    for k in preinterpsurfaces.keys():
+        surface = preinterpsurfaces[k]
+        cruiseline = surface["data"]["cruise"] == cruise
+        print(surface["data"]["cruise"])
+        X = np.zeros((len(surface["lons"]),2))
+        X[:,0]=surface["lons"]
+        X[:,1]=surface["lats"]
+        #for d in Bar("Interpolating: ").iter(surface["data"].keys()):
+        d = "pres"
+        notnan = ~np.isnan(surface["data"][d])
+        if np.count_nonzero(notnan)>10:
+            gam = pygam.GAM(pygam.te(0,1,n_splines=[splines,splines])).fit(X[notnan],np.asarray(surface["data"][d])[notnan])
+            #random_gam =  pygam.LinearGAM(pygam.s(0) + pygam.s(1) ).gridsearch(X, surface["data"][d])
+            error += list(np.log10(np.abs(surface["data"][d][cruiseline]-gam.predict(X[cruiseline]))))
+    #sns.distplot(error,kde_kws={"fill":False,"label": str(splines)})
+    #plt.plot(range(4,16),sumerrors)
+    plt.legend()
+    plt.show()

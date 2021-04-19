@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from scipy import interpolate
 import mygsw
 from scipy.interpolate import UnivariateSpline
+import pdb
 #import gswmatlab.pyinterface as matgsw
 
 
@@ -52,6 +53,11 @@ class Profile:
         self.temps = np.asarray(data["temp"])
         self.sals = np.asarray(data["sal"])
         self.pres = np.abs(np.asarray(data["pres"]))
+        if hasattr(self.temps,"mask"):
+            flter = np.logical_or(~self.temps.mask,~self.sals.mask)
+            self.temps = self.temps[flter]
+            self.sals = self.sals[flter]
+            self.pres = self.pres[flter]
 
         if salunit == "practical":
             self.sals = gsw.SA_from_SP(self.sals,self.pres,self.lon,self.lat)
@@ -473,24 +479,37 @@ class Profile:
         selfdensities = gsw.rho([self.isals[at]]*(len(depths)),\
                 [self.itemps[at]]*(len(depths)),\
                 depths)
+        
 
         minlen = min(len(p2densities),len(selfdensities))
         Es = p2densities[:minlen]-selfdensities[:minlen]
         if len(Es)<2:
             return None
 
-        zero_crossings = np.where(np.diff(np.sign(Es)))[0]
+        zero_crossings = np.where(np.diff(np.sign(Es))>0)[0]
         smallest = np.argmin(np.abs(Es))
-        if len(zero_crossings)>=1 :
+        if len(zero_crossings)>=1:
             if abs(p2.ipres[zero_crossings[0]] - p2.ipres[zero_crossings[-1]])>100:
                 return None
 
-            a  =np.asarray(p2offset+zero_crossings)
+            a = np.asarray(p2offset+zero_crossings)
             sol = np.asarray(p2.ipres)[a]
             if len(sol) == 1 or sol[-1]-sol[0] < 40:
                 p2.neutraldepth[depthname] = np.mean(np.asarray(p2.ipres)[a])
                 return p2.neutraldepth[depthname]
             else:
+                if sol[-1]-sol[0] > 40:
+                    print(sol)
+                    print(np.sum(np.isnan(p2densities)))
+                    # pdb.set_trace()
+                    # plt.plot(selfdensities)
+                    # plt.plot(p2densities)
+                    # plt.show()
+                    # plt.plot(Es,p2.ipres[p2offset:p2offset+len(depths)])
+                    # plt.show()
+                    # plt.plot(np.sign(Es),p2.ipres[p2offset:p2offset+len(depths)])
+                    # plt.show()
+
                 print("More than one crossing {}".format(sol[-1]-sol[0] ))
                 return None
         else:

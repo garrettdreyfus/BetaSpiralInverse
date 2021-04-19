@@ -7,6 +7,7 @@ import xarray as xr
 from progress.bar import Bar
 import matplotlib.pyplot as plt
 import datetime
+import json
 
 def geoFilter(lon,lat):
     latinrange = (lat<0 and lat >-80)
@@ -32,7 +33,7 @@ def singleXY(coord):
 
 def extractWoceProfiles(ncfolder): 
     profiles= []
-    for f in glob.glob(ncfolder+"/*.nc") + glob.glob(ncfolder+"/**/*.nc",recursive=True):
+    for f in Bar("WOCE").iter(glob.glob(ncfolder+"/*.nc") + glob.glob(ncfolder+"/**/*.nc",recursive=True)):
         ncdf = Dataset(f, 'r')  # Dataset is the class behavior to open the file
         profiledata = {}
         profiledata["lon"] = ncdf.variables["longitude"][0]
@@ -110,7 +111,6 @@ def extractBodcProfiles(ncfolder):
     return profiles
 
 
-
 def extractArgoProfiles(ncfolder): 
     profiles= []
     for f in Bar("file:" ).iter(glob.glob(ncfolder+"/**/*.nc",recursive=True)):
@@ -143,6 +143,43 @@ def extractArgoProfiles(ncfolder):
                             profiles.append(prof)
                             #print(profiledata)
         del ncdf
+    return profiles
+
+
+def extractDeepArgoProfiles(jsonfile): 
+    profiles= []
+    with open(jsonfile) as f:
+        data = json.load(f)
+        for prof in Bar("deep profiles").iter(data):
+            profiledata = {}
+            profiledata["lon"] = prof["lon"]
+            profiledata["lat"] = prof["lat"]
+            if geoFilter(profiledata["lon"],profiledata["lat"]):
+                profiledata["cruise"] = prof["platform_number"]
+                profiledata["station"] = prof["cycle_number"]
+                profiledata["time"] = prof["date"]
+                profiledata["sal"]=[]
+                profiledata["temp"]=[]
+                profiledata["pres"]=[]
+                for m in prof["measurements"]:
+                    if "psal" in m.keys() and "temp" in m.keys():
+                        profiledata["sal"].append(m["psal"])
+                        profiledata["temp"].append(m["temp"])
+                        profiledata["pres"].append(m["pres"])
+                s = np.argsort(profiledata["pres"])
+                profiledata["sal"] = np.asarray(profiledata["sal"])[s]
+                profiledata["temp"] = np.asarray(profiledata["temp"])[s]
+                profiledata["pres"] = np.asarray(profiledata["pres"])[s]
+                #profiledata["cruise"] = ncdf.WOCE_ID
+                #profiledata["station"] = ncdf.STATION_NUMBER
+
+                if len(profiledata["pres"])>4 and max(profiledata["pres"])>1500:
+
+                        if {"sal","temp","pres","lat","lon"}.issubset(profiledata.keys())\
+                            and abs(max(profiledata["pres"])-min(profiledata["pres"])) > 100:
+                            eyed=idgenerator()
+                            prof=Profile(eyed,profiledata,"insitu","practical")
+                            profiles.append(prof)
     return profiles
 
 def createMesh(xvals,yvals,coord="xy",spacingscale=1):

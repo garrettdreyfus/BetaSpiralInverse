@@ -479,6 +479,48 @@ def NSGAMCompare(preinterpsurfaces,surfaces,lat,startlon,endlon):
     plt.ylabel("Pressure (dbar)")
     plt.show()
 
+# Function to compare neutarl depths (pre-interpolation) to approximate neutral surfaces (post-interpolation)
+def NSGAMCompareCruise(preinterpsurfaces,cruise):
+    for k in preinterpsurfaces.keys():
+        lons = []
+        pres = []
+        surface = preinterpsurfaces[k]
+        splines=50
+        cruiseline = surface["cruise"] == cruise
+        X = np.zeros((len(surface["lons"]),2))
+        X[:,0]=surface["lons"]
+        X[:,1]=surface["lats"]
+        #for d in Bar("Interpolating: ").iter(surface["data"].keys()):
+        d = "pres"
+        notnan = ~np.isnan(surface["data"][d])
+        gam = pygam.GAM(pygam.te(0,1,n_splines=[splines,splines])).fit(X[notnan],np.asarray(surface["data"][d])[notnan])
+        j=len(lons)
+        rawlon =[]
+        rawlat =[]
+        rawpres=[]
+        for l in range(len(preinterpsurfaces[k]["lats"])):
+            if preinterpsurfaces[k]["cruise"][l] == "A10":
+               rawlon.append(preinterpsurfaces[k]["lons"][l]) 
+               rawlat.append(preinterpsurfaces[k]["lats"][l]) 
+               rawpres.append(-preinterpsurfaces[k]["data"]["pres"][l]) 
+        Y = np.zeros((len(rawlon),2))
+        Y[:,0]=rawlon
+        Y[:,1]=rawlat
+        pres=-gam.predict(Y)
+        s=np.argsort(rawlon)
+
+        plt.plot(np.asarray(rawlon)[s],np.asarray(pres)[s],zorder=0)
+        plt.scatter(rawlon,rawpres,c=plt.gca().lines[-1].get_color())
+                
+    lons = np.asarray(lons)
+    pres = np.asarray(pres)
+    s= np.argsort(lons)
+    lons = lons[s]
+    pres = pres[s]
+    plt.xlabel("Longitude")
+    plt.ylabel("Pressure (dbar)")
+    plt.show()
+
 
             #Plot the interpolated surface 
 ##graph surface with neighbors to test calculation of nearest points
