@@ -660,7 +660,7 @@ def averageOverNeighbors(staggered,surfaces,k,s):
     return staggered
 
 ##terrible name but add the bathymetric variability coeffient of KVB
-def addK(surfaces,cachename=None):
+def addK(surfaces,cachename=None,H_0=1000):
     for k in Bar("adding CKVB: ").iter(surfaces.keys()):
         surfaces[k]["data"]["CKVB"] = np.full(len(surfaces[k]["lons"]),np.nan)
         surfaces[k]["data"]["bathvar"] = np.full(len(surfaces[k]["lons"]),np.nan)
@@ -671,7 +671,7 @@ def addK(surfaces,cachename=None):
             if not (np.isnan(lat) or np.isnan(lon)):
                 pv = surfaces[k]["data"]["pv"][i]
                 pres = surfaces[k]["data"]["pres"][i]
-                CKVB, bathvar,depthmean = ptools.Kv(lat,lon,pv,pres,cachename)
+                CKVB, bathvar,depthmean = ptools.Kv(lat,lon,pv,pres,cachename,H_0=H_0)
                 surfaces[k]["data"]["CKVB"][i] = CKVB
                 surfaces[k]["data"]["bathvar"][i] = bathvar
                 surfaces[k]["data"]["depthmean"][i] = depthmean
@@ -978,7 +978,7 @@ def addBathAndMask(surfaces,neighbors,region):
 
     return surfaces
    
-def addParametersToSurfaces(region,surfaces,neighbors,distances,ignore=[]):
+def addParametersToSurfaces(region,surfaces,neighbors,distances,ignore=[],H_0=1000):
     #surfaceDiagnostic(surfaces)
     surfaces = addHeight(surfaces)
     #print("after height")
@@ -995,7 +995,7 @@ def addParametersToSurfaces(region,surfaces,neighbors,distances,ignore=[]):
     ptools.saveBathVarTermCache(surfaces,"data/bathVar.pickle",region)
     #print("after bath var term")
     #surfaceDiagnostic(surfaces)
-    surfaces = addK(surfaces,"data/bathVar.pickle")
+    surfaces = addK(surfaces,"data/bathVar.pickle",H_0=H_0)
     return surfaces
 
 def artificialPSIRef(surfaces,reflevel = 1700):

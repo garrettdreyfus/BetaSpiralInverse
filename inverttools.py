@@ -287,6 +287,7 @@ def fillDefault(params):
     params.setdefault("3point",True)
     params.setdefault("edgeguard",True)
     params.setdefault("modelmixing",False)
+    params.setdefault("H_0",1000)
     return params
 
 def normOfRows(*argv):
@@ -378,7 +379,7 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
                 ##plt.yscale("log")
                 #plt.title("beta: "+str(np.sum(np.power(l,2))))
                 #plt.show()
-                ptools.kChecker(surfaces,k,s[0],params["scalecoeffs"])
+                ptools.kChecker(surfaces,k,s[0],params)
                 #Apsi.append(np.asarray(betarow)/n)
 
                 #make rows that can fit it 

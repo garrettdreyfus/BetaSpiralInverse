@@ -10,6 +10,7 @@ import numpy as np
 import os
 import pygam
 import seaborn as sns
+from regionlib import brasil
 
 def distanceFromKnown(surfaces):
     s =  []
@@ -143,3 +144,36 @@ def cruiseSpline(preinterpsurfaces,cruise):
     #plt.plot(range(4,16),sumerrors)
     plt.legend()
     plt.show()
+
+def decayScaleSensitivity(surfaces,neighbors,distances):
+    f = open("h0log.txt", "w")
+    for H_0 in range(500,5500t,750):
+        surfaces = nstools.addParametersToSurfaces(brasil,surfaces,neighbors,distances,H_0=H_0)
+        # graph.NSGAMCompare(preinterpsurfaces,surfaces,-30,-180,180)
+
+        # print(surfaces.keys())
+        params = {"reflevel":int(2062),"upperbound":1000,"lowerbound":4200,\
+                "mixs":{"kvo":True,"kvb":True,"kh":True},"debug":False,\
+                  "3point":True,"edgeguard":True,"H_0":H_0}
+        # Conditions
+        # All mixing: 201235
+        # No mixing: 147
+        # Kv0 only: 147
+        # KvH and Kv0 only: 148
+        # KvH and Kv0 only with out edgeguard (tm): 489
+
+        out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
+        inv = out["surfaces"]
+        print("#"*10+str(H_0),file=f)
+        print(out["metadata"],file=f)
+        result = nstools.transportDiagnostics(inv)
+        print(result,file=f)
+        kvs = []
+        for l in inv.keys():
+            kvs += list(inv[l]["data"]["kv"])
+        kvs = np.asarray(kvs).flatten()
+        print("kv: ,"+str(np.nanmean(kvs)),file=f)
+        print("% negative: ,"+str(np.sum(kvs>0)/np.sum(~np.isnan(kvs))),file=f)
+        inv = out["surfaces"]
+        inv = nstools.streamFuncToUV(inv,neighbors,distances)
+    f.close()

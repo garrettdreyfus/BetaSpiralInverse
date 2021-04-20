@@ -18,17 +18,17 @@ import sensitivity
 #profiles = brasil.extractArgoProfiles(os.path.abspath("data/brasilargonc"))
 #profiles = brasil.extractBodcProfiles(os.path.abspath("data/brasilmorectd/"))
 #print("BODC: ",len(profiles))
-profilesDeep = brasil.extractDeepArgoProfiles(os.path.abspath("data/brasildeepargo.json"))
-print(len(profilesDeep))
-profilesWoce = brasil.extractWoceProfiles(os.path.abspath("data/brasilnc/"))
-for p in profilesWoce:
-    s=p.pres>3500
-    plt.plot(p.sals[s],p.temps[s],color="blue",label="Ship Based")
-for p in profilesDeep:
-    s=p.pres>3500
-    plt.plot(p.sals[s],p.temps[s],color="red",label="Deep Argo")
-plt.legend()
-plt.show()
+# profilesDeep = brasil.extractDeepArgoProfiles(os.path.abspath("data/brasildeepargo.json"))
+# print(len(profilesDeep))
+# profilesWoce = brasil.extractWoceProfiles(os.path.abspath("data/brasilnc/"))
+# for p in profilesWoce:
+#     s=p.pres>3500
+#     plt.plot(p.sals[s],p.temps[s],color="blue",label="Ship Based")
+# for p in profilesDeep:
+#     s=p.pres>3500
+#     plt.plot(p.sals[s],p.temps[s],color="red",label="Deep Argo")
+# plt.legend()
+# plt.show()
 
 # profiles = profilesWoce + profilesDeep
 # print("WOCE and BODC: ",len(profiles))
@@ -91,9 +91,10 @@ plt.show()
 
 # with open('data/interpedbrasil.pickle', 'wb') as outfile:
 #     pickle.dump([surfaces,neighbors,distances], outfile)
-# with open('data/interpedbrasil.pickle', 'rb') as outfile:
-#     [surfaces,neighbors,distances] = pickle.load(outfile)
+with open('data/interpedbrasil.pickle', 'rb') as outfile:
+    [surfaces,neighbors,distances] = pickle.load(outfile)
 
+sensitivity.decayScaleSensitivity(surfaces,neighbors,distances)
 # surfaces = nstools.addParametersToSurfaces(brasil,surfaces,neighbors,distances)
 # # graph.NSGAMCompare(preinterpsurfaces,surfaces,-30,-180,180)
 
@@ -110,98 +111,97 @@ plt.show()
 
 # out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
 # print(out["metadata"])
-# inv = out["surfaces"]
 # inv = nstools.streamFuncToUV(inv,neighbors,distances)
 
 # with open('data/invertedbrasil.pickle', 'wb') as outfile:
 #     pickle.dump([inv,neighbors,distances], outfile)
-with open('data/invertedbrasil.pickle', 'rb') as outfile:
-    [inv,neighbors,distances] = pickle.load(outfile)
-print(nstools.regionCurl(inv,3600,-39,-36,-38,-27))
-graph.graphVectorField(brasil,inv,"uabs","vabs","pres",# \
-                        transform=False,show=True,\
-                        scale=0.1,select=range(3500,4000))
-# transports = nstools.transportDiagnostics(inv)
-# u = [0,transports["northern"],0,transports["southern"]]
-# v = [transports["vema"],0,transports["hunter"],0]
-# x = [-1,0,1,0]
-# y = [0,1,0,-1]
-# transports = [transports["vema"],transports["northern"],transports["hunter"],transports["southern"]]
-# plt.plot(transports)
-# plt.show()
-#graph.pseudopolzin(inv,-20,-180,180,0,6000,quant="kv")
-#graph.HTtransports(inv,ht="data/hgt.pickle")
-#graph.northSouthTransect(inv,"kv",lat=-20,show=True)
-#nstools.inverseReady(inv)
-graph.meridionalHeatMap(inv,-30,-180,180,1000,6000,show=True,label="")
-result = nstools.transportDiagnostics(inv)
-print(result)
-#graph.latitudinalHeatMap(inv,-35.1,-40,-20,1000,6000,show=True,label="")
-# graph.meridionalSurfaces(inv,-30,-50,-25,1000,6000,show=True,label="")
-# graph.fourpanelVectorField(brasil,inv,"uabs","vabs",backgroundfield="s",\
-#                            select=[1054,1779,3201,4466],transform=False,scale=0.1)
-# graph.graphSurfaces(brasil,inv,"pres",stds=2,show=True,select=range(3200,5000),contour=True)
-# kvs = []
-# for l in inv.keys():
-#     kvs += list([np.nanmean(inv[l]["data"]["kh"])])
-# print("kh: ,",np.nanmean(np.asarray(kvs).flatten()))
-# kvs = []
-# for l in inv.keys():
-#     kvs += list([np.nanmean(inv[l]["data"]["kv"])])
-# print("kv: ,",np.nanmean(np.asarray(kvs).flatten()))
-# kvs = []
-# for l in inv.keys():
-#     kvs += list([np.nanmean(inv[l]["data"]["kvo"])])
-# print("kvo: ,",np.nanmean(np.asarray(kvs).flatten()))
-# #graph.graphSurfaces(brasil,inv,"bathvar",stds=1,show=True,select=range(200,5000))
+# with open('data/invertedbrasil.pickle', 'rb') as outfile:
+#     [inv,neighbors,distances] = pickle.load(outfile)
+# print(nstools.regionCurl(inv,3600,-39,-36,-38,-27))
+# graph.graphVectorField(brasil,inv,"uabs","vabs","pres",# \
+#                         transform=False,show=True,\
+#                         scale=0.1,select=range(3500,4000))
+# # transports = nstools.transportDiagnostics(inv)
+# # u = [0,transports["northern"],0,transports["southern"]]
+# # v = [transports["vema"],0,transports["hunter"],0]
+# # x = [-1,0,1,0]
+# # y = [0,1,0,-1]
+# # transports = [transports["vema"],transports["northern"],transports["hunter"],transports["southern"]]
+# # plt.plot(transports)
+# # plt.show()
+# #graph.pseudopolzin(inv,-20,-180,180,0,6000,quant="kv")
+# #graph.HTtransports(inv,ht="data/hgt.pickle")
+# #graph.northSouthTransect(inv,"kv",lat=-20,show=True)
+# #nstools.inverseReady(inv)
+# graph.meridionalHeatMap(inv,-30,-180,180,1000,6000,show=True,label="")
+# result = nstools.transportDiagnostics(inv)
+# print(result)
+# #graph.latitudinalHeatMap(inv,-35.1,-40,-20,1000,6000,show=True,label="")
+# # graph.meridionalSurfaces(inv,-30,-50,-25,1000,6000,show=True,label="")
+# # graph.fourpanelVectorField(brasil,inv,"uabs","vabs",backgroundfield="s",\
+# #                            select=[1054,1779,3201,4466],transform=False,scale=0.1)
+# # graph.graphSurfaces(brasil,inv,"pres",stds=2,show=True,select=range(3200,5000),contour=True)
+# # kvs = []
+# # for l in inv.keys():
+# #     kvs += list([np.nanmean(inv[l]["data"]["kh"])])
+# # print("kh: ,",np.nanmean(np.asarray(kvs).flatten()))
+# # kvs = []
+# # for l in inv.keys():
+# #     kvs += list([np.nanmean(inv[l]["data"]["kv"])])
+# # print("kv: ,",np.nanmean(np.asarray(kvs).flatten()))
+# # kvs = []
+# # for l in inv.keys():
+# #     kvs += list([np.nanmean(inv[l]["data"]["kvo"])])
+# # print("kvo: ,",np.nanmean(np.asarray(kvs).flatten()))
+# # #graph.graphSurfaces(brasil,inv,"bathvar",stds=1,show=True,select=range(200,5000))
 
+# # with open('data/interpedbrasil.pickle', 'rb') as outfile:
+# #     [surfaces,neighbors,distances] = pickle.load(outfile)
+# # graph.graphVectorField(brasil,inv,"uabs","vabs","pres",# \
+# #                         metadata=out["metadata"],\
+# #                         transform=False,show=False,
+# #                         savepath="../arcticcirc-pics/vectorfields/farthereast/",scale=0.1)
+# ################### SAVE WITH DIFFERENT REF LEVELS
 # with open('data/interpedbrasil.pickle', 'rb') as outfile:
 #     [surfaces,neighbors,distances] = pickle.load(outfile)
-# graph.graphVectorField(brasil,inv,"uabs","vabs","pres",# \
-#                         metadata=out["metadata"],\
-#                         transform=False,show=False,
-#                         savepath="../arcticcirc-pics/vectorfields/farthereast/",scale=0.1)
-################### SAVE WITH DIFFERENT REF LEVELS
-with open('data/interpedbrasil.pickle', 'rb') as outfile:
-    [surfaces,neighbors,distances] = pickle.load(outfile)
-#graph.graphSurfaces(brasil,surfaces,"psi",stds=1,show=True,select=range(3000,5000))
-reflevels = surfaces.keys()
-levels = []
-hunters = []
-vemas = []
-conditions=[]
-curls = []
-errors = []
-for k in reflevels:
-    if int(k) >1000 and int(k) < 4000:
-        with open('data/interpedbrasil.pickle', 'rb') as outfile:
-            [surfaces,neighbors,distances] = pickle.load(outfile)
-        params = {"reflevel":int(k),"upperbound":1000,"lowerbound":4000,\
-                "mixs":{"kvo":True,"kvb":True,"kh":True},"debug":False,\
-                "3point":True,"edgeguard":True}
-        out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
-        inv = out["surfaces"]
-        inv = nstools.streamFuncToUV(inv,neighbors,distances)
-        graph.graphVectorField(brasil,inv,"uabs","vabs","pres",# \
-                                metadata=out["metadata"],select=[3600],\
-                                transform=False,show=False,scale=0.1,\
-                                savepath="../articcirc-pics/vectorfields/curls/"+str(k))
+# #graph.graphSurfaces(brasil,surfaces,"psi",stds=1,show=True,select=range(3000,5000))
+# reflevels = surfaces.keys()
+# levels = []
+# hunters = []
+# vemas = []
+# conditions=[]
+# curls = []
+# errors = []
+# for k in reflevels:
+#     if int(k) >1000 and int(k) < 4000:
+#         with open('data/interpedbrasil.pickle', 'rb') as outfile:
+#             [surfaces,neighbors,distances] = pickle.load(outfile)
+#         params = {"reflevel":int(k),"upperbound":1000,"lowerbound":4000,\
+#                 "mixs":{"kvo":True,"kvb":True,"kh":True},"debug":False,\
+#                 "3point":True,"edgeguard":True}
+#         out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
+#         inv = out["surfaces"]
+#         inv = nstools.streamFuncToUV(inv,neighbors,distances)
+#         graph.graphVectorField(brasil,inv,"uabs","vabs","pres",# \
+#                                 metadata=out["metadata"],select=[3600],\
+#                                 transform=False,show=False,scale=0.1,\
+#                                 savepath="../articcirc-pics/vectorfields/curls/"+str(k))
 
 
-        levels.append(k)
-        result = nstools.transportDiagnostics(inv)
-        hunters.append(result["hunter"])
-        vemas.append(result["vema"])
-        curls.append(result["curl"])
-        conditions.append(out["metadata"]["condition"])
-        errors.append(out["metadata"]["error"])
-fig,((ax1,ax2,ax3),(ax4,ax5,ax6)) = plt.subplots(2,3)
-ax1.plot(levels,conditions)
-ax2.plot(levels,errors)
-ax4.plot(levels,vemas)
-ax5.plot(levels,hunters)
-ax6.plot(levels,curls)
-plt.show()
+#         levels.append(k)
+#         result = nstools.transportDiagnostics(inv)
+#         hunters.append(result["hunter"])
+#         vemas.append(result["vema"])
+#         curls.append(result["curl"])
+#         conditions.append(out["metadata"]["condition"])
+#         errors.append(out["metadata"]["error"])
+# fig,((ax1,ax2,ax3),(ax4,ax5,ax6)) = plt.subplots(2,3)
+# ax1.plot(levels,conditions)
+# ax2.plot(levels,errors)
+# ax4.plot(levels,vemas)
+# ax5.plot(levels,hunters)
+# ax6.plot(levels,curls)
+# plt.show()
 
 
 

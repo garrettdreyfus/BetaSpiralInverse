@@ -63,15 +63,17 @@ def bathVarTermCache(lat,lon,filename):
 
 
 ## calulate the Kvb bathvar coefficient
-def Kv(lat,lon,pv,pres,cachename=None):
+def Kv(lat,lon,pv,pres,cachename=None,H_0=1000):
     if cachename:
         bVT,mean = bathVarTermCache(lat,lon,cachename) 
     else:
         bVT,mean = bathVarTerm(lat,lon)
-    return bVT*np.exp(-(abs(mean)-abs(pres))/1000.0),bVT,np.exp(-(abs(mean)-abs(pres))/5500)
+    return bVT*np.exp(-(abs(mean)-abs(pres))/H_0),bVT,np.exp(-(abs(mean)-abs(pres))/H_0)
 
 #function for exploring k mixing term values
-def kChecker(surfaces,k,found,scales,debug=False):
+def kChecker(surfaces,k,found,params,debug=False):
+    print(params)
+    scales=params["scalecoeffs"]
     f = gsw.f(surfaces[k]["lats"][found])
     x = surfaces[k]["x"][found]
     y = surfaces[k]["y"][found]
@@ -116,6 +118,7 @@ def kChecker(surfaces,k,found,scales,debug=False):
     kvoscale = scales["kvo"]
     kvbscale = scales["kvb"]
     khscale  = scales["kh"]
+    H_0  = params["H_0"]
 
     if (np.isnan(isitnan).any()):
         if debug:
@@ -157,7 +160,7 @@ def kChecker(surfaces,k,found,scales,debug=False):
             plt.gca().set_title(str(str(k) + ": doublets: "+str(doublets)))
             plt.show()
 
-        pvkvb = (d2qdz2+2*(1/1000)*dqdz+(1/(1000**2))*pv)*CKVB
+        pvkvb = (d2qdz2+2*(1/H_0)*dqdz+(1/(H_0**2))*pv)*CKVB
         pvkv0 = d2qdz2
         pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv -f*khpdz
         skvo = -alpha*f*(1/pv)*(dsdz**3)*doublets
@@ -268,13 +271,14 @@ def kterms(surfaces,k,found,params,fallback=None):
     kvoscale = scales["kvo"]
     kvbscale = scales["kvb"]
     khscale  = scales["kh"]
+    H_0  = params["H_0"]
     if (np.isnan(isitnan).any()):
         if debug:
             print(isitnanstr[np.isnan(isitnan)])
             print("something here is nan")
         return {},{}
     if not (np.isnan(isitnan).any()):
-        pvkvb = (d2qdz2+2*(-CKVB/5500.0)*dqdz+(CKVB/(5500.0**2))*pv)*CKVB
+        pvkvb = (d2qdz2+2*(-CKVB/H_0)*dqdz+(CKVB/(H_0**2))*pv)*CKVB
         #print("pvkvb: ",pvkvb," : ",d2qdz2,dqdz,pv,CKVB,)
         pvkvo = d2qdz2
         #print("pvkvo: ",pvkvo)
