@@ -7,7 +7,7 @@ import graph
 import parametertools as ptools
 import matplotlib.pyplot as plt
 import numpy as np
-import os
+import os, copy
 import pygam
 import seaborn as sns
 from regionlib import brasil
@@ -145,9 +145,10 @@ def cruiseSpline(preinterpsurfaces,cruise):
     plt.legend()
     plt.show()
 
-def decayScaleSensitivity(surfaces,neighbors,distances):
+def decayScaleSensitivity(originalsurfaces,neighbors,distances):
     f = open("h0log.txt", "w")
-    for H_0 in range(500,5500t,750):
+    for H_0 in range(500,5500,750):
+        surfaces = copy.deepcopy(originalsurfaces)
         surfaces = nstools.addParametersToSurfaces(brasil,surfaces,neighbors,distances,H_0=H_0)
         # graph.NSGAMCompare(preinterpsurfaces,surfaces,-30,-180,180)
 
@@ -164,6 +165,7 @@ def decayScaleSensitivity(surfaces,neighbors,distances):
 
         out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
         inv = out["surfaces"]
+        inv = nstools.streamFuncToUV(inv,neighbors,distances)
         print("#"*10+str(H_0),file=f)
         print(out["metadata"],file=f)
         result = nstools.transportDiagnostics(inv)
@@ -173,7 +175,5 @@ def decayScaleSensitivity(surfaces,neighbors,distances):
             kvs += list(inv[l]["data"]["kv"])
         kvs = np.asarray(kvs).flatten()
         print("kv: ,"+str(np.nanmean(kvs)),file=f)
-        print("% negative: ,"+str(np.sum(kvs>0)/np.sum(~np.isnan(kvs))),file=f)
-        inv = out["surfaces"]
-        inv = nstools.streamFuncToUV(inv,neighbors,distances)
+        print("% negative: ,"+str(np.sum(kvs<0)/np.sum(~np.isnan(kvs))),file=f)
     f.close()

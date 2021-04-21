@@ -1358,19 +1358,26 @@ def transportDiagnostics(surfaces):
     print("southern")
     southern = transportAcross(surfaces,-35,-30,-20,3600,100000,"lons","lats","uabs")
 
+    onepointsix = transportAcross(surfaces,-30,-33,180,0,100000,"lats","lons","vabs",tempcriteria=1.6)
+    onepointtwo = transportAcross(surfaces,-30,-33,180,0,100000,"lats","lons","vabs",tempcriteria=1.2)
+    zeropointeight = transportAcross(surfaces,-30,-33,180,0,100000,"lats","lons","vabs",tempcriteria=0.8)
+
     curl = regionCurl(surfaces,3600,-39,-36,-38,-27)
     print(curl)
 
     results = {"vema":vema,\
                "hunter":hunter,\
-               "northern":northern,\
                "curl":curl,\
-               "southern":southern}
+               "pt<1.6":onepointsix,\
+               "pt<1.2":onepointtwo,\
+               "pt<0.8":zeropointeight,\
+               }
     return results
 
 
-def transportAcross(surfaces,lat,startlon,endlon,startpres,endpres,normalcoord,alongcoord,normalvelocity):
+def transportAcross(surfaces,lat,startlon,endlon,startpres,endpres,normalcoord,alongcoord,normalvelocity,tempcriteria=100,unit="volume"):
     transportsums = {}
+    surfaces = addOldUnits(surfaces)
     for k in surfaces.keys():
         if  startpres < int(k) < endpres:
             lons = []
@@ -1378,7 +1385,8 @@ def transportAcross(surfaces,lat,startlon,endlon,startpres,endpres,normalcoord,a
             height = []
             rhos = []
             for l in range(len(surfaces[k]["lats"])):
-                if np.abs(surfaces[k][normalcoord][l] - lat)<0.01 and  startlon< surfaces[k][alongcoord][l] <endlon:
+                if np.abs(surfaces[k][normalcoord][l] - lat)<0.01 and  startlon< surfaces[k][alongcoord][l] <endlon\
+                   and (surfaces[k]["data"]["pottemp"][l]<tempcriteria):
                     lons.append(surfaces[k][alongcoord][l])
                     vabs.append(surfaces[k]["data"][normalvelocity][l])
                     height.append(surfaces[k]["data"]["h"][l])
@@ -1387,13 +1395,18 @@ def transportAcross(surfaces,lat,startlon,endlon,startpres,endpres,normalcoord,a
             lons=np.asarray(lons)
             vabs=np.asarray(vabs)
             height=np.asarray(height)
+            rhos = np.asarray(rhos)
             s = np.argsort(lons)
             lons = lons[s]
             vabs = vabs[s]
             height = height[s]
+            rhos = rhos[s]
             if len(lons)>1:
                 width = np.nanmin(np.gradient(np.asarray(lons))*np.cos(np.deg2rad(lat))*111*10**3)
-                transport = (width*np.asarray(height)*np.asarray(vabs))*rho
+                if unit=="mass":
+                    transport = (width*np.asarray(height)*np.asarray(vabs))*rhos
+                if unit == "volume":
+                    transport = (width*np.asarray(height)*np.asarray(vabs))
                 for i in range(len(lons)):
                     transportsums.setdefault(lons[i],0)
                     if ~np.isnan(transport[i]):

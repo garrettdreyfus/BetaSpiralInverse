@@ -63,7 +63,7 @@ def bathVarTermCache(lat,lon,filename):
 
 
 ## calulate the Kvb bathvar coefficient
-def Kv(lat,lon,pv,pres,cachename=None,H_0=1000):
+def Kv(lat,lon,pv,pres,cachename=None,H_0=1250):
     if cachename:
         bVT,mean = bathVarTermCache(lat,lon,cachename) 
     else:
@@ -72,7 +72,6 @@ def Kv(lat,lon,pv,pres,cachename=None,H_0=1000):
 
 #function for exploring k mixing term values
 def kChecker(surfaces,k,found,params,debug=False):
-    print(params)
     scales=params["scalecoeffs"]
     f = gsw.f(surfaces[k]["lats"][found])
     x = surfaces[k]["x"][found]

@@ -91,10 +91,10 @@ import sensitivity
 
 # with open('data/interpedbrasil.pickle', 'wb') as outfile:
 #     pickle.dump([surfaces,neighbors,distances], outfile)
-with open('data/interpedbrasil.pickle', 'rb') as outfile:
-    [surfaces,neighbors,distances] = pickle.load(outfile)
+# with open('data/interpedbrasil.pickle', 'rb') as outfile:
+#     [surfaces,neighbors,distances] = pickle.load(outfile)
 
-sensitivity.decayScaleSensitivity(surfaces,neighbors,distances)
+# #sensitivity.decayScaleSensitivity(surfaces,neighbors,distances)
 # surfaces = nstools.addParametersToSurfaces(brasil,surfaces,neighbors,distances)
 # # graph.NSGAMCompare(preinterpsurfaces,surfaces,-30,-180,180)
 
@@ -111,17 +111,17 @@ sensitivity.decayScaleSensitivity(surfaces,neighbors,distances)
 
 # out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
 # print(out["metadata"])
+# inv=out["surfaces"]
 # inv = nstools.streamFuncToUV(inv,neighbors,distances)
 
 # with open('data/invertedbrasil.pickle', 'wb') as outfile:
 #     pickle.dump([inv,neighbors,distances], outfile)
-# with open('data/invertedbrasil.pickle', 'rb') as outfile:
-#     [inv,neighbors,distances] = pickle.load(outfile)
-# print(nstools.regionCurl(inv,3600,-39,-36,-38,-27))
-# graph.graphVectorField(brasil,inv,"uabs","vabs","pres",# \
-#                         transform=False,show=True,\
-#                         scale=0.1,select=range(3500,4000))
-# # transports = nstools.transportDiagnostics(inv)
+with open('data/invertedbrasil.pickle', 'rb') as outfile:
+    [inv,neighbors,distances] = pickle.load(outfile)
+graph.AABWFinder(inv)
+print(nstools.regionCurl(inv,3600,-39,-36,-38,-27))
+transports = nstools.transportDiagnostics(inv)
+print(transports)
 # # u = [0,transports["northern"],0,transports["southern"]]
 # # v = [transports["vema"],0,transports["hunter"],0]
 # # x = [-1,0,1,0]
