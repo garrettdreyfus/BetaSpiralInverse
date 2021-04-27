@@ -1476,28 +1476,28 @@ def regionCurl(surfaces,k,leftlon,rightlon,bottomlat,toplat):
     return curltotal
 
 
-def profilesGeostrophic(profiles,cruise,referencefile):
+def profilesGeostrophic(profiles,cruise,referencefile,timethreshold=10**9):
     minpres = []
     maxpres = []
     stations = []
     for p in profiles:
-        if p.cruise == cruise and p.time<2451000:
+        if p.cruise == cruise:
             minpres.append(np.nanmin(p.pres))
             maxpres.append(np.nanmax(p.pres))
             stations.append(p.time)
-    # plt.colorbar()
-    # plt.show()
-    minpres, maxpres = np.nanmax(minpres), 4000#np.nanmin(maxpres)
+    plt.scatter(stations,maxpres)
+    plt.show()
+    minpres, maxpres = np.nanmax(minpres), 6000#np.nanmin(maxpres)
     dynht = {"lon":[],"lat":[],"dynht":[]}
     for p in profiles:
-        if p.cruise == cruise and p.time<2451000:
+        if p.cruise == cruise and p.lat>-40 and p.time<2451000:#and p.time<2454000:# 
             pres = np.asarray(list(p.ipres))
-            SA = p.isals[np.logical_and(20<pres,pres<4000)]
-            CT = p.itemps[np.logical_and(20<pres,pres<4000)]
-            pres = pres[np.logical_and(20<pres,pres<4000)]
+            SA = p.isals[np.logical_and(20<pres,pres<6000)]
+            CT = p.itemps[np.logical_and(20<pres,pres<6000)]
+            pres = pres[np.logical_and(20<pres,pres<6000)]
             dynhtcropped = np.asarray(gsw.geo_strf_dyn_height(SA,CT,pres,1000))
-            adjusted = np.full_like(np.asarray(range(20,4000)),np.nan,dtype=np.double)
-            adjusted[np.asarray(range(20,4000))<np.nanmax(pres)] = dynhtcropped
+            adjusted = np.full_like(np.asarray(range(20,6000)),np.nan,dtype=np.double)
+            adjusted[np.asarray(range(20,6000))<np.nanmax(pres)] = dynhtcropped
             dynht["dynht"].append(adjusted)
             dynht["lon"].append(p.lon)
             dynht["lat"].append(p.lat)
@@ -1515,9 +1515,43 @@ def profilesGeostrophic(profiles,cruise,referencefile):
         v0 = float(ref_vs.interp(LONGITUDE=365+mlons[v],LATITUDE=mlats[v]).V)
         #print(v0)
         #print(np.asarray(list([vels[0]])*len(vels)))
-        vels= vels-np.asarray(list([vels[np.asarray(range(20,4000))==1000][0]])*len(vels))+v0
-            lt.scatter([mlons[v]]*len(vels),-np.asarray(range(20,4000)),c=vels,vmin=-0.05,vmax=0.05,cmap="RdBu")
+        vels= vels-np.asarray(list([vels[np.asarray(range(20,6000))==1000][0]])*len(vels))+v0
+        plt.scatter([mlons[v]]*len(vels),-np.asarray(range(20,6000)),c=vels,vmin=-0.05,vmax=0.05,cmap="RdBu")
     plt.clim(-0.05,0.05)
     plt.colorbar()
     plt.show()
             
+
+def externalReference(surfaces,referencefile):
+    ref_vs = xr.open_dataset(referencefile)
+    levels = np.asarray((sorted(surfaces.keys())))
+    below = levels[levels>1000][0]
+    above = levels[levels<1000][-1]
+    print(below,above)
+    ref_1000 = {}
+    for below_i in range(len(surfaces[below]["ids"])):
+        eyed = surfaces[below]["ids"][below_i]
+        lon = surfaces[below]["lons"][below_i]
+        lat = surfaces[below]["lats"][below_i]
+        if eyed in surfaces[above]["ids"] and ~np.isnan(lon):
+            above_i = surfaces[above]["ids"].index(eyed)
+            u_c = np.interp(1000,[below,above],[surfaces[below]["data"]["u"][below_i],surfaces[below]["data"]["u"][above_i]])
+            v_c = np.interp(1000,[below,above],[surfaces[below]["data"]["v"][below_i],surfaces[below]["data"]["v"][above_i]])
+            u0 = float(ref_vs.interp(LONGITUDE=365+lon,LATITUDE=lat).U)
+            v0 = float(ref_vs.interp(LONGITUDE=365+lon,LATITUDE=lat).V)
+            ref_1000[eyed] = [u_c-u0,v_c-v0]
+
+
+    for k in Bar("referencing to yomaha from model uv").iter(list(surfaces.keys())):
+        surfaces[k]["data"]["yomahau"] =np.full_like(surfaces[k]["ids"],np.nan,dtype=np.double)
+        surfaces[k]["data"]["yomahav"] =np.full_like(surfaces[k]["ids"],np.nan,dtype=np.double)
+        for l in range(len(surfaces[k]["ids"])):
+            eyed = surfaces[k]["ids"][l]
+            if eyed in ref_1000.keys():
+                surfaces[k]["data"]["yomahau"][l]= surfaces[k]["data"]["u"][l]-ref_1000[eyed][0]
+                surfaces[k]["data"]["yomahav"][l]= surfaces[k]["data"]["v"][l]-ref_1000[eyed][1]
+    return surfaces
+
+
+
+

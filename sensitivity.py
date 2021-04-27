@@ -147,7 +147,7 @@ def cruiseSpline(preinterpsurfaces,cruise):
 
 def decayScaleSensitivity(originalsurfaces,neighbors,distances):
     f = open("h0log.txt", "w")
-    for H_0 in range(500,5500,750):
+    for H_0 in range(500,1251,750):
         surfaces = copy.deepcopy(originalsurfaces)
         surfaces = nstools.addParametersToSurfaces(brasil,surfaces,neighbors,distances,H_0=H_0)
         # graph.NSGAMCompare(preinterpsurfaces,surfaces,-30,-180,180)
@@ -174,6 +174,8 @@ def decayScaleSensitivity(originalsurfaces,neighbors,distances):
         for l in inv.keys():
             kvs += list(inv[l]["data"]["kv"])
         kvs = np.asarray(kvs).flatten()
+
         print("kv: ,"+str(np.nanmean(kvs)),file=f)
         print("% negative: ,"+str(np.sum(kvs<0)/np.sum(~np.isnan(kvs))),file=f)
+
     f.close()

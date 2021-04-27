@@ -34,9 +34,9 @@ import sensitivity
 # print("WOCE and BODC: ",len(profiles))
 # with open('data/argoandwoce.pickle', 'wb') as outfile:
 #     pickle.dump(profiles,outfile)
-with open('data/argoandwoce.pickle', 'rb') as outfile:
-   profiles = pickle.load(outfile)
-nstools.profilesGeostrophic(profiles,"A10","data/yomaha_1000.nc")
+# with open('data/argoandwoce.pickle', 'rb') as outfile:
+#    profiles = pickle.load(outfile)
+# nstools.profilesGeostrophic(profiles,"A10","data/yomaha_1000.nc")
 # profilechoice = nstools.profileInBox(profiles,-40,-20,-31,-28,5000)
 # #profilechoice = nstools.profileInBox(profiles,-42,-37,-31,-28,4500)
 # profilechoice = profilechoice[0]
@@ -94,7 +94,7 @@ nstools.profilesGeostrophic(profiles,"A10","data/yomaha_1000.nc")
 # with open('data/interpedbrasil.pickle', 'rb') as outfile:
 #     [surfaces,neighbors,distances] = pickle.load(outfile)
 
-# #sensitivity.decayScaleSensitivity(surfaces,neighbors,distances)
+# sensitivity.decayScaleSensitivity(surfaces,neighbors,distances)
 # surfaces = nstools.addParametersToSurfaces(brasil,surfaces,neighbors,distances)
 # # graph.NSGAMCompare(preinterpsurfaces,surfaces,-30,-180,180)
 
@@ -118,10 +118,17 @@ nstools.profilesGeostrophic(profiles,"A10","data/yomaha_1000.nc")
 #     pickle.dump([inv,neighbors,distances], outfile)
 with open('data/invertedbrasil.pickle', 'rb') as outfile:
     [inv,neighbors,distances] = pickle.load(outfile)
-graph.AABWFinder(inv)
-print(nstools.regionCurl(inv,3600,-39,-36,-38,-27))
-transports = nstools.transportDiagnostics(inv)
-print(transports)
+
+inv = nstools.externalReference(inv,"data/yomaha_1000.nc")
+print(inv.keys())
+#graph.fourpanelVectorField(brasil,inv,"yomahau","yomahav",backgroundfield="s",\
+                           #select=[1054,1779,3200,4400],transform=False,scale=0.5)
+graph.meridionalHeatMap(inv,-30,-180,180,1000,6000,show=True,label="",quant="yomahav")
+
+# graph.AABWFinder(inv)
+# print(nstools.regionCurl(inv,3600,-39,-36,-38,-27))
+# transports = nstools.transportDiagnostics(inv)
+# print(transports)
 # # u = [0,transports["northern"],0,transports["southern"]]
 # # v = [transports["vema"],0,transports["hunter"],0]
 # # x = [-1,0,1,0]
