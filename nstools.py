@@ -30,6 +30,7 @@ import pdb
 import interptools
 from pygamma_n import gamma_n
 from scipy import interpolate,integrate
+import xarray as xr
 
 def addGammaN(surfaces):
     savedata = {"s":[],"t":[],"p":[],"lons":[],"lats":[]}
@@ -1474,3 +1475,49 @@ def regionCurl(surfaces,k,leftlon,rightlon,bottomlat,toplat):
 
     return curltotal
 
+
+def profilesGeostrophic(profiles,cruise,referencefile):
+    minpres = []
+    maxpres = []
+    stations = []
+    for p in profiles:
+        if p.cruise == cruise and p.time<2451000:
+            minpres.append(np.nanmin(p.pres))
+            maxpres.append(np.nanmax(p.pres))
+            stations.append(p.time)
+    # plt.colorbar()
+    # plt.show()
+    minpres, maxpres = np.nanmax(minpres), 4000#np.nanmin(maxpres)
+    dynht = {"lon":[],"lat":[],"dynht":[]}
+    for p in profiles:
+        if p.cruise == cruise and p.time<2451000:
+            pres = np.asarray(list(p.ipres))
+            SA = p.isals[np.logical_and(20<pres,pres<4000)]
+            CT = p.itemps[np.logical_and(20<pres,pres<4000)]
+            pres = pres[np.logical_and(20<pres,pres<4000)]
+            dynhtcropped = np.asarray(gsw.geo_strf_dyn_height(SA,CT,pres,1000))
+            adjusted = np.full_like(np.asarray(range(20,4000)),np.nan,dtype=np.double)
+            adjusted[np.asarray(range(20,4000))<np.nanmax(pres)] = dynhtcropped
+            dynht["dynht"].append(adjusted)
+            dynht["lon"].append(p.lon)
+            dynht["lat"].append(p.lat)
+    lons = np.asarray(dynht["lon"])
+    lats = np.asarray(dynht["lat"])
+    dynht = np.asarray(dynht["dynht"])
+    s = np.argsort(lons)
+    lons,lats,dynht = lons[s],lats[s],dynht[s]
+    velocity,mlons,mlats = gsw.geostrophic_velocity(dynht.T,lons,lats)
+    velocity=velocity.T
+    ref_vs = xr.open_dataset(referencefile)
+
+    for v in range(len(velocity)):
+        vels = velocity[v]
+        v0 = float(ref_vs.interp(LONGITUDE=365+mlons[v],LATITUDE=mlats[v]).V)
+        #print(v0)
+        #print(np.asarray(list([vels[0]])*len(vels)))
+        vels= vels-np.asarray(list([vels[np.asarray(range(20,4000))==1000][0]])*len(vels))+v0
+            lt.scatter([mlons[v]]*len(vels),-np.asarray(range(20,4000)),c=vels,vmin=-0.05,vmax=0.05,cmap="RdBu")
+    plt.clim(-0.05,0.05)
+    plt.colorbar()
+    plt.show()
+            

@@ -34,9 +34,9 @@ import sensitivity
 # print("WOCE and BODC: ",len(profiles))
 # with open('data/argoandwoce.pickle', 'wb') as outfile:
 #     pickle.dump(profiles,outfile)
-# with open('data/argoandwoce.pickle', 'rb') as outfile:
-#    profiles = pickle.load(outfile)
-
+with open('data/argoandwoce.pickle', 'rb') as outfile:
+   profiles = pickle.load(outfile)
+nstools.profilesGeostrophic(profiles,"A10","data/yomaha_1000.nc")
 # profilechoice = nstools.profileInBox(profiles,-40,-20,-31,-28,5000)
 # #profilechoice = nstools.profileInBox(profiles,-42,-37,-31,-28,4500)
 # profilechoice = profilechoice[0]
