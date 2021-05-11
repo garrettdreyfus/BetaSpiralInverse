@@ -94,20 +94,21 @@ import sensitivity
 # with open('data/interpedbrasil.pickle', 'rb') as outfile:
 #     [surfaces,neighbors,distances] = pickle.load(outfile)
 
-# sensitivity.decayScaleSensitivity(surfaces,neighbors,distances)
-# surfaces = nstools.addParametersToSurfaces(brasil,surfaces,neighbors,distances)
-# # graph.NSGAMCompare(preinterpsurfaces,surfaces,-30,-180,180)
+# #sensitivity.weightingSensitivity(surfaces,neighbors,distances)
+# surfaces = nstools.addParametersToSurfaces(brasil,surfaces,neighbors,distances,H_0=500)
+# # # graph.NSGAMCompare(preinterpsurfaces,surfaces,-30,-180,180)
 
-# # print(surfaces.keys())
+# # # print(surfaces.keys())
 # params = {"reflevel":int(2062),"upperbound":1000,"lowerbound":4200,\
+#         "scalecoeffs":{"Ar":0.05,"kvo":5*10**(-6+6),"kvb":5*10**(-5),"kh":5*10**(2)},\
 #         "mixs":{"kvo":True,"kvb":True,"kh":True},"debug":False,\
-#           "3point":True,"edgeguard":True}
-# # Conditions
-# # All mixing: 201235
-# # No mixing: 147
-# # Kv0 only: 147
-# # KvH and Kv0 only: 148
-# # KvH and Kv0 only with out edgeguard (tm): 489
+#             "3point":True,"edgeguard":True,"H_0":500}
+# # # Conditions
+# # # All mixing: 201235
+# # # No mixing: 147
+# # # Kv0 only: 147
+# # # KvH and Kv0 only: 148
+# # # KvH and Kv0 only with out edgeguard (tm): 489
 
 # out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
 # print(out["metadata"])
@@ -119,11 +120,13 @@ import sensitivity
 with open('data/invertedbrasil.pickle', 'rb') as outfile:
     [inv,neighbors,distances] = pickle.load(outfile)
 
-inv = nstools.externalReference(inv,"data/yomaha_1000.nc")
-print(inv.keys())
-#graph.fourpanelVectorField(brasil,inv,"yomahau","yomahav",backgroundfield="s",\
-                           #select=[1054,1779,3200,4400],transform=False,scale=0.5)
-graph.meridionalHeatMap(inv,-30,-180,180,1000,6000,show=True,label="",quant="yomahav")
+graph.HTtransports(inv,ht="data/hgt.pickle")
+# inv = nstools.externalReference(inv,"data/yomaha_1000.nc")
+# print(nstools.transportDiagnostics(inv,["yomahau","yomahav"]))
+# print(inv.keys())
+# #graph.fourpanelVectorField(brasil,inv,"yomahau","yomahav",backgroundfield="s",\
+#                            #select=[1054,1779,3200,4400],transform=False,scale=0.5)
+graph.meridionalHeatMap(inv,-30,-180,180,1000,6000,show=True,label="",quant="vabs")
 
 # graph.AABWFinder(inv)
 # print(nstools.regionCurl(inv,3600,-39,-36,-38,-27))
@@ -137,7 +140,6 @@ graph.meridionalHeatMap(inv,-30,-180,180,1000,6000,show=True,label="",quant="yom
 # # plt.plot(transports)
 # # plt.show()
 # #graph.pseudopolzin(inv,-20,-180,180,0,6000,quant="kv")
-# #graph.HTtransports(inv,ht="data/hgt.pickle")
 # #graph.northSouthTransect(inv,"kv",lat=-20,show=True)
 # #nstools.inverseReady(inv)
 # graph.meridionalHeatMap(inv,-30,-180,180,1000,6000,show=True,label="")

@@ -1349,19 +1349,19 @@ def meridionalTransport(surfaces,lat,startlon,endlon,startpres,endpres):
     totaltransport = np.nansum(finaltransport)
     return totaltransport
 
-def transportDiagnostics(surfaces):
+def transportDiagnostics(surfaces,vector=["uabs","vabs"]):
     print("vema")
-    vema = transportAcross(surfaces,-30,-180,-33,3600,100000,"lats","lons","vabs")
+    vema = transportAcross(surfaces,-30,-180,-33,3600,100000,"lats","lons",vector[1])
     print("hunter")
-    hunter = transportAcross(surfaces,-30,-33,180,3600,100000,"lats","lons","vabs")
+    hunter = transportAcross(surfaces,-30,-33,180,3600,100000,"lats","lons",vector[1])
     print("northern")
-    northern = transportAcross(surfaces,-35,-40,-30,3600,100000,"lons","lats","uabs")
+    northern = transportAcross(surfaces,-35,-40,-30,3600,100000,"lons","lats",vector[0])
     print("southern")
-    southern = transportAcross(surfaces,-35,-30,-20,3600,100000,"lons","lats","uabs")
+    southern = transportAcross(surfaces,-35,-30,-20,3600,100000,"lons","lats",vector[0])
 
-    onepointsix = transportAcross(surfaces,-30,-33,180,0,100000,"lats","lons","vabs",tempcriteria=1.6)
-    onepointtwo = transportAcross(surfaces,-30,-33,180,0,100000,"lats","lons","vabs",tempcriteria=1.2)
-    zeropointeight = transportAcross(surfaces,-30,-33,180,0,100000,"lats","lons","vabs",tempcriteria=0.8)
+    onepointsix = transportAcross(surfaces,-30,-33,180,0,100000,"lats","lons",vector[1],tempcriteria=1.6)
+    onepointtwo = transportAcross(surfaces,-30,-33,180,0,100000,"lats","lons",vector[1],tempcriteria=1.2)
+    zeropointeight = transportAcross(surfaces,-30,-33,180,0,100000,"lats","lons",vector[1],tempcriteria=0.8)
 
     curl = regionCurl(surfaces,3600,-39,-36,-38,-27)
     print(curl)

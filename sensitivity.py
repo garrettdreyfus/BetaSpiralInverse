@@ -11,6 +11,7 @@ import os, copy
 import pygam
 import seaborn as sns
 from regionlib import brasil
+import pdb
 
 def distanceFromKnown(surfaces):
     s =  []
@@ -147,7 +148,8 @@ def cruiseSpline(preinterpsurfaces,cruise):
 
 def decayScaleSensitivity(originalsurfaces,neighbors,distances):
     f = open("h0log.txt", "w")
-    for H_0 in range(500,1251,750):
+    flat_kvs={}
+    for H_0 in range(200,3000,500):
         surfaces = copy.deepcopy(originalsurfaces)
         surfaces = nstools.addParametersToSurfaces(brasil,surfaces,neighbors,distances,H_0=H_0)
         # graph.NSGAMCompare(preinterpsurfaces,surfaces,-30,-180,180)
@@ -174,8 +176,63 @@ def decayScaleSensitivity(originalsurfaces,neighbors,distances):
         for l in inv.keys():
             kvs += list(inv[l]["data"]["kv"])
         kvs = np.asarray(kvs).flatten()
-
+        flat_kvs[H_0] = kvs
         print("kv: ,"+str(np.nanmean(kvs)),file=f)
         print("% negative: ,"+str(np.sum(kvs<0)/np.sum(~np.isnan(kvs))),file=f)
+        del out
+        del inv
+        del surfaces
 
+    fig, (ax1,ax2) = plt.subplots(1,2)
+    bins=range(-10,0)
+    for k in flat_kvs.keys():
+        ax1.hist(np.log10(np.abs(flat_kvs[k][flat_kvs[k]>0])),bins,histtype='step',label=k)
+        ax2.hist(np.log10(np.abs(flat_kvs[k][flat_kvs[k]<0])),bins,histtype='step',label=k)
+    plt.legend()
+    plt.show()
+    f.close()
+
+def weightingSensitivity(originalsurfaces,neighbors,distances):
+    flat_kvs={}
+    originalsurfaces = nstools.addParametersToSurfaces(brasil,originalsurfaces,neighbors,distances,H_0=500)
+    for o in [2,4,6]:
+        for b in [1]:
+            for h in [0]:
+                surfaces = copy.deepcopy(originalsurfaces)
+                # graph.NSGAMCompare(preinterpsurfaces,surfaces,-30,-180,180)
+
+                # print(surfaces.keys())
+                params = {"reflevel":int(2062),"upperbound":1000,"lowerbound":4200,\
+                        "scalecoeffs":{"Ar":0.05,"kvo":5*10**(-6+o),"kvb":5*10**(-5+b),"kh":5*10**(2+h)},\
+                        "mixs":{"kvo":True,"kvb":True,"kh":True},"debug":False,\
+                          "3point":True,"edgeguard":True,"H_0":500}
+                # Conditions
+                # All mixing: 201235
+                # No mixing: 147
+                # Kv0 only: 147
+                # KvH and Kv0 only: 148
+                # KvH and Kv0 only with out edgeguard (tm): 489
+
+                out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
+                inv = out["surfaces"]
+                inv = nstools.streamFuncToUV(inv,neighbors,distances)
+                result = nstools.transportDiagnostics(inv)
+                print(result)
+                kvs = []
+                for l in inv.keys():
+                    kvs += list(inv[l]["data"]["kv"])
+
+                kvs = np.asarray(kvs).flatten()
+                flat_kvs[str(o)+str(b)+str(h)] = kvs
+                del out
+                del inv
+                del surfaces
+
+    fig, (ax1,ax2) = plt.subplots(1,2)
+    bins=range(-10,0)
+    for k in flat_kvs.keys():
+        ax1.hist(np.log10(np.abs(flat_kvs[k][flat_kvs[k]>0])),bins,histtype='step',label=k)
+        ax2.hist(np.log10(np.abs(flat_kvs[k][flat_kvs[k]<0])),bins,histtype='step',label=k)
+    plt.legend()
+    plt.show()
     f.close()
