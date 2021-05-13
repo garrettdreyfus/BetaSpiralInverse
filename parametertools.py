@@ -257,29 +257,32 @@ def kterms(surfaces,k,found,params,fallback=None):
     CKVB = fetchWithFallback(surfaces,k,"CKVB",found,fallback)
     uref = fetchWithFallback(surfaces,k,"uref",found,fallback)
     vref = fetchWithFallback(surfaces,k,"vref",found,fallback)
+    N = np.sqrt(((pv*9.81)/f))
     f = gsw.f(surfaces[k]["lats"][found])
     beta = calcBeta(surfaces[k]["lats"][found])
     isitnan = [alpha,betaTherm,dsdz,hx,hy,dsdx,dsdy,pres,d2sdx2,d2sdy2,\
               dalphadtheta,dalphads,dalphadp,dtdx,dtdy,\
               dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
-              beta,d2qdx2,d2qdy2,d2qdz2,khp,toph,both,uref,vref]
+               beta,d2qdx2,d2qdy2,d2qdz2,khp,toph,both,uref,vref,f]
     isitnanstr = np.asarray(["alpha","betaTherm","dsdz","hx","hy","dsdx","dsdy","pres","d2sdx2","d2sdy2",\
               "dalphadtheta","dalphads","dalphadp","dtdx","dtdy",\
               "dqnotdx","dqnotdy","dpdx","dpdy","alphat","alphap","pv","doublets","CKVB",\
-              "beta","d2qdx2","d2qdy2","d2qdz2","khp","toph","both","uref","vref"])
+                             "beta","d2qdx2","d2qdy2","d2qdz2","khp","toph","both","uref","vref","f"])
     kvoscale = scales["kvo"]
     kvbscale = scales["kvb"]
     khscale  = scales["kh"]
     H_0  = params["H_0"]
+    j, djdz, d2jdz2 = jAndDerivatives(N,f,pv,dqdz)
     if (np.isnan(isitnan).any()):
         if debug:
             print(isitnanstr[np.isnan(isitnan)])
             print("something here is nan")
         return {},{}
     if not (np.isnan(isitnan).any()):
-        pvkvb = (d2qdz2+2*(-CKVB/H_0)*dqdz+(CKVB/(H_0**2))*pv)*CKVB
+        #pvkvb = (d2qdz2+2*(-CKVB/H_0)*dqdz+(CKVB/(H_0**2))*pv)*CKVB
+        pvkvb = CKVB*(j*d2qdz2 + 2*djdz*dqdz - 2*(j/H_0)*dqdz + d2jdz2*pv - (2/H_0)*djdz*pv + (j/(H_0**2))*pv)
         #print("pvkvb: ",pvkvb," : ",d2qdz2,dqdz,pv,CKVB,)
-        pvkvo = d2qdz2
+        pvkvo = (j*d2qdz2 + 2*djdz*dqdz + d2jdz2*pv)
         #print("pvkvo: ",pvkvo)
         if params["modelmixing"]:
             #print("NO")
@@ -293,7 +296,7 @@ def kterms(surfaces,k,found,params,fallback=None):
                 print("both")
             pvkh = (d2qdx2+d2qdy2)-2*(dqnotdx*dqdx+dqnotdy*dqdy)/pv -((1.0/both-1.0/toph)*f*khp)
             #print("pvkvh: ",pvkh)
-        skvo = -alpha*f*(1/pv)*(dsdz**3)*doublets
+        skvo = -alpha*j*f*(1/pv)*(dsdz**3)*doublets
         skvb = skvo*CKVB
         skhpart1 = (f/pv)*dsdz*(alphat*(dtdx**2 + dtdy**2)+alphap*(dtdx*dpdx+dtdy*dpdy))
         skhpart2 = (d2sdx2+d2sdy2)-2*(dqnotdx*dsdx + dqnotdy*dsdy)/pv
@@ -301,6 +304,18 @@ def kterms(surfaces,k,found,params,fallback=None):
         kvs = {"kvo":pvkvo*kvoscale,"kvb":pvkvb*kvbscale,"kh":pvkh*khscale}
         ks = {"kvo":skvo*kvoscale,"kvb":skvb*kvbscale,"kh":skh*khscale}
         return kvs,ks
+
+def jAndDerivatives(N,f,Q,dQdz):
+    g = 9.81
+    f = f
+    Q = Q
+    f0 = gsw.f(-30)
+    N0 = 5.2*(10**-3)
+    C0 = np.arccosh(np.abs(N0/f0))
+    j = (f/(f0*C0))*np.arccosh(N/np.abs(f))
+    djdz = (f/(f0*C0))*((((g*Q)/(f**3))-1)**(-1/2))
+    d2jdz2 = -(g/(2*f0*C0*(f**2)))*dQdz*((((g*Q)/(f**3))-1)**(-3/2))
+    return j,djdz,d2jdz2
 
 def calcFQ(surfaces,k,found,scales,kpvs,distances,debug=False):
     dqdx = fetchWithFallback(surfaces,k,"dqdx",found)
