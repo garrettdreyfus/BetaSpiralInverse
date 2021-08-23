@@ -18,6 +18,7 @@ import copy
 import gsw
 import pickle
 #from gswmatlab.pyinterface import geo_strf_isopycnal
+import scipy.signal
 import scipy.io as sio
 import itertools
 from scipy.linalg import svd
@@ -31,6 +32,7 @@ import interptools
 from pygamma_n import gamma_n
 from scipy import interpolate,integrate
 import xarray as xr
+from pygam import LinearGAM
 
 def addGammaN(surfaces):
     savedata = {"s":[],"t":[],"p":[],"lons":[],"lats":[]}
@@ -272,14 +274,14 @@ def profileInBox(profiles,lonleft,lonright,latbot,lattop,depth):
     for p in profiles:
         #if not hasattr(p,"lon"):
             #pdb.set_trace()
-        if lonleft< p.lon <lonright and latbot < p.lat < lattop\
+        if lonleft< p.lon <lonright and latbot < p.maplat < lattop\
             and np.max(abs(p.pres))>depth:
             results.append(p)
     return results
 
 ##create an empty surface
 def emptySurface():
-    return {"lats":[],"lons":[],"ids":[],"cruise":[],\
+    return {"lats":[],"maplats":[],"lons":[],"ids":[],"cruise":[],\
             "data":{"pres":[],"t":[],"s":[],"pv":[],"n^2":[],"alpha":[],\
             "beta":[],"dalphadp":[],"dalphadtheta":[],"dthetads":[],\
             "psi":[],"drhodz":[],"knownu":[],"knownv":[],"kapredi":[],"kapgm":[],"diffkr":[]}}
@@ -297,7 +299,7 @@ def peerSearch(profiles,depth,profilechoice,radius=500,peer=True):
     while len(profiles)>0:
         foundcounter = 0
         closestcounter = 0
-        for p in profiles.copy():
+        for p in Bar("searching...").iter(profiles.copy()):
             closest = closestIdentifiedNS(references,p,depth,radius)
             if closest:
                 closestcounter+=1
@@ -315,6 +317,8 @@ def peerSearch(profiles,depth,profilechoice,radius=500,peer=True):
                     nserror = np.linalg.norm(((drhods*dsdx + drhodt*dtdx),(drhods*dsdy + drhodt*dtdy)))
                     surfaces[depth]["lons"].append(p.lon)
                     surfaces[depth]["lats"].append(p.lat)
+                    surfaces[depth]["maplats"].append(p.maplat)
+
                     surfaces[depth]["data"]["pres"].append(ns)
                     surfaces[depth]["ids"].append(p.eyed)
                     surfaces[depth]["cruise"].append(p.cruise)
@@ -410,7 +414,8 @@ def addDataToSurfaces(region,profiles,surfaces,debug=True,noise=0):
             p = getProfileById(profiles,surfaces[k]["ids"][l])
             lon = surfaces[k]["lons"][l]
             lat = surfaces[k]["lats"][l]
-            if p and not np.isnan(p.isals).any() and region.geoFilter(lon,lat):
+            maplat = surfaces[k]["maplats"][l]
+            if p and not np.isnan(p.isals).any() and region.geoFilter(lon,maplat):
                 if noise != 0:
                     nspres = int(surfaces[k]["data"]["pres"][l] + np.random.normal(0,noise))
                     p.neutraldepth[k] = nspres
@@ -423,6 +428,8 @@ def addDataToSurfaces(region,profiles,surfaces,debug=True,noise=0):
 
                 if (nspres+35 in p.ipres and nspres-35 in p.ipres):
                     pv, drhodz = p.potentialVorticityAtHautala(nspres)
+                    if pv and pv<0:
+                        print(pv)
                     dthetads = p.dthetads(nspres)
                     t,s,alpha,beta,dalphadtheta,dalphadp = p.atPres(abs(surfaces[k]["data"]["pres"][l]),full=True,interp=True)
                     u,v = p.velAtPres(nspres)
@@ -435,16 +442,17 @@ def addDataToSurfaces(region,profiles,surfaces,debug=True,noise=0):
                     u,v = p.velAtPres(nspres)
                     kapredi,kapgm,diffkr = p.mixAtPres(nspres)
                 #monthcount[p.time.month]=monthcount[p.time.month]+1
-                #if (pv and pv<0) or pv==0:
+                if (pv and pv<0) or pv==0:
                     #print("second block: ",pv,drhodz)
                     #pv=0
                     ##monthnegativecount[p.time.month]=monthnegativecount[p.time.month]+1
-                    #negativecount +=1 
+                    negativecount +=1 
                 if not isinstance(pv,np.float64):
                     pv = np.nan
                 if ~np.isnan(t) and ~np.isnan(s) and ~np.isnan(pv) and p and pv != np.Inf and ~np.isnan(dthetads):
                     tempSurf["lons"].append(lon)
                     tempSurf["lats"].append(lat)
+                    tempSurf["maplats"].append(maplat)
                     tempSurf["data"]["pres"].append(abs(nspres))
                     tempSurf["data"]["t"].append(t)
                     tempSurf["data"]["s"].append(s)
@@ -467,10 +475,6 @@ def addDataToSurfaces(region,profiles,surfaces,debug=True,noise=0):
                     
         if len(tempSurf["lats"])>5:
             tempSurfs[k] = tempSurf
-        print("\n###########"+str(k)+"#################")
-        print(monthcount)
-        print(monthnegativecount)
-        print("############################")
         if len(surfaces[k]["lons"])>0:
             print("ns: ",k," negative count: ",negativecount/len(surfaces[k]["lons"]),"pv mean:" ,np.mean(tempSurf["data"]["pv"]))
     surfaceDiagnostic(tempSurfs)
@@ -517,7 +521,7 @@ def plotProfile(p):
     ax2.plot(p.isals,p.ipres)
     ax1.invert_yaxis()
     ax2.invert_yaxis()
-    fig.suptitle(str(p.eyed)+" lat: "+str(p.lat)+" lon: "+ str(p.lon))
+    fig.suptitle(str(p.eyed)+" lat: "+str(p.maplat)+" lon: "+ str(p.lon))
     mng = plt.get_current_fig_manager()
     mng.resize(*mng.window.maxsize())
     plt.show()
@@ -550,6 +554,7 @@ def nanCopySurfaces(surfaces,simple=False):
         nancopy[k]["lons"] = surfaces[k]["lons"]
         nancopy[k]["ids"] = surfaces[k]["ids"]
         nancopy[k]["lats"] = surfaces[k]["lats"]
+        nancopy[k]["maplats"] = surfaces[k]["maplats"]
         nancopy[k]["x"] = np.full_like(surfaces[k]["lons"],np.nan)
         nancopy[k]["y"] = np.full_like(surfaces[k]["lons"],np.nan)
         datafields = ["u","v","hx","h","CKVB","hy","t","s","pv","pres",\
@@ -557,7 +562,7 @@ def nanCopySurfaces(surfaces,simple=False):
                     "d2sdx2","d2sdy2","dtdx","dtdy","dpdx","dpdy","n^2",\
                     "dqnotdx","dqnotdy","d2thetads2","dalphadtheta",\
                     "alpha","beta","dalphads","dalphadp","drhodz",\
-                    "psi","psinew","dqdz","dqdx","dqdy","ddiffkrdz","d2diffkrdz2",\
+                      "psi","psinew","dqdz","j","dqdx","dqdy","ddiffkrdz","d2diffkrdz2",\
                     "d2qdz2","d2qdx2","d2qdy2","khp","khpterm","khpdz","toph",\
                     "both","dpsidx","dpsidy","ssh","ids","z","knownu"\
                     ,"knownv","diffkr","kapgm","kapredi",\
@@ -645,10 +650,12 @@ def addVerticalGrad(surfaces):
 def averageOverNeighbors(staggered,surfaces,k,s):
     x = np.mean(surfaces[k]["x"][s[0]])
     y = np.mean(surfaces[k]["y"][s[0]])
+    sign = np.sign(np.sum(surfaces[k]["maplats"][s[0]]))
     staggered[k]["x"][s[0]] = x
     staggered[k]["y"][s[0]] = y
-    staggered[k]["lats"][s[0]] = 90-np.sqrt(x**2 + y**2)/111000.0
-    staggered[k]["lons"][s[0]] = np.degrees(np.arctan2(y,x))
+    staggered[k]["lats"][s[0]] = y 
+    staggered[k]["maplats"][s[0]] = -y
+    staggered[k]["lons"][s[0]] = x
     for d in surfaces[k]["data"].keys():
         if d in ["t","s","pv","h","pres","knownu","knownv",\
                 "psi","n^2","alpha","beta","toph","dthetads",\
@@ -667,13 +674,16 @@ def addK(surfaces,cachename=None,H_0=1000):
         surfaces[k]["data"]["bathvar"] = np.full(len(surfaces[k]["lons"]),np.nan)
         surfaces[k]["data"]["depthmean"] = np.full(len(surfaces[k]["lons"]),np.nan)
         for i in range(len(surfaces[k]["lons"])):
-            lat = surfaces[k]["lats"][i]
+            lat = surfaces[k]["maplats"][i]
             lon = surfaces[k]["lons"][i]
             if not (np.isnan(lat) or np.isnan(lon)):
                 pv = surfaces[k]["data"]["pv"][i]
                 pres = surfaces[k]["data"]["pres"][i]
                 CKVB, bathvar,depthmean = ptools.Kv(lat,lon,pv,pres,cachename,H_0=H_0)
                 surfaces[k]["data"]["CKVB"][i] = CKVB
+                f = gsw.f(surfaces[k]["lats"][i])
+                j,_,_ = ptools.jAndDerivatives(np.sqrt(surfaces[k]["data"]["n^2"][i]),f,pv,surfaces[k]["data"]["dqdz"][i])
+                surfaces[k]["data"]["j"][i] = j
                 surfaces[k]["data"]["bathvar"][i] = bathvar
                 surfaces[k]["data"]["depthmean"][i] = depthmean
 
@@ -772,6 +782,25 @@ def spatialGrad(surfaces,k,distances,s,attr,factorx=1,factory=1,single=False):
     dy = np.nanmean(dy)*factory
     return dx,dy
 
+def uvError(surfaces,k,distances,s,attr,factorx=1,factory=1,single=False):
+    dx = []
+    dy = []
+
+    hautaladist = False
+    if hautaladist:
+        dx.append(np.sqrt(surfaces[k]["data"][attr][s[1]]**2+surfaces[k]["data"][attr][s[0]]**2))
+    else:
+        dx.append(np.sqrt(surfaces[k]["data"][attr][s[1]]**2+surfaces[k]["data"][attr][s[0]]**2))
+    if hautaladist:
+        dy.append(np.sqrt(surfaces[k]["data"][attr][s[2]]**2+surfaces[k]["data"][attr][s[0]]**2))
+    else:
+        dy.append(np.sqrt(surfaces[k]["data"][attr][s[2]]**2+surfaces[k]["data"][attr][s[0]]**2))
+
+    dx = np.nanmean(dx)*factorx
+    dy = np.nanmean(dy)*factory
+    return dx,dy
+
+
 ##double derivative of conservative temperature with respect to salinity
 def d2thetads2(surfaces,k,s):
     temps = surfaces[k]["data"]["t"][s[0:4]]
@@ -796,6 +825,21 @@ def setSpatialGrad(out,data,k,s,distances,attr,attrx,\
         out[k]["data"][attrx][s[0]] = dx*factorx
         out[k]["data"][attry][s[0]] = dy*factory
     return out
+
+## set the horizontal gradient 
+def setUVError(out,data,k,s,distances,attr,attrx,\
+        attry,factorx=1,factory=1,mode="modify",centered=False):
+    if not centered:
+        dx,dy = uvError(data,k,distances,s,attr)
+        out[k]["data"][attrx][s[0]] = dx*factorx
+        out[k]["data"][attry][s[0]] = dy*factory
+    if centered:
+        print(centered)
+        dx,dy = uvError(data,k,distances,s,attr)
+        out[k]["data"][attrx][s[0]] = dx*factorx
+        out[k]["data"][attry][s[0]] = dy*factory
+    return out
+
 
 #get the graient of two attributes among neighbors
 ## so like dt/ds
@@ -938,9 +982,11 @@ def streamFuncToUV(surfaces,neighbors,distances):
         for s in neighbors[k]:
             s=np.asarray(s)
             if not np.isnan(s).any():
-                surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psinew","vabs","uabs",(1/gsw.f(surfaces[k]["lats"][s[0]])),(-1/gsw.f(surfaces[k]["lats"][s[0]])))
-                surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psiref","vref","uref",(1/gsw.f(surfaces[k]["lats"][s[0]])),(-1/gsw.f(surfaces[k]["lats"][s[0]])))
-                surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psisol","vsol","usol",(1/gsw.f(surfaces[k]["lats"][s[0]])),(-1/gsw.f(surfaces[k]["lats"][s[0]])))
+                surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psinew","vabs","uabs",(1/gsw.f(surfaces[k]["maplats"][s[0]])),(-1/gsw.f(surfaces[k]["maplats"][s[0]])))
+                surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psiref","vref","uref",(1/gsw.f(surfaces[k]["maplats"][s[0]])),(-1/gsw.f(surfaces[k]["maplats"][s[0]])))
+                surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psisol","vsol","usol",(1/gsw.f(surfaces[k]["maplats"][s[0]])),(-1/gsw.f(surfaces[k]["maplats"][s[0]])))
+                surfaces = setUVError(surfaces,surfaces,k,s,distances,"psierror","verror","uerror",(surfaces[k]["data"]["vsol"][s[0]]),(surfaces[k]["data"]["usol"][s[0]]))
+                
     return surfaces
 
 ##Add bathymetry and remove points below
@@ -974,6 +1020,7 @@ def addBathAndMask(surfaces,neighbors,region):
                 surfaces[k]["x"][l] = np.nan
                 surfaces[k]["y"][l] = np.nan
                 surfaces[k]["lats"][l] = np.nan
+                surfaces[k]["maplats"][l] = np.nan
                 surfaces[k]["lons"][l] = np.nan
                 surfaces[k]["ids"][l] = -999
 
@@ -1053,6 +1100,7 @@ def surfaceSubtract(s1,s2,method="dist",metric="%",offset=0):
                     if s1[k]["ids"][l] in s2[k]["ids"]:
                         j = np.where(np.asarray(s2[k]["ids"]) == s1[k]["ids"][l])[0][0]
                         tempSurf["lats"].append(s1[k]["lats"][l])
+                        tempSurf["maplats"].append(s1[k]["maplats"][l])
                         tempSurf["lons"].append(s1[k]["lons"][l])
                         tempSurf["ids"].append(s1[k]["ids"][l])
                         for d in s1[k]["data"].keys():
@@ -1070,6 +1118,7 @@ def surfaceSubtract(s1,s2,method="dist",metric="%",offset=0):
                 tempSurf = emptySurface()
                 for l in range(len(s1[k]["ids"])):
                     tempSurf["lats"].append(s1[k]["lats"][l])
+                    tempSurf["maplats"].append(s1[k]["maplats"][l])
                     tempSurf["lons"].append(s1[k]["lons"][l])
                     tempSurf["ids"].append(s1[k]["ids"][l])
                     for d in s1[k]["data"].keys():
@@ -1113,6 +1162,7 @@ def depthCopy(ref=None,surfaces={}):
         for l in range(len(ref[k]["data"]["pres"])):
             if ~np.isnan(ref[k]["data"]["pres"][l]):
                 surfaces[k]["lats"].append(ref[k]["lats"][l])
+                surfaces[k]["maplats"].append(ref[k]["maplats"][l])
                 surfaces[k]["lons"].append(ref[k]["lons"][l])
                 surfaces[k]["ids"].append(ref[k]["ids"][l])
                 surfaces[k]["data"]["pres"].append(ref[k]["data"]["pres"][l])
@@ -1169,6 +1219,7 @@ def surfaceConcat(s1,s2):
     for k in Bar("CONCATTING: ").iter(sorted(s1.keys() & s2.keys())):
         tempSurf = emptySurface()
         tempSurf["lats"] = np.concatenate((np.asarray(s1[k]["lats"]),np.asarray(s2[k]["lats"])))
+        tempSurf["maplats"] = np.concatenate((np.asarray(s1[k]["maplats"]),np.asarray(s2[k]["maplats"])))
         tempSurf["lons"] = np.concatenate((np.asarray(s1[k]["lons"]),np.asarray(s2[k]["lons"])))
         tempSurf["ids"] =  np.concatenate((np.asarray(s1[k]["ids"]),np.asarray(s2[k]["ids"])+idoffset))
         for d in s1[k]["data"].keys() & s2[k]["data"].keys():
@@ -1210,6 +1261,7 @@ def domainChop(surfaces):
             if  0>surfaces[k]["lons"][l] >-170:
                 chopped[k]["lons"].append(surfaces[k]["lons"][l])
                 chopped[k]["lats"].append(surfaces[k]["lats"][l])
+                chopped[k]["maplats"].append(surfaces[k]["maplats"][l])
                 chopped[k]["x"].append(surfaces[k]["x"][l])
                 chopped[k]["y"].append(surfaces[k]["y"][l])
                 chopped[k]["ids"].append(surfaces[k]["ids"][l])
@@ -1224,7 +1276,7 @@ def highlightNAN(surfaces,quant):
     return surfaces
 
 def domainMedianStdev(leftlon,rightlon,bottomlat,toplat,surface,quant):
-    lats = np.asarray(surface["lats"])
+    lats = np.asarray(surface["maplats"])
     lons = np.asarray(surface["lons"])
     latinrange = np.logical_and(lats>=bottomlat, lats<=toplat)
     loninrange = np.logical_and(lons>=leftlon, lons<=rightlon)
@@ -1265,7 +1317,7 @@ def addKnownPsiFromModelUV(region,surfaces,profiles):
         mincoord = None
         for p in profiles:
             if k in p.neutraldepth.keys():
-                if region.geoFilter(p.lon,p.lat):
+                if region.geoFilter(p.lon,p.maplat):
                     x.append(p.relcoord[0])
                     y.append(p.relcoord[1])
                     u.append(p.iknownu[p.presIndex(p.neutraldepth[k])])
@@ -1285,7 +1337,7 @@ def addKnownPsiFromModelUV(region,surfaces,profiles):
         y0 = mincoord[1]
         for p in profiles:
             if k in p.neutraldepth.keys():
-                if region.geoFilter(p.lon,p.lat):
+                if region.geoFilter(p.lon,p.maplat):
                     x1,y1 = p.relcoord
                     length = np.sqrt(x1**2+y1**2)
                     xline = np.linspace(x0,x1,length/10000.0)
@@ -1305,8 +1357,8 @@ def addKnownPsiFromModelUV(region,surfaces,profiles):
 
 def addOldUnits(surfaces):
     for k in surfaces.keys():
-        surfaces[k]["data"]["pottemp"] = gsw.CT_from_t(surfaces[k]["data"]["s"],surfaces[k]["data"]["t"],surfaces[k]["data"]["pres"])
-        surfaces[k]["data"]["psu"] = gsw.SP_from_SA(surfaces[k]["data"]["s"],surfaces[k]["data"]["pres"],surfaces[k]["lons"],surfaces[k]["lats"])
+        surfaces[k]["data"]["pottemp"] = gsw.pt_from_CT(surfaces[k]["data"]["s"],surfaces[k]["data"]["t"])
+        surfaces[k]["data"]["psu"] = gsw.SP_from_SA(surfaces[k]["data"]["s"],surfaces[k]["data"]["pres"],surfaces[k]["lons"],surfaces[k]["maplats"])
     return surfaces
 
 
@@ -1319,7 +1371,7 @@ def meridionalTransport(surfaces,lat,startlon,endlon,startpres,endpres):
             height = []
             rhos = []
             for l in range(len(surfaces[k]["lats"])):
-                if np.abs(surfaces[k]["lats"][l] - lat)<0.01 and  startlon< surfaces[k]["lons"][l] <endlon:
+                if np.abs(surfaces[k]["maplats"][l] - lat)<0.01 and  startlon< surfaces[k]["lons"][l] <endlon:
                     lons.append(surfaces[k]["lons"][l])
                     vabs.append(surfaces[k]["data"]["vabs"][l])
                     height.append(surfaces[k]["data"]["h"][l])
@@ -1351,19 +1403,20 @@ def meridionalTransport(surfaces,lat,startlon,endlon,startpres,endpres):
 
 def transportDiagnostics(surfaces,vector=["uabs","vabs"]):
     print("vema")
-    vema = transportAcross(surfaces,-30,-180,-33,3600,100000,"lats","lons",vector[1])
+    vema = transportAcross(surfaces,-29.5,-180,-33,3600,100000,"maplats","lons",vector[1])
     print("hunter")
-    hunter = transportAcross(surfaces,-30,-33,180,3600,100000,"lats","lons",vector[1])
+    hunter = transportAcross(surfaces,-29.5,-33,180,3600,100000,"maplats","lons",vector[1])
     print("northern")
-    northern = transportAcross(surfaces,-35,-40,-30,3600,100000,"lons","lats",vector[0])
+    northern = transportAcross(surfaces,-35,-40,-30,3600,100000,"lons","maplats",vector[0])
     print("southern")
-    southern = transportAcross(surfaces,-35,-30,-20,3600,100000,"lons","lats",vector[0])
+    southern = transportAcross(surfaces,-35,-30,-20,3600,100000,"lons","maplats",vector[0])
 
-    onepointsix = transportAcross(surfaces,-30,-33,180,0,100000,"lats","lons",vector[1],tempcriteria=1.6)
-    onepointtwo = transportAcross(surfaces,-30,-33,180,0,100000,"lats","lons",vector[1],tempcriteria=1.2)
-    zeropointeight = transportAcross(surfaces,-30,-33,180,0,100000,"lats","lons",vector[1],tempcriteria=0.8)
+    two = transportAcross(surfaces,-29.5,-33,180,0,100000,"maplats","lons",vector[1],tempcriteria=2)
+    onepointsix = transportAcross(surfaces,-29.5,-33,180,0,100000,"maplats","lons",vector[1],tempcriteria=1.6)
+    onepointtwo = transportAcross(surfaces,-29.5,-33,180,0,100000,"maplats","lons",vector[1],tempcriteria=1.2)
+    zeropointeight = transportAcross(surfaces,-29.5,-33,180,0,100000,"maplats","lons",vector[1],tempcriteria=0.8)
 
-    curl = regionCurl(surfaces,3600,-39,-36,-38,-27)
+    curl =0# regionCurl(surfaces,3600,-39,-36,-38,-27)
     print(curl)
 
     results = {"vema":vema,\
@@ -1372,6 +1425,7 @@ def transportDiagnostics(surfaces,vector=["uabs","vabs"]):
                "pt<1.6":onepointsix,\
                "pt<1.2":onepointtwo,\
                "pt<0.8":zeropointeight,\
+               "pt<2":two,\
                }
     return results
 
@@ -1386,7 +1440,7 @@ def transportAcross(surfaces,lat,startlon,endlon,startpres,endpres,normalcoord,a
             height = []
             rhos = []
             for l in range(len(surfaces[k]["lats"])):
-                if np.abs(surfaces[k][normalcoord][l] - lat)<0.01 and  startlon< surfaces[k][alongcoord][l] <endlon\
+                if np.abs(surfaces[k][normalcoord][l] - lat)<0.2 and  startlon< surfaces[k][alongcoord][l] <endlon\
                    and (surfaces[k]["data"]["pottemp"][l]<tempcriteria):
                     lons.append(surfaces[k][alongcoord][l])
                     vabs.append(surfaces[k]["data"][normalvelocity][l])
@@ -1432,7 +1486,7 @@ def regionCurl(surfaces,k,leftlon,rightlon,bottomlat,toplat):
     lons = []
     uabs = []
     for l in range(len(surfaces[k]["lats"])):
-        if np.abs(surfaces[k]["lats"][l] - toplat)<0.01 and  leftlon< surfaces[k]["lons"][l] <rightlon:
+        if np.abs(surfaces[k]["maplats"][l] - toplat)<0.1 and  leftlon< surfaces[k]["lons"][l] <rightlon:
             lons.append(surfaces[k]["lons"][l])
             uabs.append(surfaces[k]["data"]["uabs"][l])
     s=np.argsort(lons)
@@ -1443,7 +1497,7 @@ def regionCurl(surfaces,k,leftlon,rightlon,bottomlat,toplat):
     lons = []
     uabs = []
     for l in range(len(surfaces[k]["lats"])):
-        if np.abs(surfaces[k]["lats"][l] - bottomlat)<0.05 and  leftlon< surfaces[k]["lons"][l] <rightlon:
+        if np.abs(surfaces[k]["maplats"][l] - bottomlat)<0.1 and  leftlon< surfaces[k]["lons"][l] <rightlon:
             lons.append(surfaces[k]["lons"][l])
             uabs.append(surfaces[k]["data"]["uabs"][l])
     s=np.argsort(lons)
@@ -1454,8 +1508,8 @@ def regionCurl(surfaces,k,leftlon,rightlon,bottomlat,toplat):
     lats = []
     vabs = []
     for l in range(len(surfaces[k]["lons"])):
-        if np.abs(surfaces[k]["lons"][l] - leftlon)<0.5 and  bottomlat< surfaces[k]["lats"][l] <toplat:
-            lats.append(surfaces[k]["lats"][l])
+        if np.abs(surfaces[k]["lons"][l] - leftlon)<0.5 and  bottomlat< surfaces[k]["maplats"][l] <toplat:
+            lats.append(surfaces[k]["maplats"][l])
             vabs.append(surfaces[k]["data"]["vabs"][l])
     s=np.argsort(lats)
     lats, vabs = np.asarray(lats)[s], np.asarray(vabs)[s]
@@ -1465,8 +1519,8 @@ def regionCurl(surfaces,k,leftlon,rightlon,bottomlat,toplat):
     lats = []
     vabs = []
     for l in range(len(surfaces[k]["lons"])):
-        if np.abs(surfaces[k]["lons"][l] - rightlon)<0.5 and  bottomlat< surfaces[k]["lats"][l] <toplat:
-            lats.append(surfaces[k]["lats"][l])
+        if np.abs(surfaces[k]["lons"][l] - rightlon)<0.5 and  bottomlat< surfaces[k]["maplats"][l] <toplat:
+            lats.append(surfaces[k]["maplats"][l])
             vabs.append(surfaces[k]["data"]["vabs"][l])
     s=np.argsort(lats)
     lats, vabs = np.asarray(lats)[s], np.asarray(vabs)[s]
@@ -1490,7 +1544,7 @@ def profilesGeostrophic(profiles,cruise,referencefile,timethreshold=10**9):
     minpres, maxpres = np.nanmax(minpres), 6000#np.nanmin(maxpres)
     dynht = {"lon":[],"lat":[],"dynht":[]}
     for p in profiles:
-        if p.cruise == cruise and p.lat>-40 and p.time<2451000:#and p.time<2454000:# 
+        if p.cruise == cruise and p.maplat>-40 and p.time<2451000:#and p.time<2454000:# 
             pres = np.asarray(list(p.ipres))
             SA = p.isals[np.logical_and(20<pres,pres<6000)]
             CT = p.itemps[np.logical_and(20<pres,pres<6000)]
@@ -1532,11 +1586,11 @@ def externalReference(surfaces,referencefile):
     for below_i in range(len(surfaces[below]["ids"])):
         eyed = surfaces[below]["ids"][below_i]
         lon = surfaces[below]["lons"][below_i]
-        lat = surfaces[below]["lats"][below_i]
+        lat = surfaces[below]["maplats"][below_i]
         if eyed in surfaces[above]["ids"] and ~np.isnan(lon):
             above_i = surfaces[above]["ids"].index(eyed)
-            u_c = np.interp(1000,[below,above],[surfaces[below]["data"]["u"][below_i],surfaces[below]["data"]["u"][above_i]])
-            v_c = np.interp(1000,[below,above],[surfaces[below]["data"]["v"][below_i],surfaces[below]["data"]["v"][above_i]])
+            u_c = -np.interp(1000,[below,above],[surfaces[below]["data"]["u"][below_i],surfaces[below]["data"]["u"][above_i]])
+            v_c = -np.interp(1000,[below,above],[surfaces[below]["data"]["v"][below_i],surfaces[below]["data"]["v"][above_i]])
             u0 = float(ref_vs.interp(LONGITUDE=365+lon,LATITUDE=lat).U)
             v0 = float(ref_vs.interp(LONGITUDE=365+lon,LATITUDE=lat).V)
             ref_1000[eyed] = [u_c-u0,v_c-v0]
@@ -1548,9 +1602,81 @@ def externalReference(surfaces,referencefile):
         for l in range(len(surfaces[k]["ids"])):
             eyed = surfaces[k]["ids"][l]
             if eyed in ref_1000.keys():
-                surfaces[k]["data"]["yomahau"][l]= surfaces[k]["data"]["u"][l]-ref_1000[eyed][0]
-                surfaces[k]["data"]["yomahav"][l]= surfaces[k]["data"]["v"][l]-ref_1000[eyed][1]
+                surfaces[k]["data"]["yomahau"][l]= -surfaces[k]["data"]["u"][l]-ref_1000[eyed][0]
+                surfaces[k]["data"]["yomahav"][l]= -surfaces[k]["data"]["v"][l]-ref_1000[eyed][1]
     return surfaces
+
+
+def twoCReference(surfaces):
+    surfaces = addOldUnits(surfaces)
+    levels = np.asarray((sorted(surfaces.keys())))
+    below = levels[int(len(levels)/2)]
+    ref_2C = {}
+    for eyed in range(len(surfaces[below]["ids"])):
+        for k_i in range(1,len(levels)):
+            k = levels[k_i]
+            k_prev = levels[k_i-1]
+            lon = surfaces[k]["lons"][k_i]
+            if eyed in surfaces[k]["ids"] and ~np.isnan(lon) and eyed in surfaces[k_prev]["ids"]:
+                cold_i = surfaces[k]["ids"].index(eyed)
+                warm_i = surfaces[k_prev]["ids"].index(eyed)
+                if surfaces[k]["data"]["pottemp"][cold_i] < 2:
+                    warmertemp = surfaces[k_prev]["data"]["pottemp"][warm_i]
+                    coldertemp = surfaces[k]["data"]["pottemp"][cold_i]
+                    u_c = -np.interp(2,[coldertemp,warmertemp],[surfaces[k]["data"]["u"][cold_i],surfaces[k_prev]["data"]["u"][warm_i]])
+                    v_c = -np.interp(2,[coldertemp,warmertemp],[surfaces[k]["data"]["v"][cold_i],surfaces[k_prev]["data"]["v"][warm_i]])
+                    ref_2C[eyed] = [u_c,v_c]
+                    break
+
+
+    for k in Bar("referencing to 2C from model uv").iter(list(surfaces.keys())):
+        surfaces[k]["data"]["2CU"] =np.full_like(surfaces[k]["ids"],np.nan,dtype=np.double)
+        surfaces[k]["data"]["2CV"] =np.full_like(surfaces[k]["ids"],np.nan,dtype=np.double)
+        for l in range(len(surfaces[k]["ids"])):
+            eyed = surfaces[k]["ids"][l]
+            if eyed in ref_2C.keys():
+                surfaces[k]["data"]["2CU"][l]= -surfaces[k]["data"]["u"][l]-ref_2C[eyed][0]
+                surfaces[k]["data"]["2CV"][l]= -surfaces[k]["data"]["v"][l]-ref_2C[eyed][1]
+    return surfaces
+
+
+
+def boxAverageProfiles(profiles,lonleft,lonright,latbottom,lattop):
+    sals=[]
+    temps=[]
+    pres=[]
+    for p in profiles:
+        if lonleft<p.lon<lonright and latbottom <p.lat<lattop and np.nanmax(p.pres)>5000:
+            sals += list(p.sals)
+            temps += list(p.temps)
+            pres += list(p.pres)
+    saltgam = LinearGAM(n_splines=25).gridsearch(np.asarray(pres), np.asarray(sals))
+    s = saltgam.predict(np.asarray(range(np.nanmin(pres),np.nanmax(pres))))
+    plt.plot(s,range(np.nanmin(pres),np.nanmax(pres)))
+    plt.show()
+    
+    profiledata = {}
+    profiledata["lon"] = ncdf.variables["longitude"][0]
+    profiledata["lat"] = ncdf.variables["latitude"][0]
+    profiledata["cruise"] = ncdf.WOCE_ID
+    profiledata["station"] = ncdf.STATION_NUMBER
+    profiledata["time"] = julian.to_jd(datetime.datetime(1980,1,1,0) + datetime.timedelta(minutes=int(ncdf.variables["time"][0])) )
+    profiledata["cruise"] = ncdf.WOCE_ID
+    profiledata["station"] = ncdf.STATION_NUMBER
+
+def smoothProfile(p):
+    salsmooth = scipy.signal.savgol_filter(p.sals,41,2)
+    tempsmooth = scipy.signal.savgol_filter(p.temps,41,2)
+    profiledata = {}
+    profiledata["lon"] = p.lon
+    profiledata["lat"] = p.lat
+    profiledata["time"] = p.time
+    #profiledata["station"] = ncdf.STATION_NUMBER
+    profiledata["temp"] = tempsmooth
+    profiledata["sal"] = salsmooth
+    profiledata["pres"] = p.pres
+    prof=Profile(1234156789,profiledata,"conservative","absolute")
+    return prof
 
 
 

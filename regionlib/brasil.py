@@ -10,8 +10,8 @@ import datetime
 import json
 
 def geoFilter(lon,lat):
-    latinrange = (lat<0 and lat >-80)
-    loninrange = (lon>-79 and lon < -8)
+    latinrange = (lat<-10 and lat >-46)
+    loninrange = (lon>-79 and lon < 0)
     return (latinrange and loninrange)
 
 #generate a unique id
@@ -28,7 +28,7 @@ def singleXY(coord):
     r = ((90-coord[1]) *111*1000)
     x = (r*np.cos(theta))
     y = (r*np.sin(theta))
-    return x,y
+    return coord
 
 
 def extractWoceProfiles(ncfolder): 
@@ -182,6 +182,7 @@ def extractDeepArgoProfiles(jsonfile):
                             profiles.append(prof)
     return profiles
 
+
 def createMesh(xvals,yvals,coord="xy",spacingscale=1):
     if coord == "xy":
         n=25
@@ -194,7 +195,7 @@ def createMesh(xvals,yvals,coord="xy",spacingscale=1):
         return np.meshgrid(np.linspace(xmin,xmax,n), np.linspace(ymin,ymax,n),indexing="xy")
     if coord =="latlon":
         grd = np.meshgrid(\
-                np.linspace(-50,-8,35*spacingscale),np.linspace(-41,-2,40*spacingscale))
+                np.linspace(-50,-8,42*spacingscale),np.linspace(42,12,30*spacingscale))
         for i in range(grd[0].shape[0]):
             for j in range(grd[0].shape[1]):
                 x,y = singleXY((grd[0][i][j],grd[1][i][j]))

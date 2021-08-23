@@ -5,6 +5,8 @@ from progress.bar import Bar
 import pickle
 import inverttools as inv
 import matplotlib.pyplot as plt
+import scipy
+import pdb
 
 def calcBeta(lat):
     omega =  (7.2921 * 10**-5)
@@ -12,11 +14,12 @@ def calcBeta(lat):
     return (2*omega*np.cos(lat))/a
 
 ## calcute the bathymetric variability term
-def bathVarTerm(lat,lon,region):
-    d=bathtools.bathBox(lat,lon)
+def bathVarTerm(lat,lon,region,simple=True):
+    lons,lats,d=bathtools.bathBox(lat,lon)
     dnot = 750
     print("box",d)
-    return (np.var(d)/dnot)**(0.25),np.mean(d)
+    return varianceCalculation(lons,lats,d)
+
 
 #one of the mixing terms is a mess and this calculates that
 def calculateKHP(staggered,k,index):
@@ -30,20 +33,28 @@ def calculateKHP(staggered,k,index):
     cdotp = staggered[k]["data"]["dtdx"][index]*staggered[k]["data"]["dpdx"][index]+staggered[k]["data"]["dtdy"][index]*staggered[k]["data"]["dpdy"][index]
     return alphat*magct+alphap*cdotp
 
+def varianceCalculation(lons,lats,d,simple=True):
+    dnot = 750
+    if simple:
+        return (np.var(d)/dnot)**(0.25),np.mean(d)
+    else:
+        A = np.c_[lons, lats, np.ones(len(lons))]
+        C,_,_,_ = scipy.linalg.lstsq(A, d)    # coefficients
+        Z = C[0]*lons + C[1]*lats + C[2]
+        return (np.var(d-Z)/dnot)**(0.25),np.mean(d)
 
 ## this stuff takes a long time to calculate so this
 ## throws everything into a pickle for later
-def saveBathVarTermCache(surfaces,outfilename,region):
+def saveBathVarTermCache(surfaces,outfilename,region,simple=True):
     bathVar = {}
     coords = []
     for k in surfaces.keys():
-        coords += zip(surfaces[k]["lons"],surfaces[k]["lats"])
+        coords += zip(surfaces[k]["lons"],surfaces[k]["maplats"])
     coords = set(coords)
     for p in  Bar("var coord :").iter(coords):
         if not (np.isnan(p[0]) and np.isnan(p[1])):
-            d=bathtools.bathBox(p[1],p[0])
-            dnot = 750
-            bathVar[p] = ((np.var(d)/dnot)**(0.25),np.mean(d))
+                lons,lats,d=bathtools.bathBox(p[1],p[0])
+                bathVar[p] = varianceCalculation(lons,lats,d)
     with open(outfilename, 'wb') as outfile:
         pickle.dump(bathVar, outfile)
 
@@ -67,7 +78,7 @@ def Kv(lat,lon,pv,pres,cachename=None,H_0=1250):
     if cachename:
         bVT,mean = bathVarTermCache(lat,lon,cachename) 
     else:
-        bVT,mean = bathVarTerm(lat,lon)
+        bVT,mean = bathVarTerm(lat,lon,simple=False)
     return bVT*np.exp(-(abs(mean)-abs(pres))/H_0),bVT,np.exp(-(abs(mean)-abs(pres))/H_0)
 
 #function for exploring k mixing term values
@@ -257,28 +268,28 @@ def kterms(surfaces,k,found,params,fallback=None):
     CKVB = fetchWithFallback(surfaces,k,"CKVB",found,fallback)
     uref = fetchWithFallback(surfaces,k,"uref",found,fallback)
     vref = fetchWithFallback(surfaces,k,"vref",found,fallback)
-    N = np.sqrt(((pv*9.81)/f))
-    f = gsw.f(surfaces[k]["lats"][found])
+    n2 = fetchWithFallback(surfaces,k,"n^2",found,fallback)
     beta = calcBeta(surfaces[k]["lats"][found])
     isitnan = [alpha,betaTherm,dsdz,hx,hy,dsdx,dsdy,pres,d2sdx2,d2sdy2,\
-              dalphadtheta,dalphads,dalphadp,dtdx,dtdy,\
+               dalphadtheta,dalphads,dalphadp,dtdx,dtdy,dqdz,\
               dqnotdx,dqnotdy,dpdx,dpdy,alphat,alphap,pv,doublets,CKVB,\
-               beta,d2qdx2,d2qdy2,d2qdz2,khp,toph,both,uref,vref,f]
+               beta,d2qdx2,d2qdy2,d2qdz2,khp,toph,both,uref,vref,f,n2]
     isitnanstr = np.asarray(["alpha","betaTherm","dsdz","hx","hy","dsdx","dsdy","pres","d2sdx2","d2sdy2",\
-              "dalphadtheta","dalphads","dalphadp","dtdx","dtdy",\
+                             "dalphadtheta","dalphads","dalphadp","dtdx","dtdy","dqdz",\
               "dqnotdx","dqnotdy","dpdx","dpdy","alphat","alphap","pv","doublets","CKVB",\
-                             "beta","d2qdx2","d2qdy2","d2qdz2","khp","toph","both","uref","vref","f"])
+                             "beta","d2qdx2","d2qdy2","d2qdz2","khp","toph","both","uref","vref","f","n2"])
     kvoscale = scales["kvo"]
     kvbscale = scales["kvb"]
     khscale  = scales["kh"]
     H_0  = params["H_0"]
-    j, djdz, d2jdz2 = jAndDerivatives(N,f,pv,dqdz)
     if (np.isnan(isitnan).any()):
         if debug:
             print(isitnanstr[np.isnan(isitnan)])
             print("something here is nan")
         return {},{}
     if not (np.isnan(isitnan).any()):
+        N = np.sqrt(n2)
+        j,djdz, d2jdz2 = jAndDerivatives(N,f,pv,dqdz)
         #pvkvb = (d2qdz2+2*(-CKVB/H_0)*dqdz+(CKVB/(H_0**2))*pv)*CKVB
         pvkvb = CKVB*(j*d2qdz2 + 2*djdz*dqdz - 2*(j/H_0)*dqdz + d2jdz2*pv - (2/H_0)*djdz*pv + (j/(H_0**2))*pv)
         #print("pvkvb: ",pvkvb," : ",d2qdz2,dqdz,pv,CKVB,)
@@ -309,10 +320,10 @@ def jAndDerivatives(N,f,Q,dQdz):
     g = 9.81
     f = f
     Q = Q
-    f0 = gsw.f(-30)
+    f0 = gsw.f(30)
     N0 = 5.2*(10**-3)
-    C0 = np.arccosh(np.abs(N0/f0))
-    j = (f/(f0*C0))*np.arccosh(N/np.abs(f))
+    C0 = np.arccosh(N0/f0)
+    j = (f/(f0*C0))*np.arccosh(N/f)
     djdz = (f/(f0*C0))*((((g*Q)/(f**3))-1)**(-1/2))
     d2jdz2 = -(g/(2*f0*C0*(f**2)))*dQdz*((((g*Q)/(f**3))-1)**(-3/2))
     return j,djdz,d2jdz2

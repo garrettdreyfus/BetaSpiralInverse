@@ -24,10 +24,11 @@ class Profile:
             print(data["pres"])
             raise ValueError("This does not contain enough pressure information ")
         self.eyed = eyed
-        self.lat = data["lat"]
+        self.lat = np.abs(data["lat"])
+        self.maplat = data["lat"]
+        self.lon = data["lon"]
         self.f = gsw.f(self.lat)
         self.gamma = (9.8)/(self.f*1025.0)
-        self.lon = data["lon"]
         if "time" in data.keys():
             self.time = data["time"]
         if "cruise" in data.keys():
@@ -54,13 +55,15 @@ class Profile:
         self.sals = np.asarray(data["sal"])
         self.pres = np.abs(np.asarray(data["pres"]))
         if hasattr(self.temps,"mask"):
+            print("mask")
             flter = np.logical_or(~self.temps.mask,~self.sals.mask)
             self.temps = self.temps[flter]
             self.sals = self.sals[flter]
             self.pres = self.pres[flter]
-
+        if np.isnan(self.temps).any() or np.isnan(self.sals).any():
+            print("huh")
         if salunit == "practical":
-            self.sals = gsw.SA_from_SP(self.sals,self.pres,self.lon,self.lat)
+            self.sals = gsw.SA_from_SP(self.sals,self.pres,self.lon,self.maplat)
 
         if tempunit == "potential":
             self.temps = gsw.CT_from_pt(self.sals,self.temps)
@@ -135,7 +138,7 @@ class Profile:
             self.idalphadp = gsw.thermobaric(self.isals,self.itemps,self.ipres)
 
             ###using gsw
-            self.n2 = gsw.Nsquared(self.isals,self.itemps,self.ipres,self.lat)[0]
+            self.n2 = gsw.Nsquared(self.isals,self.itemps,self.ipres,self.maplat)[0]
 
     def calculateDensity(self,s,t,p,p_ref=0):
         return gsw.rho(s,t,p)
@@ -186,7 +189,9 @@ class Profile:
                 print("what de")
             try:
                 spl = UnivariateSpline(xvalues,values)
-            except:
+
+            except Exception as inst:
+                print(inst)
                 print("THE SPLINE IS COOKED")
                 print([xvalues,values])
                 return [np.nan,np.nan]
@@ -430,12 +435,14 @@ class Profile:
 
         zero_crossings = np.where(np.diff(np.sign(Es)))[0]
         smallest = np.argmin(np.abs(Es))
-        if len(zero_crossings)>=1 :
+        if len(zero_crossings)>=1  and not (np.isnan(Es).any()):
             if abs(p2.ipres[zero_crossings[0]] - p2.ipres[zero_crossings[-1]])>100:
                 return None
 
             a  =np.asarray(p2offset+zero_crossings)
             sol = np.asarray(p2.ipres)[a]
+
+
             if len(sol) == 1 or sol[-1]-sol[0] < 40:
                 p2.neutraldepth[depthname] = np.mean(np.asarray(p2.ipres)[a])
                 return p2.neutraldepth[depthname]
@@ -564,6 +571,9 @@ class Profile:
             a  =np.asarray(p2offset+zero_crossings)
             sol = np.asarray(p2.ipres)[a]
             if len(sol) == 1 or sol[-1]-sol[0] < 40:
+
+                plt.plot(depths,Es)
+                plt.show()
                 p2.neutraldepth[depthname] = np.mean(np.asarray(p2.ipres)[a])
                 return p2.neutraldepth[depthname]
             else:

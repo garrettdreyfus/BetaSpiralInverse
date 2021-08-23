@@ -149,13 +149,13 @@ def cruiseSpline(preinterpsurfaces,cruise):
 def decayScaleSensitivity(originalsurfaces,neighbors,distances):
     f = open("h0log.txt", "w")
     flat_kvs={}
-    for H_0 in range(200,3000,500):
+    for H_0 in range(500,3000,500):
         surfaces = copy.deepcopy(originalsurfaces)
         surfaces = nstools.addParametersToSurfaces(brasil,surfaces,neighbors,distances,H_0=H_0)
         # graph.NSGAMCompare(preinterpsurfaces,surfaces,-30,-180,180)
 
         # print(surfaces.keys())
-        params = {"reflevel":int(2062),"upperbound":1000,"lowerbound":4200,\
+        params = {"reflevel":int(2200),"upperbound":1000,"lowerbound":4200,\
                 "mixs":{"kvo":True,"kvb":True,"kh":True},"debug":False,\
                   "3point":True,"edgeguard":True,"H_0":H_0}
         # Conditions
@@ -167,16 +167,18 @@ def decayScaleSensitivity(originalsurfaces,neighbors,distances):
 
         out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
         inv = out["surfaces"]
+        condition = int(out["metadata"]["condition"])
+        err = int(out["metadata"]["error"])
         inv = nstools.streamFuncToUV(inv,neighbors,distances)
         print("#"*10+str(H_0),file=f)
         print(out["metadata"],file=f)
-        result = nstools.transportDiagnostics(inv)
-        print(result,file=f)
+        #result = nstools.transportDiagnostics(inv)
+        #print(result,file=f)
         kvs = []
         for l in inv.keys():
             kvs += list(inv[l]["data"]["kv"])
         kvs = np.asarray(kvs).flatten()
-        flat_kvs[H_0] = kvs
+        flat_kvs[str(H_0)+"|"+str(condition)+"|"+str(err)] = kvs
         print("kv: ,"+str(np.nanmean(kvs)),file=f)
         print("% negative: ,"+str(np.sum(kvs<0)/np.sum(~np.isnan(kvs))),file=f)
         del out
@@ -195,8 +197,8 @@ def decayScaleSensitivity(originalsurfaces,neighbors,distances):
 def weightingSensitivity(originalsurfaces,neighbors,distances):
     flat_kvs={}
     originalsurfaces = nstools.addParametersToSurfaces(brasil,originalsurfaces,neighbors,distances,H_0=500)
-    for o in [2,4,6]:
-        for b in [1]:
+    for o in [-1,0,1]:
+        for b in [-1,0,1]:
             for h in [0]:
                 surfaces = copy.deepcopy(originalsurfaces)
                 # graph.NSGAMCompare(preinterpsurfaces,surfaces,-30,-180,180)
@@ -215,6 +217,7 @@ def weightingSensitivity(originalsurfaces,neighbors,distances):
 
                 out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
                 inv = out["surfaces"]
+                condition = out["metadata"]["condition"]
                 inv = nstools.streamFuncToUV(inv,neighbors,distances)
                 result = nstools.transportDiagnostics(inv)
                 print(result)
@@ -223,7 +226,7 @@ def weightingSensitivity(originalsurfaces,neighbors,distances):
                     kvs += list(inv[l]["data"]["kv"])
 
                 kvs = np.asarray(kvs).flatten()
-                flat_kvs[str(o)+str(b)+str(h)] = kvs
+                flat_kvs[str(o)+str(b)+str(h)+"|"+str(int(condition))] = kvs
                 del out
                 del inv
                 del surfaces

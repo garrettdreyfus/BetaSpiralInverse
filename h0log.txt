@@ -1,30 +1,20 @@
-##########200
-{'reflevel': 2062, 'upperbound': 1000, 'lowerbound': 4200, 'mixs': {'kvo': True, 'kvb': True, 'kh': True}, 'debug': False, '3point': True, 'edgeguard': True, 'H_0': 200, 'scalecoeffs': {'Ar': 0.05, 'kvo': 4.9999999999999996e-06, 'kvb': 5e-05, 'kh': 500}, 'modelmixing': False, 'condition': 40982775.77180134, 'error': 4689.184515422395}
-{'vema': 291374.469966149, 'hunter': -414985.76995837956, 'curl': 0.020462420432002422, 'pt<1.6': -620844.4150506412, 'pt<1.2': -414985.76995837956, 'pt<0.8': -97282.64662947286}
-kv: ,6.329099741189217e-05
-% negative: ,0.8791619047619048
-##########700
-{'reflevel': 2062, 'upperbound': 1000, 'lowerbound': 4200, 'mixs': {'kvo': True, 'kvb': True, 'kh': True}, 'debug': False, '3point': True, 'edgeguard': True, 'H_0': 700, 'scalecoeffs': {'Ar': 0.05, 'kvo': 4.9999999999999996e-06, 'kvb': 5e-05, 'kh': 500}, 'modelmixing': False, 'condition': 19304.084582257477, 'error': 4728.938864518129}
-{'vema': 298257.4702132433, 'hunter': -350428.3035772862, 'curl': 0.02043163352223975, 'pt<1.6': -538089.7300527968, 'pt<1.2': -350428.3035772862, 'pt<0.8': -70644.40724026003}
-kv: ,-8.281286526569099e-06
-% negative: ,0.7624
-##########1200
-{'reflevel': 2062, 'upperbound': 1000, 'lowerbound': 4200, 'mixs': {'kvo': True, 'kvb': True, 'kh': True}, 'debug': False, '3point': True, 'edgeguard': True, 'H_0': 1200, 'scalecoeffs': {'Ar': 0.05, 'kvo': 4.9999999999999996e-06, 'kvb': 5e-05, 'kh': 500}, 'modelmixing': False, 'condition': 3059.600198590882, 'error': 4771.734170120251}
-{'vema': 306428.40624859603, 'hunter': -298877.7579960443, 'curl': 0.01877320067639109, 'pt<1.6': -500507.99802841386, 'pt<1.2': -298877.7579960443, 'pt<0.8': -48487.53988156274}
-kv: ,-5.21157874496019e-06
-% negative: ,0.6607238095238095
-##########1700
-{'reflevel': 2062, 'upperbound': 1000, 'lowerbound': 4200, 'mixs': {'kvo': True, 'kvb': True, 'kh': True}, 'debug': False, '3point': True, 'edgeguard': True, 'H_0': 1700, 'scalecoeffs': {'Ar': 0.05, 'kvo': 4.9999999999999996e-06, 'kvb': 5e-05, 'kh': 500}, 'modelmixing': False, 'condition': 1707.8266304566116, 'error': 4816.697212465215}
-{'vema': 309958.22350802284, 'hunter': -303882.98634662456, 'curl': 0.017702462467501037, 'pt<1.6': -515438.6168281607, 'pt<1.2': -303882.98634662456, 'pt<0.8': -55414.8876383997}
-kv: ,-1.1096437462310404e-05
-% negative: ,0.6135238095238095
-##########2200
-{'reflevel': 2062, 'upperbound': 1000, 'lowerbound': 4200, 'mixs': {'kvo': True, 'kvb': True, 'kh': True}, 'debug': False, '3point': True, 'edgeguard': True, 'H_0': 2200, 'scalecoeffs': {'Ar': 0.05, 'kvo': 4.9999999999999996e-06, 'kvb': 5e-05, 'kh': 500}, 'modelmixing': False, 'condition': 1244.634147791648, 'error': 4840.952533480691}
-{'vema': 311875.2794449588, 'hunter': -317861.72612738644, 'curl': 0.017237979399240926, 'pt<1.6': -536702.6953982075, 'pt<1.2': -317861.72612738644, 'pt<0.8': -65793.96712536381}
-kv: ,-1.5278057745880067e-05
-% negative: ,0.5917714285714286
-##########2700
-{'reflevel': 2062, 'upperbound': 1000, 'lowerbound': 4200, 'mixs': {'kvo': True, 'kvb': True, 'kh': True}, 'debug': False, '3point': True, 'edgeguard': True, 'H_0': 2700, 'scalecoeffs': {'Ar': 0.05, 'kvo': 4.9999999999999996e-06, 'kvb': 5e-05, 'kh': 500}, 'modelmixing': False, 'condition': 1005.2303741517028, 'error': 4852.14738075332}
-{'vema': 313145.3862797911, 'hunter': -329295.96083107125, 'curl': 0.017056020457624894, 'pt<1.6': -552842.5701100461, 'pt<1.2': -329295.96083107125, 'pt<0.8': -74019.67511021378}
-kv: ,-1.815003214178361e-05
-% negative: ,0.5779428571428571
+##########500
+{'reflevel': 2200, 'upperbound': 1000, 'lowerbound': 4200, 'mixs': {'kvo': True, 'kvb': True, 'kh': True}, 'debug': False, '3point': True, 'edgeguard': True, 'H_0': 500, 'scalecoeffs': {'Ar': 0.05, 'kvo': 4.9999999999999996e-06, 'kvb': 0.0005, 'kh': 500}, 'modelmixing': False, 'condition': 8297.174319257676, 'error': 2726.5974853276934}
+kv: ,-4.6541262717386325e-05
+% negative: ,0.2715452466514211
+##########1000
+{'reflevel': 2200, 'upperbound': 1000, 'lowerbound': 4200, 'mixs': {'kvo': True, 'kvb': True, 'kh': True}, 'debug': False, '3point': True, 'edgeguard': True, 'H_0': 1000, 'scalecoeffs': {'Ar': 0.05, 'kvo': 4.9999999999999996e-06, 'kvb': 0.0005, 'kh': 500}, 'modelmixing': False, 'condition': 633.838146801147, 'error': 2676.415816844541}
+kv: ,1.7967113543675634e-05
+% negative: ,0.3479908526625286
+##########1500
+{'reflevel': 2200, 'upperbound': 1000, 'lowerbound': 4200, 'mixs': {'kvo': True, 'kvb': True, 'kh': True}, 'debug': False, '3point': True, 'edgeguard': True, 'H_0': 1500, 'scalecoeffs': {'Ar': 0.05, 'kvo': 4.9999999999999996e-06, 'kvb': 0.0005, 'kh': 500}, 'modelmixing': False, 'condition': 229.72761477070858, 'error': 2662.926878279604}
+kv: ,2.58163769023112e-05
+% negative: ,0.3704671675922901
+##########2000
+{'reflevel': 2200, 'upperbound': 1000, 'lowerbound': 4200, 'mixs': {'kvo': True, 'kvb': True, 'kh': True}, 'debug': False, '3point': True, 'edgeguard': True, 'H_0': 2000, 'scalecoeffs': {'Ar': 0.05, 'kvo': 4.9999999999999996e-06, 'kvb': 0.0005, 'kh': 500}, 'modelmixing': False, 'condition': 146.53766517056727, 'error': 2635.7858077015912}
+kv: ,2.4135131504128274e-05
+% negative: ,0.3707285200914734
+##########2500
+{'reflevel': 2200, 'upperbound': 1000, 'lowerbound': 4200, 'mixs': {'kvo': True, 'kvb': True, 'kh': True}, 'debug': False, '3point': True, 'edgeguard': True, 'H_0': 2500, 'scalecoeffs': {'Ar': 0.05, 'kvo': 4.9999999999999996e-06, 'kvb': 0.0005, 'kh': 500}, 'modelmixing': False, 'condition': 119.24082932053619, 'error': 2608.4906941174318}
+kv: ,2.2832078698302206e-05
+% negative: ,0.3875857562887945

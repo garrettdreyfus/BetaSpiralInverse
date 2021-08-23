@@ -5,12 +5,20 @@ import numpy as np
 import itertools
 from geopy.distance import geodesic
 from progress.bar import Bar
-import pdb
+import pdb,csv
 import alphashape
 from shapely.geometry import Point
 from shapely import affinity
 import matplotlib.pyplot as plt
 from descartes import PolygonPatch
+from rpy2.robjects.packages import importr
+from rpy2.robjects import r, pandas2ri
+import rpy2.robjects as ro
+pandas2ri.activate()
+import pandas as pd
+mgcv = importr("mgcv")
+base = importr("base")
+dollar = base.__dict__["$"]
 
 #add x and y to surfaces. x and y necesarry for interpolation
 def addXYToSurfaces(surfaces,debug=True):
@@ -85,11 +93,11 @@ def indexBoolMatrix(boolmatrix):
     return indexcount
 
 def simpleBoundary(gridx,gridy,datax,datay,radius):
-    radius=150
+    radius= 20
     mask = np.zeros(gridx.shape)
     for i in range(len(datax)):
         r = np.sqrt((gridx- datax[i])**2 + (gridy - datay[i])**2)
-        inside = r<radius*1000
+        inside = r<radius
         mask = mask+inside
     return mask
 
@@ -260,13 +268,13 @@ def surfacePrune(surfaces):
 def interpolateSurface(surface,region,coord="xy",debug=True,interpmethod="gam",smart=False,splines=10):
     #print("######")
     interpsurf={}
-    X = np.zeros((len(surface["x"]),2))
-    X[:,0]=surface["x"]
-    X[:,1]=surface["y"]
+    X = np.zeros((len(surface["lons"]),2))
+    X[:,0]=surface["lons"]
+    X[:,1]=surface["lats"]
     if smart:
         xi,yi,neighbors,finalids = smartMesh(surface["x"],surface["y"],region,coord)
     else:
-        xi,yi,neighbors,finalids = generateMaskedMesh(surface["x"],surface["y"],region,coord)
+        xi,yi,neighbors,finalids = generateMaskedMesh(surface["lons"],surface["lats"],region,coord)
 
     interpdata={}
     interpsurf["x"] =xi
@@ -275,14 +283,37 @@ def interpolateSurface(surface,region,coord="xy",debug=True,interpmethod="gam",s
     if len(xi) != len(finalids):
         print("OH NOOOOOO")
     if interpmethod=="gam":
-        for d in Bar("Interpolating: ").iter(surface["data"].keys()):
+        for d in surface["data"].keys():
             notnan = ~np.isnan(surface["data"][d])
             if np.count_nonzero(notnan)>10:
-                gam = pygam.GAM(pygam.te(0,1,n_splines=[splines,splines])).fit(X[notnan],np.asarray(surface["data"][d])[notnan])
+                gam = pygam.GAM()
+                lams = np.logspace(-3, 3, 11)
+                # lams = [lams,lams]
+                # sclfactor = np.nanmin(np.nanmin(np.asarray(surface["data"][d])[notnan]))
+                # scores = gam.gridsearch(X[notnan],np.asarray(surface["data"][d])[notnan]/sclfactor,return_scores=True,objective="GCV")
+
+                df = pd.DataFrame({'lon': X[:,0][notnan], 'lat': X[:,1][notnan], 'd':(np.asarray(surface["data"][d])[notnan])})
+                r_dataframe = pandas2ri.py2rpy(df)
+                tps=mgcv.gamm(ro.Formula('d~te(lon,lat,bs=\"tp\" )'),data=r_dataframe)
+                sgrid = pd.DataFrame({'lon': xi.T, 'lat': yi.T})
+                griddata = mgcv.predict_gam(dollar(tps,'gam'),sgrid,se="TRUE")
+                interpdata[d] = griddata[0]
+                # print(scores
+                # if d == "pv":
+                #     with open('pv.csv', 'w', newline='') as csvfile:
+                #         fieldnames = ['lon', 'lat', 'pv']
+                #         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                #         writer.writeheader()
+                #         for l in range(len(X[notnan][:,0])):
+                #             writer.writerow({'lon': X[notnan][l,0] , 'lat': X[notnan][l,1], 'pv':np.log10((np.asarray(surface["data"][d]))[notnan][l])})
+                #     gam.summary()
+                # print(gam.terms[0].lam)
+                #gam = pygam.GAM(pygam.te(0,1,n_splines=[splines,splines])).fit(X[notnan],np.asarray(surface["data"][d])[notnan])
                 Xgrid = np.zeros((yi.shape[0],2))
                 Xgrid[:,0] = xi
                 Xgrid[:,1] = yi
-                interpdata[d] = gam.predict(Xgrid)
+
+                #interpdata[d] = gam.predict(Xgrid)*sclfactor
             else:
                 interpdata[d] = np.asarray([np.nan]*len(xi))
     elif interpmethod in ["linear","nearest"] :
@@ -310,11 +341,12 @@ def interpolateSurface(surface,region,coord="xy",debug=True,interpmethod="gam",s
 ## interpolate all the surfaces vertically and store
 ## neighbors, and distances as well
 def interpolateSurfaces(region,surfaces,coord="xy",debug=True,interpmethod="gam",smart=False,splines=10):
+
     surfaces = addXYToSurfaces(surfaces)
     interpolatedsurfaces = {}
     neighbors={}
     lookups={}
-    for k in surfaces.keys():
+    for k in Bar("interpolating").iter(surfaces.keys()):
         if (~np.isnan(surfaces[k]["data"]["pres"])).any():
             #surfaces[k] = removeDiscontinuities(surfaces[k],radius=0.1)
             interpolatedsurfaces[k],neighbors[k] = interpolateSurface(surfaces[k],region,coord=coord,interpmethod=interpmethod,smart=smart,splines=splines)
@@ -340,7 +372,7 @@ def homemadeXY(lon,lat):
         r = ((90-lat[i]) *111*1000)
         x.append(r*np.cos(theta))
         y.append(r*np.sin(theta))
-    return np.asarray(x),np.asarray(y)
+    return lon,lat
 
 #after interpolation everything is in x and y so we need to convert back 
 # to latitude and longitude
@@ -350,16 +382,17 @@ def xyToLatLon(x,y):
     return lat,lon
     
 def addLatLonToSurface(surface,debug = True):
-    lat,lon = xyToLatLon(surface["x"],surface["y"])
+    #lat,lon = xyToLatLon(surface["x"],surface["y"])
     #print("lat: ",lat, " lon: ",lon)
-    surface["lons"]=lon
-    surface["lats"]=lat
+    surface["lons"]=surface["x"]
+    surface["lats"]=surface["y"]
+    surface["maplats"]=-surface["y"]
     return surface
  
 #what is the true distance between neighbors
 def trueDistanceLookup(surface,neighbors):
     lookup = {}
-    for square in Bar("distance calc: ").iter(neighbors):
+    for square in neighbors:
         for edge in itertools.combinations(square,2):
             p = tuple(sorted(edge))
             if p not in lookup.keys():

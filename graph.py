@@ -3,6 +3,17 @@ from nstools import *
 from interptools import *
 from progress.bar import Bar
 from copy import copy
+from rpy2.robjects.packages import importr
+from rpy2.robjects import r, pandas2ri
+import rpy2.robjects as ro
+pandas2ri.activate()
+import pandas as pd
+from scipy.integrate import quad
+
+
+mgcv = importr("mgcv")
+base = importr("base")
+
 
 quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU","pv":"PV",\
                  "u":"relative U","v":"relative V","psi":"ISOPYCNAL STREAMFUNCTION","hx":"Neutral Gradient X",\
@@ -13,6 +24,7 @@ quanttitlehash = {"pres":"Pressure Dbar","t":"Temperature C","s":"Salinity PSU",
                 "dsdy":"Salinity Y gradient","d2sdx2":"Salinity X curvature",\
                   "d2sdy2":"Salinity Y curvature","n^2":"N^2",\
                   "kv": "Diapycnal Diffusivity"}
+dollar = base.__dict__["$"]
 
 ##Graph a given quantity over a transect given a surfaces object
 ## savepath and show control whether the images should be saved and whether graphs should be displayed
@@ -220,7 +232,7 @@ def stdevBound(d,stds):
 ## controls to save, graph or maximize
 def graphSurfaces(region,surfaces,quantindex,stds=2,contour=False,profiles=None,deepestindex=None,\
         show=True,maximize=True,savepath=None,idlabels=False,additional="",\
-        colorlimit=True,select=range(0,10000),secondsurface=None,centerfunction=False,boundfunc=stdevBound):
+                  colorlimit=True,select=range(0,10000),secondsurface=None,centerfunction=False,boundfunc=stdevBound,log=False):
     if savepath:
         try:
             os.makedirs(savepath+quantindex)
@@ -236,8 +248,11 @@ def graphSurfaces(region,surfaces,quantindex,stds=2,contour=False,profiles=None,
             fig,ax,mapy = mapSetup(surfaces,region=region)
             mapy.drawparallels(np.linspace(-90,90,19))
             mapy.drawmeridians(np.linspace(-180, 180, 37))
-            x,y = mapy(surfaces[i]["lons"],surfaces[i]["lats"])
-            d = surfaces[i]["data"][quantindex]
+            x,y = mapy(surfaces[i]["lons"],surfaces[i]["maplats"])
+            if not log:
+                d = surfaces[i]["data"][quantindex]
+            else:
+                d = np.log10(surfaces[i]["data"][quantindex])
             ids = np.asarray(surfaces[i]["ids"])
             x = np.asarray(x)
             y = np.asarray(y)
@@ -250,14 +265,15 @@ def graphSurfaces(region,surfaces,quantindex,stds=2,contour=False,profiles=None,
                 s = np.nanstd(d)
 
             if contour:
-                a = np.logical_and((abs(np.asarray(surfaces[i]["lats"])-90)>0.5) , (~np.isnan(surfaces[i]["data"][quantindex])))
+                a = np.logical_and((abs(np.asarray(surfaces[i]["maplats"])-90)>0.5) , (~np.isnan(surfaces[i]["data"][quantindex])))
                 b,inds = np.unique(list(zip(x,y)),axis=0,return_index=True)
                 c=np.full_like(a,False)
                 c[inds] = True
                 a=np.logical_and(a,c)
                 if np.count_nonzero(a)>4:
-                    c = plt.tricontourf(x[a],y[a],np.asarray(surfaces[i]["data"][quantindex])[a],cmap=cmocean.cm.haline,vmin=m-stds*s,vmax=m+stds*s)
+                    c = plt.tricontourf(x[a],y[a],d[a],cmap=cmocean.cm.haline,vmin=m-stds*s,vmax=m+stds*s,levels=np.linspace(m-s*stds,m+s*stds,num=20))
             else:
+                print(y)
                 c = plt.scatter(x,y,c=d,cmap=cmocean.cm.haline,vmin=m-stds*s,vmax=m+stds*s)
             #map the reference profile
             if profiles and deepestindex:
@@ -265,13 +281,16 @@ def graphSurfaces(region,surfaces,quantindex,stds=2,contour=False,profiles=None,
                 mapy.scatter(x,y,c="red")
             if secondsurface:
                 print("SECONDSURFACE")
-                x,y = mapy(secondsurface[i]["lons"],secondsurface[i]["lats"])
+                x,y = mapy(secondsurface[i]["lons"],secondsurface[i]["maplats"])
                 plt.scatter(x,y,c=secondsurface[i]["data"][quantindex],vmin=m-stds*s,vmax=m+stds*s,cmap=cmocean.cm.haline)
 
+
             if colorlimit:
-                plt.clim(boundfunc(d,stds))
+                #plt.clim((-5,-2))
                 #plt.clim(i-400,i+400)
-                cbar = mapy.colorbar(c)
+                #plt.clim(m-stds*s,m+stds*s)
+                #plt.clim(boundfunc(d,stds))
+                cbar = mapy.colorbar(c,ticks=np.linspace(m-s*stds,m+s*stds,num=20))
 
             if idlabels:
                 for j, eyed in enumerate(ids):
@@ -411,7 +430,7 @@ def plotCruise(region,profiles,cruisename,fig=None,ax=None,show=True):
 def plotProfiles(region,profiles,title,specialprofile=None,fig=None,ax=None,show=True,data="pres",depth=False):
     lats, lons, depths=[],[],[]
     for p in profiles:
-        lats.append(p.lat)
+        lats.append(p.maplat)
         lons.append(p.lon)
         if data == "pres":
             depths.append(np.max(p.pres))
@@ -430,8 +449,8 @@ def plotProfiles(region,profiles,title,specialprofile=None,fig=None,ax=None,show
     clb = mapy.colorbar()
     clb.ax.set_title('Depth of CTD cast')
     if specialprofile:
-        x,y = mapy(specialprofile.lon,specialprofile.lat)
-        plt.scatter(x,y,c="black",marker="x",s=150,linewidth=5)
+        x,y = mapy(specialprofile.lon,specialprofile.maplat)
+        plt.scatter(x,y,c="green",marker="x",s=150,linewidth=5)
     if show:
         plt.show()
 
@@ -454,7 +473,7 @@ def NSGAMCompare(preinterpsurfaces,surfaces,lat,startlon,endlon):
         height = []
         rhos = []
         for l in range(len(surfaces[k]["lats"])):
-            if np.abs(surfaces[k]["lats"][l] - lat)<0.01 and  startlon< surfaces[k]["lons"][l] <endlon:
+            if np.abs(surfaces[k]["maplats"][l] - lat)<0.5 and  startlon< surfaces[k]["lons"][l] <endlon:
                 lons.append(surfaces[k]["lons"][l])
                 pres.append(-surfaces[k]["data"]["pres"][l])
                 bottom.append(surfaces[k]["data"]["z"][l])
@@ -462,7 +481,7 @@ def NSGAMCompare(preinterpsurfaces,surfaces,lat,startlon,endlon):
         rawlon =[]
         rawpres=[]
         for l in range(len(preinterpsurfaces[k]["lats"])):
-            if np.abs(preinterpsurfaces[k]["lats"][l] - lat)<0.5 and  startlon< preinterpsurfaces[k]["lons"][l] <endlon:
+            if np.abs(preinterpsurfaces[k]["maplats"][l] - lat)<0.5 and  startlon< preinterpsurfaces[k]["lons"][l] <endlon:
                rawlon.append(preinterpsurfaces[k]["lons"][l]) 
                rawpres.append(-preinterpsurfaces[k]["data"]["pres"][l]) 
         plt.scatter(rawlon,rawpres,c=plt.gca().lines[-1].get_color())
@@ -480,46 +499,149 @@ def NSGAMCompare(preinterpsurfaces,surfaces,lat,startlon,endlon):
     plt.show()
 
 # Function to compare neutarl depths (pre-interpolation) to approximate neutral surfaces (post-interpolation)
-def NSGAMCompareCruise(preinterpsurfaces,cruise):
-    for k in preinterpsurfaces.keys():
+def NSGAMCompareCruise(preinterpsurfaces,cruise,region):
+    variationaxis = None
+    for k in Bar("surface: ").iter(preinterpsurfaces.keys()):
         lons = []
         pres = []
         surface = preinterpsurfaces[k]
-        splines=50
+        splines=30
         cruiseline = surface["cruise"] == cruise
+        surface["lons"] = np.asarray(surface["lons"])
+        surface["maplats"] = np.asarray(surface["maplats"])
+        #r = ((surface["lons"] > -79) & (surface["lons"] < -8)) & ((surface["maplats"] < -20) & (surface["maplats"] > -40))
         X = np.zeros((len(surface["lons"]),2))
         X[:,0]=surface["lons"]
-        X[:,1]=surface["lats"]
+        X[:,1]=surface["maplats"]
         #for d in Bar("Interpolating: ").iter(surface["data"].keys()):
         d = "pres"
-        notnan = ~np.isnan(surface["data"][d])
-        gam = pygam.GAM(pygam.te(0,1,n_splines=[splines,splines])).fit(X[notnan],np.asarray(surface["data"][d])[notnan])
-        j=len(lons)
+        notnan = ~np.isnan(np.asarray(surface["data"][d]))
+        if np.nansum(notnan)>10:
+            df = pd.DataFrame({'lon': X[:,0][notnan], 'lat': X[:,1][notnan], 'd':(np.asarray(surface["data"][d])[notnan])})
+            r_dataframe = pandas2ri.py2rpy(df)
+            tps=mgcv.gamm(ro.Formula('d~te(lon,lat,bs=\"tp\" )'),data=r_dataframe)
+            # plt.scatter(X[:,1],surface["data"][d])
+            # plt.scatter(X[:,1],-pres)
+            # plt.show()
+            #gam = pygam.GAM(pygam.te(1,0,n_splines=[10,10]))
+            # gam = pygam.GAM()
+            # lams = np.logspace(-5, 3, 11)
+            # gam.gridsearch(X[notnan],(np.asarray(np.asarray(surface["data"][d])[r])[notnan]),lam=lams)
+            # gam.summary()
+            # Y = np.zeros((len(rawlon),2))
+            # Y[:,0]=rawlon
+            # Y[:,1]=rawlat
+            # pres=-gam.predict(Y)
+
+            j=len(lons)
+            rawlon =[]
+            rawlat =[]
+            rawpres=[]
+            for l in range(len(preinterpsurfaces[k]["maplats"])):
+                pointlon = preinterpsurfaces[k]["lons"][l]
+                pointlat = preinterpsurfaces[k]["maplats"][l]
+                if preinterpsurfaces[k]["cruise"][l] == cruise and region.geoFilter(pointlon,pointlat):
+                    rawlon.append(pointlon) 
+                    rawlat.append(pointlat) 
+                    rawpres.append(-preinterpsurfaces[k]["data"][d][l]) 
+            sgrid = pd.DataFrame({'lon': rawlon, 'lat':  rawlat})
+            griddata = mgcv.predict_gam(dollar(tps,'gam'),sgrid,se="TRUE")
+            pres = list(-griddata[0])
+
+            if not variationaxis:
+                if np.ptp(rawlon)>np.ptp(rawlat):
+                    variationaxis = "lon"
+                else:
+                    variationaxis = "lat"
+            if variationaxis == "lon":
+                s=np.argsort(rawlon)
+                plt.plot(np.asarray(rawlon)[s],np.asarray(pres)[s],zorder=0)
+                plt.scatter(rawlon,rawpres,s=np.abs(rawlat),c=plt.gca().lines[-1].get_color())
+                #plt.scatter(rawlon,rawpres,s=np.abs(rawlat))
+            if variationaxis == "lat":
+                s=np.argsort(rawlat)
+                plt.plot(np.asarray(rawlat)[s],np.asarray(pres)[s],zorder=0)
+                plt.scatter(rawlat,rawpres,c=plt.gca().lines[-1].get_color())
+                #plt.scatter(rawlat,rawpres)
+                
+    if variationaxis == "lon":
+        plt.xlabel("Longitude")
+    else:
+        plt.xlabel("Latitude")
+    plt.ylabel("Pressure (dbar)")
+    plt.show()
+
+# Function to compare neutarl depths (pre-interpolation) to approximate neutral surfaces (post-interpolation)
+def NSGAMCompareCruiseAlt(preinterpsurfaces,cruise):
+    variationaxis = None
+    alllons,alllats,alllabels,allpres = [],[],[],[]
+    for k in Bar("surface: ").iter(preinterpsurfaces.keys()):
+        lons = []
+        pres = []
+        surface = preinterpsurfaces[k]
+        splines=30
+        cruiseline = surface["cruise"] == cruise
+        surface["lons"] = np.asarray(surface["lons"])
+        surface["maplats"] = np.asarray(surface["maplats"])
+        r = ((surface["lons"] > -79) & (surface["lons"] < -8)) & ((surface["maplats"] < -20) & (surface["maplats"] > -45))
+        #r = surface["lons"]<0
+        print(surface.keys())
+        #for d in Bar("Interpolating: ").iter(surface["data"].keys()):
+        d = "pres"
+        notnan = ~np.isnan(np.asarray(surface["data"][d])[r])
+        if np.nansum(notnan)>10:
+            alllons+=list(np.asarray(surface["lons"])[r][notnan])
+            alllats+=list(np.asarray(surface["maplats"])[r][notnan])
+            allpres+=list(np.asarray(surface["data"]["pres"])[r][notnan])
+            print(k)
+            alllabels+=([k]*len(np.asarray(surface["lons"])[r][notnan]))
+            #gam = pygam.GAM(pygam.te(1,0,n_splines=[10,10]))
+
+    X = np.zeros((len(alllons),3))
+    X[:,0]=alllons
+    X[:,1]=alllats
+    print(alllabels)
+    X[:,2]=alllabels
+    gam = pygam.GAM()
+    gam.gridsearch(X,np.asarray(allpres))
+    gam.summary()
+
+    for k in Bar("surface: ").iter(preinterpsurfaces.keys()):
         rawlon =[]
         rawlat =[]
         rawpres=[]
-        for l in range(len(preinterpsurfaces[k]["lats"])):
-            if preinterpsurfaces[k]["cruise"][l] == "A10":
-               rawlon.append(preinterpsurfaces[k]["lons"][l]) 
-               rawlat.append(preinterpsurfaces[k]["lats"][l]) 
-               rawpres.append(-preinterpsurfaces[k]["data"]["pres"][l]) 
-        Y = np.zeros((len(rawlon),2))
+        for l in range(len(preinterpsurfaces[k]["maplats"])):
+            if preinterpsurfaces[k]["cruise"][l] == cruise:
+                rawlon.append(preinterpsurfaces[k]["lons"][l]) 
+                rawlat.append(preinterpsurfaces[k]["maplats"][l]) 
+                rawpres.append(-preinterpsurfaces[k]["data"]["pres"][l]) 
+        Y = np.zeros((len(rawlon),3))
         Y[:,0]=rawlon
         Y[:,1]=rawlat
+        Y[:,2]=np.asarray([k]*len(rawlat))
+        print(Y)
         pres=-gam.predict(Y)
-        s=np.argsort(rawlon)
-
-        plt.plot(np.asarray(rawlon)[s],np.asarray(pres)[s],zorder=0)
-        plt.scatter(rawlon,rawpres,c=plt.gca().lines[-1].get_color())
+        if not variationaxis:
+            if np.ptp(rawlon)>np.ptp(rawlat):
+                variationaxis = "lon"
+            else:
+                variationaxis = "lat"
+        if variationaxis == "lon":
+            s=np.argsort(rawlon)
+            plt.plot(np.asarray(rawlon)[s],np.asarray(pres)[s],zorder=0)
+            plt.scatter(rawlon,rawpres,c=plt.gca().lines[-1].get_color())
+        if variationaxis == "lat":
+            s=np.argsort(rawlat)
+            plt.plot(np.asarray(rawlat)[s],np.asarray(pres)[s],zorder=0)
+            plt.scatter(rawlat,rawpres,c=plt.gca().lines[-1].get_color())
                 
-    lons = np.asarray(lons)
-    pres = np.asarray(pres)
-    s= np.argsort(lons)
-    lons = lons[s]
-    pres = pres[s]
-    plt.xlabel("Longitude")
+    if variationaxis == "lon":
+        plt.xlabel("Longitude")
+    else:
+        plt.xlabel("Latitude")
     plt.ylabel("Pressure (dbar)")
     plt.show()
+
 
 
             #Plot the interpolated surface 
@@ -584,7 +706,7 @@ def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",refarrow=0.0
                         urs.append(v)
                         uthetas.append(u)
                     lons.append(surfaces[k]["lons"][p])
-                    lats.append(surfaces[k]["lats"][p])
+                    lats.append(surfaces[k]["maplats"][p])
 
             urs.append(refarrow)
             uthetas.append(0)
@@ -607,7 +729,7 @@ def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",refarrow=0.0
             a = ~np.isnan(surfaces[k]["data"][backgroundfield])
             if np.count_nonzero(a)>4:
                 lons = np.asarray(surfaces[k]["lons"])[a]
-                lats = np.asarray(surfaces[k]["lats"])[a]
+                lats = np.asarray(surfaces[k]["maplats"])[a]
                 xpv,ypv = mapy(lons,lats)
                 bgfield = np.asarray(surfaces[k]["data"][backgroundfield])[a]
                 if contour:
@@ -670,7 +792,7 @@ def fourpanelVectorField(region,surfaces,key1,key2,backgroundfield="pv",refarrow
                     urs.append(v)
                     uthetas.append(u)
                 lons.append(surfaces[k]["lons"][p])
-                lats.append(surfaces[k]["lats"][p])
+                lats.append(surfaces[k]["maplats"][p])
 
         urs.append(refarrow)
         uthetas.append(0)
@@ -693,7 +815,7 @@ def fourpanelVectorField(region,surfaces,key1,key2,backgroundfield="pv",refarrow
         a = ~np.isnan(surfaces[k]["data"][backgroundfield])
         if np.count_nonzero(a)>4:
             lons = np.asarray(surfaces[k]["lons"])[a]
-            lats = np.asarray(surfaces[k]["lats"])[a]
+            lats = np.asarray(surfaces[k]["maplats"])[a]
             xpv,ypv = mapy(lons,lats)
             bgfield = np.asarray(surfaces[k]["data"][backgroundfield])[a]
             if contour:
@@ -1034,8 +1156,99 @@ def pseudopolzin(surfaces,lat,startlon,endlon,startpres,endpres,quant="v",show=F
     plt.show()
 
 
+def isotherm(surfaces,therm,lat,startlon,endlon,startpres,endpres,ax,along="maplats",normal="lons"):
+    toplevel = list(surfaces.keys())[0]
+    lons = []
+    therm_pres = []
+    lat = surfaces[toplevel][along][np.nanargmin(np.abs(surfaces[toplevel][along] - lat))]
+    for l in range(len(surfaces[toplevel]["ids"])):
+        if np.abs(surfaces[toplevel][along][l] - lat)<0.01 and  startlon< surfaces[toplevel][normal][l] <endlon:
+            eyed = surfaces[toplevel]["ids"][l]
+            pres = []
+            temps = []
+            for k in surfaces.keys():
+                if eyed in surfaces[k]["ids"]:
+                    i = surfaces[k]["ids"].index(eyed)
+                    if surfaces[k]["data"]["pres"][i]>2000:
+                        pres.append(surfaces[k]["data"]["pres"][i])
+                        temps.append(surfaces[k]["data"]["pottemp"][i])
+            if len(temps)>0 and np.nanmin(temps)<therm<np.nanmax(temps):
+                s = np.argsort(temps)
+                therm_pres.append(-np.interp(therm,np.asarray(temps)[s],np.asarray(pres)[s]))
+                lons.append(surfaces[toplevel][normal][l])
+    ax.plot(lons,therm_pres,c="green",zorder=6,linewidth=4)
+
+def transportRefIsotherm(surfaces,therm,lat,startlon,endlon,startpres,endpres,ax,along="maplats",normal="lons"):
+    toplevel = list(surfaces.keys())[0]
+    lons = []
+    therm_pres = []
+    transports = []
+    lat = surfaces[toplevel][along][np.nanargmin(np.abs(surfaces[toplevel][along] - lat))]
+    for l in range(len(surfaces[toplevel]["ids"])):
+        if np.abs(surfaces[toplevel][along][l] - lat)<0.01 and  startlon< surfaces[toplevel][normal][l] <endlon:
+            eyed = surfaces[toplevel]["ids"][l]
+            pres = []
+            temps = []
+            vs = []
+            for k in surfaces.keys():
+                if eyed in surfaces[k]["ids"]:
+                    i = surfaces[k]["ids"].index(eyed)
+                    if surfaces[k]["data"]["pres"][i]>2000:
+                        pres.append(surfaces[k]["data"]["pres"][i])
+                        temps.append(surfaces[k]["data"]["pottemp"][i])
+                        vs.append(surfaces[k]["data"]["vabs"][i])
+            if len(temps)>0 and np.nanmin(temps)<therm<np.nanmax(temps):
+                s = np.argsort(temps)
+                therm_pres.append(-np.interp(therm,np.asarray(temps)[s],np.asarray(pres)[s]))
+                vref = -np.interp(therm,np.asarray(temps)[s],np.asarray(vs)[s])
+                depth = np.abs(therm_pres[-1] - surfaces[k]["data"]["z"][i])
+                print(therm_pres[-1] , surfaces[k]["data"]["z"][i])
+                print(vref)
+                transports.append(vref*depth)
+                lons.append(surfaces[toplevel][normal][l])
+    width = np.nanmin(np.gradient(sorted(lons)))
+    print(width)
+    print("ref transport",transports)
+    print(np.nansum( np.asarray(transports)*width*np.cos(np.deg2rad(lat))*111000 ))
+
+
+def transportTempClass(surfaces,lat,startlon,endlon,startpres,endpres,hightemp,lowtemp,along="maplats",normal="lons",vfield="vabs"):
+    toplevel = list(surfaces.keys())[0]
+    lons = []
+    transports = []
+    lat = surfaces[toplevel][along][np.nanargmin(np.abs(surfaces[toplevel][along] - lat))]
+    for l in range(len(surfaces[toplevel]["ids"])):
+        if np.abs(surfaces[toplevel][along][l] - lat)<0.01 and  startlon< surfaces[toplevel][normal][l] <endlon:
+            eyed = surfaces[toplevel]["ids"][l]
+            pres = []
+            temps = []
+            vs = []
+            for k in surfaces.keys():
+                if eyed in surfaces[k]["ids"]:
+                    i = surfaces[k]["ids"].index(eyed)
+                    if surfaces[k]["data"]["pres"][i]>2000:
+                        pres.append(surfaces[k]["data"]["pres"][i])
+                        temps.append(surfaces[k]["data"]["pottemp"][i])
+                        vs.append(surfaces[k]["data"][vfield][i])
+            if len(temps)>0:
+                s = np.argsort(temps)
+                highpres = np.interp(hightemp,np.asarray(temps)[s],np.asarray(pres)[s])
+                lowpres = np.interp(lowtemp,np.asarray(temps)[s],np.asarray(pres)[s])
+                s = np.argsort(pres)
+                f_interp = lambda xx: np.interp(xx, np.asarray(pres)[s], np.asarray(vs)[s])
+                transport = quad(f_interp,highpres,lowpres,points = np.asarray(pres)[s])
+                transports.append(transport[0])
+                lons.append(surfaces[toplevel][normal][l])
+    if len(lons)>2:
+        width = np.nanmin(np.gradient(sorted(lons)))
+        return np.nansum(np.asarray(transports)*width*np.cos(np.deg2rad(lat))*111000 )
+    return np.nan
+
+
 
 def meridionalHeatMap(surfaces,lat,startlon,endlon,startpres,endpres,quant="vabs",show=False,label="",ax=None):
+    if not ax:
+        ax = plt.gca()
     transportsums = {}
     lons = []
     vabs = []
@@ -1047,15 +1260,13 @@ def meridionalHeatMap(surfaces,lat,startlon,endlon,startpres,endpres,quant="vabs
             height = []
             rhos = []
             for l in range(len(surfaces[k]["lats"])):
-                if np.abs(surfaces[k]["lats"][l] - lat)<0.01 and  startlon< surfaces[k]["lons"][l] <endlon:
+                if np.abs(surfaces[k]["maplats"][l] - lat)<0.2 and  startlon< surfaces[k]["lons"][l] <endlon:
                     lons.append(surfaces[k]["lons"][l])
                     vabs.append(surfaces[k]["data"][quant][l])
                     pres.append(-surfaces[k]["data"]["pres"][l])
                     height.append(surfaces[k]["data"]["h"][l])
-                    rho = gsw.rho(surfaces[k]["data"]["s"][l],surfaces[k]["data"]["t"][l],surfaces[k]["data"]["pres"][l])
-                    rhos.append(rho)
                     bottom.append(surfaces[k]["data"]["z"][l])
-            plt.plot(lons[j:],pres[j:],c="gray",zorder=0)
+            ax.plot(lons[j:],pres[j:],c="gray",zorder=0)
     lons = np.asarray(lons)
     bottom = np.asarray(bottom)
     pres = np.asarray(pres)
@@ -1065,37 +1276,43 @@ def meridionalHeatMap(surfaces,lat,startlon,endlon,startpres,endpres,quant="vabs
     lons = lons[s]
     pres = pres[s]
     vabs=vabs[s]
-    plt.fill_between(lons,-5000,bottom,color="black")
-    plt.xlabel("Longitude")
-    plt.ylabel("Pressure (dbar)")
-    plt.scatter(lons,pres,s=(np.abs(vabs))*2*10**5,c=vabs,vmax =0.007,vmin=-0.007,zorder=5,cmap="coolwarm")
-    cbar = plt.colorbar()
+    ax.fill_between(lons,np.nanmin(bottom)-100,bottom,color="black",zorder=7)
+    ax.set_xlabel("Longitude")
+    ax.set_ylabel("Pressure (dbar)")
+    ax.set_title(label)
+    ax.set_xlim(startlon,endlon)
+    c = ax.scatter(lons,pres,s=(np.abs(vabs))*10**5,c=vabs,vmax =0.007,vmin=-0.007,zorder=5,cmap="coolwarm")
+    cbar = plt.colorbar(c,ax=ax)
     cbar.ax.set_ylabel("North-South Velocity")
-    plt.show()
+    if show:
+        plt.show()
 
 
 def latitudinalHeatMap(surfaces,lon,startlat,endlat,startpres,endpres,quant="u",show=False,label="",ax=None):
+    if not ax:
+        ax=plt.gca()
     transportsums = {}
     lats = []
     vabs = []
     pres = []
     bottom=[]
+    lon = surfaces[list(surfaces.keys())[0]]["lons"][np.nanargmin(np.abs(surfaces[list(surfaces.keys())[0]]["lons"] - lon))]
+    print(lon)
     for k in surfaces.keys():
         if  startpres < int(k) < endpres:
             j=len(lats)
             height = []
             rhos = []
             for l in range(len(surfaces[k]["lons"])):
-                print(surfaces[k]["lons"][l])
-                if np.abs(surfaces[k]["lons"][l] - lon)<0.1 and  startlat< surfaces[k]["lats"][l] <endlat:
-                    lats.append(surfaces[k]["lats"][l])
+                if np.abs(surfaces[k]["lons"][l] - lon)<0.01 and  startlat< surfaces[k]["maplats"][l] <endlat:
+                    lats.append(surfaces[k]["maplats"][l])
                     vabs.append(surfaces[k]["data"][quant][l])
                     pres.append(-surfaces[k]["data"]["pres"][l])
                     height.append(surfaces[k]["data"]["h"][l])
                     rho = gsw.rho(surfaces[k]["data"]["s"][l],surfaces[k]["data"]["t"][l],surfaces[k]["data"]["pres"][l])
                     rhos.append(rho)
                     bottom.append(surfaces[k]["data"]["z"][l])
-            plt.plot(lats[j:],pres[j:],c="gray",zorder=0)
+            ax.plot(lats[j:],pres[j:],c="gray",zorder=0)
     lats = np.asarray(lats)
     bottom = np.asarray(bottom)
     pres = np.asarray(pres)
@@ -1105,13 +1322,16 @@ def latitudinalHeatMap(surfaces,lon,startlat,endlat,startpres,endpres,quant="u",
     lats = lats[s]
     pres = pres[s]
     vabs=vabs[s]
-    plt.fill_between(lats,-5000,bottom,color="black")
-    plt.xlabel("Latitude")
-    plt.ylabel("Pressure (dbar)")
-    plt.scatter(lats,pres,s=(np.abs(vabs))*2*10**5,c=vabs,vmax =0.007,vmin=-0.007,zorder=5,cmap="coolwarm")
-    cbar = plt.colorbar()
+    ax.fill_between(lats,-6000,bottom,color="black",zorder=7)
+    ax.set_xlabel("Latitude")
+    ax.set_ylabel("Pressure (dbar)")
+    ax.set_title(label)
+    ax.set_xlim(startlat,endlat)
+    c = ax.scatter(lats,pres,s=(np.abs(vabs))*10**5,c=vabs,vmax =0.007,vmin=-0.007,zorder=5,cmap="coolwarm")
+    cbar = plt.colorbar(c,ax=ax)
     cbar.ax.set_ylabel("East-West Velocity")
-    plt.show()
+    if show:
+        plt.show()
 
 
 def meridionalSurfaces(surfaces,lat,startlon,endlon,startpres,endpres,show=False,label="",ax=None):
@@ -1144,13 +1364,11 @@ def meridionalSurfaces(surfaces,lat,startlon,endlon,startpres,endpres,show=False
     lons = lons[s]
     pres = pres[s]
     vabs=vabs[s]
-    plt.fill_between(lons,-5000,bottom,color="black")
+    plt.fill_between(lons,-6000,bottom,color="black")
     plt.xlabel("Longitude")
     plt.ylabel("Pressure (dbar)")
+    ax.set_title(label)
     plt.show()
-
-
-
 
 def HTtransports(inv,ht = None):
     fig,(ax1,ax2,ax3) = plt.subplots(3,1)
@@ -1425,6 +1643,18 @@ def AABWFinder(surf):
     plt.axhline(2)
     plt.axvline(34.86)
     plt.legend()
+    plt.show()
+
+def surfaceGammaRanges(surfaces):
+    bounds = []
+    for k in surfaces.keys():
+        upper = np.nanmax(surfaces[k]["data"]["gamma"])
+        lower = np.nanmin(surfaces[k]["data"]["gamma"])
+        bounds.append([lower,upper])
+        print(str(k) + str( bounds[-1]))
+        plt.plot([lower,upper],[k,k])
+    for b in range(len(bounds)-1):
+        print(bounds[b+1][0] - bounds[b][1])
     plt.show()
 
 

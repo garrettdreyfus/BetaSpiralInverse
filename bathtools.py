@@ -11,7 +11,7 @@ def addBathToSurfaces(surfaces,region):
     for k in surfaces.keys():
         surfaces[k]["data"]["z"] =  np.full(len(surfaces[k]["lons"]),np.nan)
         for l in range(len(surfaces[k]["lats"])):
-            lat = surfaces[k]["lats"][l]
+            lat = surfaces[k]["maplats"][l]
             lon = surfaces[k]["lons"][l]
             if (lat,lon) not in dumbcache.keys():
                 dumbcache[(lat,lon)]=searchBath(lat,lon)
@@ -22,7 +22,7 @@ def addBathToSurface(surface,region):
     dumbcache = {}
     surface["data"]["z"] =  np.full(len(surface["lons"]),np.nan)
     for l in range(len(surface["lats"])):
-        lat = surface["lats"][l]
+        lat = surface["maplats"][l]
         lon = surface["lons"][l]
         if (lat,lon) not in dumbcache.keys():
             dumbcache[(lat,lon)]=searchBath(lat,lon)
@@ -45,9 +45,9 @@ def searchBath(bathDataset,lat,lon):
 
 def bathBox(bathDataset,lat,lon):
     f = bathDataset.sel(lon=slice(lon-0.1,lon+0.1),lat=slice(lat-0.1,lat+0.1))
-
     if ~np.isnan(f):
-        return np.ndarray.flatten(f.z.values)
+        f=f.stack(g=("lon","lat"))
+        return np.ndarray.flatten(f.lon.values),np.ndarray.flatten(f.lat.values),np.ndarray.flatten(f.z.values)
     else:
         return f
 

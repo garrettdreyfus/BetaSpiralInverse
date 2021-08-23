@@ -114,31 +114,43 @@ def indexOfSurface(surfaces,params,k):
     return sorted(cs).index(k)
 
 ## apply the solution to surfaces
-def applyPrime(staggeredsurfaces,prime,coldict,params,widths,mixing=False):
+def applyPrime(staggeredsurfaces,prime,coldict,params,widths,mixing=False,errorbars=None):
     scales = params["scalecoeffs"]
     for k in Bar("adding solutions: ").iter(staggeredsurfaces.keys()):
         staggeredsurfaces[k]["data"]["psinew"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         staggeredsurfaces[k]["data"]["psisol"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
+        staggeredsurfaces[k]["data"]["psierror"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         staggeredsurfaces[k]["data"]["kvb"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
+        staggeredsurfaces[k]["data"]["kvberror"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         staggeredsurfaces[k]["data"]["kvo"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
+        staggeredsurfaces[k]["data"]["kvoerror"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
+        staggeredsurfaces[k]["data"]["kverror"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         staggeredsurfaces[k]["data"]["kv"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         staggeredsurfaces[k]["data"]["kh"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         staggeredsurfaces[k]["data"]["usol"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         staggeredsurfaces[k]["data"]["vsol"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
+        staggeredsurfaces[k]["data"]["uerror"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
+        staggeredsurfaces[k]["data"]["verror"] =  np.full(len(staggeredsurfaces[k]["lons"]),np.nan)
         #print(widths)
         #print(np.asarray(prime[widths[0]:widths[0]+widths[1]])*scales["kvb"])
         for i in range(len(staggeredsurfaces[k]["data"]["ids"])):
             eyed = staggeredsurfaces[k]["ids"][i] 
             if eyed in coldict.keys():
+                j = staggeredsurfaces[k]["data"]["j"][i]
                 staggeredsurfaces[k]["data"]["psinew"][i] = staggeredsurfaces[k]["data"]["psiref"][i] + prime[coldict[eyed]]*scales["Ar"]
                 staggeredsurfaces[k]["data"]["psisol"][i] = prime[coldict[eyed]]*scales["Ar"]
+                staggeredsurfaces[k]["data"]["psierror"][i] = (errorbars[coldict[eyed]]*scales["Ar"])/staggeredsurfaces[k]["data"]["psisol"][i]
+
                 if params["mixs"]["kvb"] and params["mixs"]["kvo"] and params["mixs"]["kh"]:
                     staggeredsurfaces[k]["data"]["kvb"][i] = prime[widths[0]+coldict[eyed]]*scales["kvb"]
+                    staggeredsurfaces[k]["data"]["kvberror"][i] = errorbars[widths[0]+coldict[eyed]]*scales["kvb"]
                     if params["lowerbound"]>=k>=params["upperbound"]:
                         staggeredsurfaces[k]["data"]["kh"][i] =\
                                 prime[widths[0]+widths[1]+indexOfSurface(staggeredsurfaces,params,k)]*scales["kh"]
                     staggeredsurfaces[k]["data"]["kvo"][i] = prime[-1]*scales["kvo"]
-                    staggeredsurfaces[k]["data"]["kv"][i] = staggeredsurfaces[k]["data"]["kvo"][i]+staggeredsurfaces[k]["data"]["kvb"][i]*staggeredsurfaces[k]["data"]["CKVB"][i]
+                    staggeredsurfaces[k]["data"]["kvoerror"][i] = errorbars[-1]*scales["kvo"]
+                    staggeredsurfaces[k]["data"]["kverror"][i] = np.sqrt((j*staggeredsurfaces[k]["data"]["kvberror"][i])**2 + (j*staggeredsurfaces[k]["data"]["kvoerror"][i]*staggeredsurfaces[k]["data"]["CKVB"][i])**2)
+                    staggeredsurfaces[k]["data"]["kv"][i] = j*staggeredsurfaces[k]["data"]["kvo"][i]+j*staggeredsurfaces[k]["data"]["kvb"][i]*staggeredsurfaces[k]["data"]["CKVB"][i]
     return staggeredsurfaces
 
 ## return list of ids of points that are constrained by a given number of equations
@@ -283,7 +295,7 @@ def fillDefault(params):
     params.setdefault("upperbound",1000)
     params.setdefault("reflevel",1000)
     params.setdefault("mixs",{"kvh":True,"kvb":True,"kvo":True})
-    params.setdefault("scalecoeffs",{"Ar":0.05,"kvo":5*10**-6,"kvb":5*10**-5,"kh":500})
+    params.setdefault("scalecoeffs",{"Ar":0.05,"kvo":5*10**(-6),"kvb":5*10**(-4),"kh":5*10**(2)})
     params.setdefault("3point",True)
     params.setdefault("edgeguard",True)
     params.setdefault("modelmixing",False)
@@ -513,6 +525,8 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
     j,[VT, D, U] = SVDdecomp(A,n_elements=int(A.shape[1]))
 
     prime = np.matmul(j,c)
+    bars = errorBars(A,prime,D,VT,c)
+
 
     if params["debug"]:
         graphError(A,np.concatenate((us,[0]*(A.shape[1]-len(us)))),prime)
@@ -523,9 +537,19 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
     metadata = copy.copy(params)
     metadata["condition"] = condition(D)
     metadata["error"] = np.sum(np.abs(errors[1]))
-    surfaces = applyPrime(surfaces,prime,columndictionary,params,widths,mixing=True)
+    surfaces = applyPrime(surfaces,prime,columndictionary,params,widths,mixing=True,errorbars=bars)
 
     return {"surfaces":surfaces,"coldict":columndictionary, "svddecomp":[VT,D,U],"matrixsetup":A,"errors":errors,"metadata":metadata}
+
+
+def errorBars(A,prime,S,V,c):
+    sigerr = np.sqrt(np.sum((np.matmul(A,prime)-c)**2))/(prime.shape[0])
+    Stemp = S.diagonal()*S.diagonal()
+    bars = np.full_like(prime,np.nan) 
+    for l in range(len(prime)):
+        bars[l] = sigerr * np.sqrt(np.sum((V[l,:]*V[l,:])*Stemp))
+    return bars
+        
 
 
 #the number of values per row
