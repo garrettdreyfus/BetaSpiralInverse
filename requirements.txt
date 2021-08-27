@@ -60,7 +60,7 @@ pyasn1-modules==0.2.4
 pycosat==0.6.3
 pygam==0.8.0
 -e git+git@github.com:garrettdreyfus/py-gamma-n.git@55dc43cf042812b818f272d5c42c6e3f7d2b219d#egg=pygamma_n
-Pygments==2.3.1
+Pygments==2.7.4
 pyparsing==2.3.1
 pypinfo==15.0.0
 pyproj==1.9.6
