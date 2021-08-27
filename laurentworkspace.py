@@ -1,4 +1,4 @@
-from regionlib import brasil
+from regionlib import brasil, laurent
 import os, gsw
 import graph
 import nstools
@@ -76,93 +76,75 @@ import sensitivity
 
 # with open('data/brasilsurfaceswdata.pickle', 'wb') as infile:
 #     pickle.dump([preinterpsurfaces,profiles],infile)
-with open('data/brasilsurfaceswdata.pickle', 'rb') as outfile:
-    preinterpsurfaces,profiles = pickle.load(outfile)
+# with open('data/brasilsurfaceswdata.pickle', 'rb') as outfile:
+#     preinterpsurfaces,profiles = pickle.load(outfile)
 
-#graph.graphSurfaces(brasil,preinterpsurfaces,"pv",select=range(2584,10000))
-# #graph.graphSurfaces(brasil,preinterpsurfaces,"pv",select=range(2000,10000),log=True)
-# for k in preinterpsurfaces.keys():
-#       total = len(preinterpsurfaces[k]["data"]["pv"])
-#       negcount = np.nansum(np.asarray(preinterpsurfaces[k]["data"]["pv"])<0)
-#       print(negcount/total)
-# print("*"*5)
+# #graph.graphSurfaces(brasil,preinterpsurfaces,"pv",select=range(2584,10000))
+# # #graph.graphSurfaces(brasil,preinterpsurfaces,"pv",select=range(2000,10000),log=True)
+# # for k in preinterpsurfaces.keys():
+# #       total = len(preinterpsurfaces[k]["data"]["pv"])
+# #       negcount = np.nansum(np.asarray(preinterpsurfaces[k]["data"]["pv"])<0)
+# #       print(negcount/total)
+# # print("*"*5)
 
-#  #print(preinterpsurfaces[65]["lats"])
-#  #graph.time_diagnostic(profiles,3100,-30,2.5)
-#  #graph.time_diagnosuItic(profiles,3100,-25,2.5)
-#  #graph.time_diagnostic(profiles,3100,-10,2.5)
-#  # nserrors = {}
-# #graph.graphSurfaces(brasil,preinterpsurfaces,"n^2")
-surfaces,neighbors,distances = \
-     interptools.interpolateSurfaces(brasil,preinterpsurfaces,\
-                                     interpmethod="gam",smart=False,coord="latlon",splines=30)
+# #  #print(preinterpsurfaces[65]["lats"])
+# #  #graph.time_diagnostic(profiles,3100,-30,2.5)
+# #  #graph.time_diagnosuItic(profiles,3100,-25,2.5)
+# #  #graph.time_diagnostic(profiles,3100,-10,2.5)
+# #  # nserrors = {}
+# # #graph.graphSurfaces(brasil,preinterpsurfaces,"n^2")
+# surfaces,neighbors,distances = \
+#      interptools.interpolateSurfaces(laurent,preinterpsurfaces,\
+#                                      interpmethod="gam",smart=False,coord="latlon",splines=30)
 
 #graph.graphSurfaces(brasil,surfaces,"pv",contour=False,secondsurface=preinterpsurfaces,select=range(2584,10000))
 # graph.nsHist(surfaces)
-with open('data/interpedbrasil.pickle', 'wb') as outfile:
-     pickle.dump([surfaces,neighbors,distances], outfile)
-with open('data/interpedbrasil.pickle', 'rb') as outfile:
-    [surfaces,neighbors,distances] = pickle.load(outfile)
+# with open('data/interpedlaurent.pickle', 'wb') as outfile:
+#      pickle.dump([surfaces,neighbors,distances], outfile)
+#with open('data/interpedlaurent.pickle', 'rb') as outfile:
+    #[surfaces,neighbors,distances] = pickle.load(outfile)
 
-# graph.graphSurfaces(brasil,surfaces,"pv")
-# surfaces = nstools.neutralityError(surfaces)
-# #sensitivity.weightingSensitivity(surfaces,neighbors,distances)
-# sensitivity.decayScaleSensitivity(surfaces,neighbors,distances)
-# # # print("a",surfaces["maplats"])
-surfaces = nstools.addParametersToSurfaces(brasil,surfaces,neighbors,distances,H_0=1000)
-# graph.NSGAMCompare(preinterpsurfaces,surfaces,-30.5,-180,180)
-# # for l in surfaces.keys():
-# #     print(l)
-# #     pres = surfaces[l]["data"]["pres"]
-# #     print(np.nanmin(pres),np.nanmax(pres))
-# #     if (np.asarray(surfaces[l]["data"]["pv"])<0).any():
-# #         print(l)
-# #         print(np.where(np.asarray(surfaces[l]["data"]["pv"])<0))
+## graph.graphSurfaces(brasil,surfaces,"pv")
+## surfaces = nstools.neutralityError(surfaces)
+## #sensitivity.weightingSensitivity(surfaces,neighbors,distances)
+## sensitivity.decayScaleSensitivity(surfaces,neighbors,distances)
+## # # print("a",surfaces["maplats"])
+#surfaces = nstools.addParametersToSurfaces(laurent,surfaces,neighbors,distances,H_0=500)
+## graph.NSGAMCompare(preinterpsurfaces,surfaces,-30.5,-180,180)
 
-with open('data/withparams.pickle', 'wb') as outfile:
-    pickle.dump([surfaces,neighbors,distances], outfile)
-with open('data/withparams.pickle', 'rb') as outfile:
-    [surfaces,neighbors,distances] = pickle.load(outfile)
+#with open('data/withparamslaurent.pickle', 'wb') as outfile:
+    #pickle.dump([surfaces,neighbors,distances], outfile)
+#with open('data/withparamslaurent.pickle', 'rb') as outfile:
+    #[surfaces,neighbors,distances] = pickle.load(outfile)
 
-# graph.AABWFinder(surfaces)
-#nstools.neutralityError(surfaces)
-#graph.graphSurfaces(brasil,surfaces,"nserror",stds=2,show=False,savepath="../arcticcirc-pics/surfaces/normneutralerror2/",log=True)
-#graph.graphSurfaces(brasil,nstools.addGammaN(surfaces),"gamma")
+#params = {"reflevel":1800,"upperbound":1000,"lowerbound":4000,\
+       #"mixs":{"kvo":True,"kvb":True,"kh":True},"debug":False,\
+           #"3point":True,"edgeguard":True,"H_0":500
+         #}
+#out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
+#print(out["metadata"])
+#inv=out["surfaces"]
+#with open('data/invertedlaurent.pickle', 'wb') as outfile:
+   #pickle.dump([inv,neighbors,distances], outfile)
+with open('data/invertedlaurent.pickle', 'rb') as outfile:
+   [inv,neighbors,distances] = pickle.load(outfile)
 
-for k in surfaces.keys():
-     total = len(surfaces[k]["data"]["pv"])
-     negcount = np.nansum(surfaces[k]["data"]["pv"]<0)
-     m=surfaces[k]["data"]["pv"]<0
-     print(surfaces[k]["lons"][m])
-     print(surfaces[k]["lats"][m])
+for k in inv.keys():
+     total = len(inv[k]["data"]["kv"])
+     negcount = np.nansum(inv[k]["data"]["kv"]<0)
+     m=inv[k]["data"]["kv"]<0
      print(k,":",negcount/total)
-#sensitivity.weightingSensitivity(surfaces,neighbors,distances)
-# # print(surfaces.keys())
-params = {"reflevel":1800,"upperbound":1000,"lowerbound":4000,\
-        "mixs":{"kvo":True,"kvb":True,"kh":True},"debug":False,\
-            "3point":True,"edgeguard":True,"H_0":1000
-          }
-# # Conditions
-# # All mixing: 201235
-# # No mixing: 147
-# # Kv0 only: 147
-# # KvH and Kv0 only: 148
-# # KvH and Kv0 only with out edgeguard (tm): 489
-
-out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
-print(out["metadata"])
-inv=out["surfaces"]
-with open('data/invertedbrasil.pickle', 'wb') as outfile:
-    pickle.dump([inv,neighbors,distances], outfile)
-with open('data/invertedbrasil.pickle', 'rb') as outfile:
-    [inv,neighbors,distances] = pickle.load(outfile)
+inv = nstools.addGammaN(inv)
+graph.surfaceGammaRanges(inv)
 inv = nstools.streamFuncToUV(inv,neighbors,distances)
+# graph.graphVectorField(laurent,inv,"uabs","vabs","pres",\
+#                         transform=False,show = False, scale=0.1,savepath="/home/gdreyfus/Projects/arcticcirc-pics/vectorfields/laurent/")
 inv = nstools.twoCReference(inv)
 #graph.graphSurfaces(brasil,surfaces,"bathvar",select=range(0,10000))
+for k in inv.keys():
+    plt.scatter(inv[k]["data"]["kv"],inv[k]["data"]["pres"])
+plt.show()
 
-# graph.graphVectorField(brasil,inv,"uabs","vabs","pres",\
-#                         metadata=out["metadata"],\
-#                         transform=False, scale=0.1)
 k = 4400#list(inv.keys())[20]
 print(k)
 # plt.errorbar(range(len(inv[k]["data"]["kv"])),inv[k]["data"]["kv"],yerr=2*inv[k]["data"]["kverror"])
@@ -171,13 +153,14 @@ print(k)
 #plt.scatter(inv[k]["data"]["uabs"],inv[k]["data"]["vabs"])
 #plt.scatter(inv[k]["data"]["uerror"],inv[k]["data"]["verror"],c='red')
 #plt.errorbar(inv[k]["data"]["uabs"],inv[k]["data"]["vabs"],yerr=inv[k]["data"]["verror"]*2,xerr=inv[k]["data"]["uerror"]*2,fmt='none')
-
-# graph.meridionalHeatMap(inv,-30,-180,180,1000,6000,show=True,label="")
 ###########################################
 ### error bubble plot##
 ###########################################
 fig, [ax1,ax2,ax3] = plt.subplots(1,3)
-c = ax1.scatter(inv[k]["lons"],inv[k]["maplats"],s=np.abs(inv[k]["data"]["vabs"])*50000,c=inv[k]["data"]["verror"]*2/np.abs(inv[k]["data"]["vabs"]),cmap="jet")
+d = inv[k]["data"]["vabs"]>0
+c = ax1.scatter(inv[k]["lons"][d],inv[k]["maplats"][d],s=np.abs(inv[k]["data"]["vabs"][d])*50000,c=inv[k]["data"]["verror"][d]*2/np.abs(inv[k]["data"]["vabs"][d]),cmap="jet",vmin=0,vmax=2)
+d = inv[k]["data"]["vabs"]<=0
+c = ax1.scatter(inv[k]["lons"][d],inv[k]["maplats"][d],s=np.abs(inv[k]["data"]["vabs"][d])*50000,c=inv[k]["data"]["verror"][d]*2/np.abs(inv[k]["data"]["vabs"][d]),cmap="jet",vmin=0,vmax=2,marker="x")
 plt.colorbar(c,ax=ax1)
 c.set_clim(0,2)
 ax1.set_title("V")
@@ -224,6 +207,7 @@ plt.show()
 # #graph.pseudopolzin(inv,-20,-180,180,0,6000,quant="kv")
 # #graph.northSouthTransect(inv,"kv",lat=-20,show=True)
 # #nstools.inverseReady(inv)
+# graph.meridionalHeatMap(inv,-30,-180,180,1000,6000,show=True,label="")
 # result = nstools.transportDiagnostics(inv)
 # print(result)
 # #graph.latitudinalHeatMap(inv,-35.1,-40,-20,1000,6000,show=True,label="")

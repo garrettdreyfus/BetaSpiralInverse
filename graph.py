@@ -678,7 +678,7 @@ def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",refarrow=0.0
         except FileExistsError as e:
             print(e)
         writeInfoFile(savepath,metadata)
-    for k in Bar("Graphing Surfaces: ").iter(surfaces.keys()):
+    for k in Bar("Graphing Vector Fields: ").iter(surfaces.keys()):
         if k in select:
             fig,ax,mapy = mapSetup([],region=region)
             urs=[]
@@ -743,6 +743,7 @@ def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",refarrow=0.0
                 mapy.quiver(x,y,u,v,mag,scale=scale,cmap="autumn",width = 0.004)
                 plt.colorbar()
                 if savepath:
+                    print("hello")
                     plt.savefig(savepath+key1+key2+"/ns"+str(k)+".png")
 
                 if show:
