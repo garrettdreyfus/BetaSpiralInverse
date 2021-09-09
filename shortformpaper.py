@@ -28,8 +28,8 @@ import sensitivity
 with open('data/invertedbrasil.pickle', 'rb') as outfile:
     [inv,neighbors,distances] = pickle.load(outfile)
 
-inv = nstools.addGammaN(inv)
-graph.surfaceGammaRanges(inv)
+#inv = nstools.addGammaN(inv)
+#graph.surfaceGammaRanges(inv)
 #graph.graphSurfaces(brasil,inv,"kvb",contour=True,secondsurface=preinterpsurfaces,select=range(4000,10000),show=False,savepath="../arcticcirc-pics/surfaces/finalgam/")
 #graph.graphSurfaces(brasil,inv,"kvb",contour=False,select=range(4000,10000),log=True)
 #graph.graphSurfaces(brasil,inv,"z",contour=False)
@@ -70,8 +70,8 @@ inv = nstools.externalReference(inv,"data/yomaha_1000.nc")
 # graph.graphSurfaces(brasil,inv,"2CU")
 print(nstools.transportDiagnostics(inv))
 print(nstools.transportDiagnostics(inv,["2CU","2CV"]))
-# # graph.fourpanelVectorField(brasil,inv,"2CU","2CV",backgroundfield="pres",\
-# #                            select=[1000,1800,3400,4400],transform=False,scale=0.1)
+graph.fourpanelVectorField(brasil,inv,"uabs","vabs",backgroundfield="pres",\
+                           select=[1000,1800,3400,4400],transform=False,scale=0.1)
 # print(inv.keys())
 
 fig,((ax1,ax2,ax5),(ax3,ax4,ax6))=plt.subplots(2,3)

@@ -143,10 +143,10 @@ def graphNeighbors(surfaces,neighbors):
             #plt.scatter(surfaces[k]["lons"][r[2]],surfaces[k]["lats"][r[2]],c="yellow")
             #plt.scatter(surfaces[k]["lons"][r[3]],surfaces[k]["lats"][r[3]],c="red")
             s=[]
-            s.append((surfaces[k]["x"][r[0]],surfaces[k]["y"][r[0]]))
-            s.append((surfaces[k]["x"][r[1]],surfaces[k]["y"][r[1]]))
-            s.append((surfaces[k]["x"][r[2]],surfaces[k]["y"][r[2]]))
-            s.append((surfaces[k]["x"][r[3]],surfaces[k]["y"][r[3]]))
+            s.append((surfaces[k]["lons"][r[0]],surfaces[k]["lats"][r[0]]))
+            s.append((surfaces[k]["lons"][r[1]],surfaces[k]["lats"][r[1]]))
+            s.append((surfaces[k]["lons"][r[2]],surfaces[k]["lats"][r[2]]))
+            s.append((surfaces[k]["lons"][r[3]],surfaces[k]["lats"][r[3]]))
             plt.plot(s)
 
         plt.show()
@@ -670,8 +670,7 @@ def graphStaggeredSurface(surfaces,neighbors,debug=False):
 ## graph a vector field given a surfaces object on a map
 ## any quantity can be supplied as a background field
 def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",refarrow=0.01,select=range(0,10000),stdevs=2,\
-        transform=True,savepath=False,show=True,metadata={},contour=True,scale=1,boundfunc=stdevBound):
-
+        transform=False,savepath=False,show=True,metadata={},contour=True,scale=1,boundfunc=stdevBound):
     if savepath:
         try:
             os.makedirs(savepath+key1+key2)
@@ -743,9 +742,7 @@ def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",refarrow=0.0
                 mapy.quiver(x,y,u,v,mag,scale=scale,cmap="autumn",width = 0.004)
                 plt.colorbar()
                 if savepath:
-                    print("hello")
                     plt.savefig(savepath+key1+key2+"/ns"+str(k)+".png")
-
                 if show:
                     plt.show()
         plt.close()

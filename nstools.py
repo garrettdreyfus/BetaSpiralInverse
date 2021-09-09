@@ -989,8 +989,33 @@ def streamFuncToUV(surfaces,neighbors,distances):
                 
     return surfaces
 
+def findNeighborSet(neighbors,k,index):
+    for l in range(len(neighbors[k])):
+        if neighbors[k][l][0] == index:
+            return l
+    
+# Bridge gaps
+def neighborCrawl(surfaces,neighbors,distances,k,start_set,dimension,length=15):
+    dist=distances[k][(start_set[0],start_set[dimension])]
+    new_set = start_set
+    depth = 0
+    while depth<length:
+        if np.isnan(surfaces[k]["x"][new_set[dimension]]):
+            old_set = new_set
+            new_set_index = findNeighborSet(neighbors,k,new_set[dimension])
+            if new_set_index:
+                new_set = neighbors[k][new_set_index]
+                dist+=distances[k][tuple([old_set[0],new_set[0]])]
+            else:
+                break
+        else:
+            return new_set[dimension],dist
+        depth+=1
+    return start_set[dimension],distances[k][(start_set[0],start_set[dimension])]
+
+
 ##Add bathymetry and remove points below
-def addBathAndMask(surfaces,neighbors,region):
+def addBathAndMask(surfaces,neighbors,distances,region):
     surfaces = bathtools.addBathToSurfaces(surfaces,region)
     for k in Bar("Bath Masking").iter(surfaces.keys()):
         for l in range(len(surfaces[k]["lats"])):
@@ -1000,18 +1025,30 @@ def addBathAndMask(surfaces,neighbors,region):
                         surfaces[k]["data"][d][l] = np.nan
                 surfaces[k]["x"][l] = np.nan
                 surfaces[k]["y"][l] = np.nan
-                surfaces[k]["lats"][l] = np.nan
-                surfaces[k]["lons"][l] = np.nan
+                #surfaces[k]["lats"][l] = np.nan
+                #surfaces[k]["lons"][l] = np.nan
                 surfaces[k]["ids"][l] = -999
+
+        tempneighbors = []
+        for neighbor_index in range(len(neighbors[k])):
+            neighbor_set = neighbors[k][neighbor_index]
+            new_set = [neighbor_set[0]]
+            for l in range(1,len(neighbor_set)):
+                neighbor, dist = neighborCrawl(surfaces,neighbors,distances,k,neighbor_set,l)
+                new_set.append(neighbor)
+                if not (new_set[0],neighbor) in distances[k]:
+                    distances[(new_set[0],neighbor)]=dist
+
+            tempneighbors.append(new_set)
+        neighbors[k]=tempneighbors.copy()
         final = np.zeros(surfaces[k]["x"].shape)
+        # Iterate through every set of neighbors
         for s in neighbors[k]:
-            keepem = True
-            for l in s:
-                if np.isnan(surfaces[k]["data"]["t"][l]):
-                    keepem = False
-            if keepem:
+            # if any neighbor is removed set keepem to false
+            if not (np.isnan(np.asarray(surfaces[k]["data"]["t"])[np.asarray(s)]).any()):
                 for l in s:
                     final[l] = True
+        distances[k] = interptools.trueDistanceLookup(surfaces[k],neighbors[k])
         for l in range(len(final)):
             if not final[l]:
                 for d in surfaces[k]["data"].keys():
@@ -1023,8 +1060,7 @@ def addBathAndMask(surfaces,neighbors,region):
                 surfaces[k]["maplats"][l] = np.nan
                 surfaces[k]["lons"][l] = np.nan
                 surfaces[k]["ids"][l] = -999
-
-    return surfaces
+    return surfaces,neighbors,distances
    
 def addParametersToSurfaces(region,surfaces,neighbors,distances,ignore=[],H_0=1000):
     #surfaceDiagnostic(surfaces)
@@ -1034,7 +1070,7 @@ def addParametersToSurfaces(region,surfaces,neighbors,distances,ignore=[],H_0=10
     surfaces = addHorizontalGrad(surfaces,neighbors,distances,ignore)
     #print("after horizontal grad")
     #surfaceDiagnostic(surfaces)
-    surfaces = addBathAndMask(surfaces,neighbors,region)
+    surfaces, neighbors, distances = addBathAndMask(surfaces,neighbors,distances,region)
     #print("after bath mask")
     #surfaceDiagnostic(surfaces)
     surfaces = addVerticalGrad(surfaces)
@@ -1044,7 +1080,7 @@ def addParametersToSurfaces(region,surfaces,neighbors,distances,ignore=[],H_0=10
     #print("after bath var term")
     #surfaceDiagnostic(surfaces)
     surfaces = addK(surfaces,"data/bathVar.pickle",H_0=H_0)
-    return surfaces
+    return surfaces, neighbors, distances
 
 def artificialPSIRef(surfaces,reflevel = 1700):
     for k in Bar("artifical ref").iter(surfaces.keys()):
@@ -1612,7 +1648,7 @@ def twoCReference(surfaces):
     levels = np.asarray((sorted(surfaces.keys())))
     below = levels[int(len(levels)/2)]
     ref_2C = {}
-    for eyed in range(len(surfaces[below]["ids"])):
+    for eyed in surfaces[below]["ids"]:
         for k_i in range(1,len(levels)):
             k = levels[k_i]
             k_prev = levels[k_i-1]
@@ -1639,6 +1675,29 @@ def twoCReference(surfaces):
                 surfaces[k]["data"]["2CV"][l]= -surfaces[k]["data"]["v"][l]-ref_2C[eyed][1]
     return surfaces
 
+
+def twoCProjection(surfaces,quants):
+    surfaces = addOldUnits(surfaces)
+    levels = np.asarray((sorted(surfaces.keys())))
+    surf_2C = surfaces[levels[0]].copy()
+    for d in surf_2C["data"].keys():
+        for l in range(len(surf_2C["data"]["t"])):
+            surf_2C["data"][d][l]=np.nan
+    for eyed_i in range(len(surfaces[levels[0]]["ids"])):
+        eyed = surfaces[levels[0]]["ids"][eyed_i]
+        for k_i in range(1,len(levels)):
+            k = levels[k_i]
+            k_prev = levels[k_i-1]
+            lon = surfaces[k]["lons"][k_i]
+            if eyed in surfaces[k]["ids"] and ~np.isnan(lon) and eyed in surfaces[k_prev]["ids"]:
+                cold_i = surfaces[k]["ids"].index(eyed)
+                warm_i = surfaces[k_prev]["ids"].index(eyed)
+                if surfaces[k]["data"]["pottemp"][cold_i] < 2:
+                    warmertemp = surfaces[k_prev]["data"]["pottemp"][warm_i]
+                    coldertemp = surfaces[k]["data"]["pottemp"][cold_i]
+                    for q in quants:
+                        surf_2C["data"][q][eyed_i] = -np.interp(2,[coldertemp,warmertemp],[surfaces[k]["data"][q][cold_i],surfaces[k_prev]["data"][q][warm_i]])
+    return {2:surf_2C}
 
 
 def boxAverageProfiles(profiles,lonleft,lonright,latbottom,lattop):
@@ -1677,6 +1736,7 @@ def smoothProfile(p):
     profiledata["pres"] = p.pres
     prof=Profile(1234156789,profiledata,"conservative","absolute")
     return prof
+
 
 
 
