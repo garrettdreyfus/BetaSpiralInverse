@@ -20,9 +20,13 @@ from officialgamma import addOfficialGamma
 #profiles = profilesWoce
 #with open('data/run0/argoandwoce.pickle', 'wb') as outfile:
     #pickle.dump(profiles,outfile)
-#with open('data/run0/argoandwoce.pickle', 'rb') as outfile:
-   #profiles = pickle.load(outfile)
+with open('data/run0/argoandwoce.pickle', 'rb') as outfile:
+   profiles = pickle.load(outfile)
 
+seta = {0}
+for k in profiles:
+   seta.add(k.cruise)
+print(seta)
 ## profilechoice = nstools.profileInBox(profiles,-40,-20,-31,-28,5000)
 ## #profilechoice = nstools.profileInBox(profiles,-45,-20,-40,-31,5000)
 #profilechoice = nstools.profileInBox(profiles,-25,-20,-31,-28,4500)
@@ -73,6 +77,5 @@ with open('data/run0/invertedbrasil.pickle', 'rb') as outfile:
     [out,neighbors,distances] = pickle.load(outfile)
 
 surfaces = addOfficialGamma(out["surfaces"])
-print("hi")
-graph.graphSurfaces(brasil,surfaces,"gamma",select=range(3000,6000))
+graph.graphSurfaces(brasil,surfaces,"gamma",select=[2400])
 
