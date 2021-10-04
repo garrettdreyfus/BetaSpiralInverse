@@ -47,12 +47,11 @@ if switch["H_0"]:
     ######################
     ###### H_0 Testing
     ######################
-    with open('data/run0/interpedbrasil.pickle', 'rb') as outfile:
-        [surfaces,neighbors,distances] = pickle.load(outfile)
 
     for H_0 in [200,500,1000,1500,2000]:
+        with open('data/run0/interpedbrasil.pickle', 'rb') as outfile:
+            [surfaces,neighbors,distances] = pickle.load(outfile)
         surfaces, neighbors, distances = nstools.addParametersToSurfaces(brasil,surfaces,neighbors,distances,H_0=H_0)
-        graph.graphSurfaces(brasil,surfaces,"s",select=[3800])
         params = {"reflevel":2000,"upperbound":1000,"lowerbound":4000,\
                 "mixs":{"kvo":True,"kvb":True,"kh":True},"debug":False,\
                     "3point":True,"edgeguard":True,"H_0":H_0
