@@ -74,7 +74,7 @@ if switch["no mix"]:
         [surfaces,neighbors,distances] = pickle.load(outfile)
 
     params = {"reflevel":2000,"upperbound":1000,"lowerbound":4000,\
-            "mixs":{"kvo":True,"kvb":True,"kh":True},"debug":False,\
+            "mixs":{"kvo":False,"kvb":False,"kh":False},"debug":False,\
                 "3point":True,"edgeguard":True,"H_0":1000}
 
     out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
