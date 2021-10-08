@@ -29,7 +29,7 @@ import parametertools as ptools
 from prettytable import PrettyTable
 import pdb
 import interptools
-from pygamma_n import gamma_n
+#from pygamma_n import gamma_n
 from scipy import interpolate,integrate
 import xarray as xr
 from pygam import LinearGAM
@@ -407,8 +407,6 @@ def addDataToSurfaces(region,profiles,surfaces,debug=True,noise=0):
     for k in Bar("Adding data to: ").iter(surfaces.keys()):
         negativecount = 0
         tempSurf = emptySurface()
-        monthcount = [0]*13
-        monthnegativecount = [0]*13
         for l in range(len(surfaces[k]["lons"])):
             surfaces[k]["data"]["pres"][l] = abs(surfaces[k]["data"]["pres"][l])
             p = getProfileById(profiles,surfaces[k]["ids"][l])
@@ -441,11 +439,9 @@ def addDataToSurfaces(region,profiles,surfaces,debug=True,noise=0):
                     t,s,alpha,beta,dalphadtheta,dalphadp = p.atPres(abs(surfaces[k]["data"]["pres"][l]),full=True,interp=True)
                     u,v = p.velAtPres(nspres)
                     kapredi,kapgm,diffkr = p.mixAtPres(nspres)
-                #monthcount[p.time.month]=monthcount[p.time.month]+1
                 if (pv and pv<0) or pv==0:
                     #print("second block: ",pv,drhodz)
                     #pv=0
-                    ##monthnegativecount[p.time.month]=monthnegativecount[p.time.month]+1
                     negativecount +=1 
                 if not isinstance(pv,np.float64):
                     pv = np.nan
@@ -1737,7 +1733,26 @@ def smoothProfile(p):
     prof=Profile(1234156789,profiledata,"conservative","absolute")
     return prof
 
-
-
+### morris estimate [2.45, 1.59, 0.47]
+### SH/GF estimate [-0.51, -0.31, -0.05]
+def morrisMixing(hunter_transport=[-0.51, -0.31, -0.05]):
+    isotherms = np.array([1.6,1.2,0.8])
+    surfacearea = np.array([8*(10**12),7.1*(10**12),5.6*(10**12)])
+    thetaz = np.array([2.2*(10**-3),2.1*(10**-3),1.7*(10**-3)])
+    vema_transport = np.array([3.99,4.14,4.02])
+    vema_temp = np.array([0.06,0.08,0.03])
+    hunter_temp=np.array([1.06,0.90,0.60])
+    romanche_transport = np.array([-0.77,-0.44,-0.03])
+    romanche_temp = np.array([1.16,0.97,0.78])
+    equatorial_transport = np.array([-1.89,-1.55,-0.76])
+    equatorial_temp = np.array([0.92,0.83,0.7])
+    # twt = temperature weighted transport
+    twt = vema_transport * (vema_temp-isotherms)
+    twt += hunter_transport * (hunter_temp-isotherms)
+    twt += romanche_transport * (romanche_temp-isotherms)
+    twt += equatorial_transport * (equatorial_temp-isotherms)
+    mixing = (twt*(10**6))/np.multiply(surfacearea,-thetaz)
+    print(mixing)
+    return(mixing)
 
 
