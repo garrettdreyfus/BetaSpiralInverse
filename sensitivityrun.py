@@ -6,18 +6,16 @@ from functools import partial
 import parametertools as ptools
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 import pdb
 from scipy.io import savemat
-import sensitivity
 
 switch = { "reflevel":False,
-           "H_0":True,
-           "no mix":False,
-           "bounds":False,
-           "column weighting":False,
-           "guassian noise":False,
-           "reference station":False
+           "H_0":False,
+           "no mix":True,
+           "bounds":True,
+           "column weighting":True,
+           "gaussian noise": True,
+           "reference station":True
 }
 if switch["reflevel"]:
     ################################
@@ -90,8 +88,8 @@ if switch["bounds"]:
     ###### Change upper and lower bound of inversion
     ######################
     for delta in range(1,4):
-        newupperbound = 1000+k*200
-        newlowerbound = 4000-k*200
+        newupperbound = 1000+delta*200
+        newlowerbound = 4000-delta*200
 
         with open('data/run0/withparams.pickle', 'rb') as outfile:
             [surfaces,neighbors,distances] = pickle.load(outfile)
@@ -116,7 +114,7 @@ if switch["column weighting"]:
         params = {"reflevel":2000,"upperbound":1000,"lowerbound":4000,\
                 "mixs":{"kvo":True,"kvb":True,"kh":True},"debug":False,\
                     "3point":True,"edgeguard":True,"H_0":1000,
-                  "scalecoeffs",{"Ar":0.05,"kvo":5*10**(-6+delta[0]),"kvb":5*10**(-4+delta[1]),"kh":5*10**(2+delta[2])}}
+                  "scalecoeffs":{"Ar":0.05,"kvo":5*10**(-6+delta[0]),"kvb":5*10**(-4+delta[1]),"kh":5*10**(2+delta[2])}}
 
         out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
 
@@ -137,7 +135,7 @@ if switch["gaussian noise"]:
 
         surfaces,neighbors,distances = \
             interptools.interpolateSurfaces(brasil,preinterpsurfaces,\
-                                            #interpmethod="gam",smart=False,coord="latlon")
+                                            interpmethod="gam",smart=False,coord="latlon")
 
         surfaces, neighbors, distances = nstools.addParametersToSurfaces(brasil,surfaces,neighbors,distances,H_0=1000)
 
@@ -148,7 +146,7 @@ if switch["gaussian noise"]:
 
         out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
 
-        with open('sens/noise-{}.pickle'.format{noise*30}, 'wb') as outfile:
+        with open('sens/noise-{}.pickle'.format(noise*30), 'wb') as outfile:
             pickle.dump([out,neighbors,distances], outfile)
 
 if switch["reference station"]:
@@ -170,7 +168,7 @@ if switch["reference station"]:
 
     surfaces,neighbors,distances = \
         interptools.interpolateSurfaces(brasil,preinterpsurfaces,\
-                                        #interpmethod="gam",smart=False,coord="latlon")
+                                        interpmethod="gam",smart=False,coord="latlon")
 
     surfaces, neighbors, distances = nstools.addParametersToSurfaces(brasil,surfaces,neighbors,distances,H_0=1000)
 
@@ -181,7 +179,7 @@ if switch["reference station"]:
 
     out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
 
-    with open('sens/differentref-{}-{}.pickle'.format{profilechoice.lon,profilechoice,lat}, 'wb') as outfile:
+    with open('sens/differentref-{}-{}.pickle'.format(profilechoice.lon,profilechoice.lat), 'wb') as outfile:
         pickle.dump([out,neighbors,distances], outfile)
 
 
