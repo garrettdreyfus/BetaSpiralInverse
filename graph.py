@@ -568,6 +568,7 @@ def NSGAMCompareCruise(preinterpsurfaces,cruise,region):
         plt.xlabel("Longitude")
     else:
         plt.xlabel("Latitude")
+    plt.suptitle("Comparison of Neutral Depth to GAM Prediction Along {}".format(cruise))
     plt.ylabel("Pressure (dbar)")
     plt.show()
 
