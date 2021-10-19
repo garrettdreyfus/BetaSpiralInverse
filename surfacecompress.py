@@ -1,6 +1,6 @@
 import pickle
-# Extremely simple utility to pair down our model output to what we care about
-def senscompress(surfaces,outpath):
+#Utility to pair down our model output to what we care about
+def surfacecompress(surfaces,outpath):
     smallsurfaces = {}
     for k in surfaces.keys():
         smallsurfaces[k] = {}

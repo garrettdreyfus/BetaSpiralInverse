@@ -9,6 +9,7 @@ import rpy2.robjects as ro
 pandas2ri.activate()
 import pandas as pd
 from scipy.integrate import quad
+from graph-lite import *
 
 
 mgcv = importr("mgcv")
@@ -888,193 +889,6 @@ def graphCartVectorField(surfaces,key1,key2,show=True,savepath=False):
         if show:
             plt.show()
 
-##simple file to plot some beta spirals
-def twentyRandomSpirals(surfaces,reflevel=200):
-    for index in np.random.choice(range(len(surfaces[reflevel]["x"])),40):
-        eyed = int(surfaces[reflevel]["ids"][index])
-        us = []
-        uabs = []
-        vs = []
-        vabs = []
-        fig,ax = plt.subplots(1,1)
-        for k in sorted(list(surfaces.keys())):
-            found = np.where(np.asarray(surfaces[k]["ids"])==eyed)
-            if len(found)!=0 and len(found[0]) != 0:
-                found = found[0][0]
-                us.append(surfaces[k]["data"]["u"][found])
-                vs.append(surfaces[k]["data"]["v"][found])
-                uabs.append(surfaces[k]["data"]["uabs"][found])
-                vabs.append(surfaces[k]["data"]["vabs"][found])
-
-        ax.plot(us,vs,color="red",label="relative current")
-        ax.plot(uabs,vabs,color="blue",label="absolute current")
-        ax.legend()
-        plt.show()
-    
-#function to plot a spiral
-def plotASpiral(profiles,center=None,x=None,y=None):
-    fig,ax = plt.subplots(1,1) 
-    center = getProfileById(profiles,"120389")
-    x = getProfileById(profiles,"120387")
-    y = getProfileById(profiles,"114688")
-    dx = geodesic((x.lat,x.lon),(center.lat,center.lon)).m
-    dy = geodesic((x.lat,x.lon),(center.lat,center.lon)).m
-    u = 0
-    v = 0
-    f = center.f
-    us = [0]
-    vs = [0]
-    for i in range(100,1700,100):
-        dpdx = (x.densityAtPres(i)-center.densityAtPres(i))/dx
-        dpdy = (y.densityAtPres(i)-center.densityAtPres(i))/dy
-        v = (9.8/-f)*(dpdx)
-        u = (9.8/f)*(dpdy)
-        us.append(u)
-        vs.append(v)
-        plt.plot([0,u],[0,v])
-        ax.annotate(i, (u, v))
-    #plt.scatter(us,vs)
-    #plt.plot(us,vs,c="r")
-    plt.show()
-
-##given two start coords find nearest surface points
-#coords of type ( lon,lat)
-def getLinePoints(surfaces,startcoord,endcoord,level):
-    startcoord = singleXY(startcoord)
-    endcoord = singleXY(endcoord)
-    slope=(endcoord[1]-startcoord[1])/(endcoord[0]-startcoord[0])
-    res = 100
-    ids = []
-    progress = []
-    for i in range(res):
-        currx = ((endcoord[0]-startcoord[0])/res)*i+startcoord[0]
-        curry = ((endcoord[0]-startcoord[0])/res)*i*slope +startcoord[1]
-        #print("xdiff0: ",startcoord[0]-currx," ydiff0: ",startcoord[1]-curry)
-        #print("xdif1: ",endcoord[0]-currx," ydif1: ",endcoord[1]-curry)
-        smallestval =1000000000000000
-        closest = -1
-        for j in range(len(surfaces[level]["x"])):
-            dist = np.sqrt((surfaces[level]["x"][j]-currx)**2+(surfaces[level]["y"][j]-curry)**2)
-            if dist<smallestval and ~np.isnan(surfaces[level]["data"]["psinew"][j]):
-                smallestval = dist
-                closest = j
-        if surfaces[level]["ids"][closest] not in ids:
-            ids.append(surfaces[level]["ids"][closest])
-            progress.append(i)
-    return ids, (endcoord[0]-startcoord[0],endcoord[1]-startcoord[1]),progress
-
-## graph how quantity changes along a surface and along given transect
-#coords of type ( lon,lat)
-def quantityLine(surfaces,startcoord,endcoord,quant,silldepth,factor=1):
-    quants=[]
-    coords = [[],[]]
-    for k in Bar("Graphing Surfaces: ").iter(surfaces.keys()):
-        ps,vec,progress = getLinePoints(surfaces,startcoord,endcoord,k)
-        surfacequants = []
-
-        if k<silldepth and ps and vec and progress:
-            hs = []
-            for i,eyed in enumerate(ps):
-                curr = np.where(np.asarray(surfaces[k]["ids"]) == eyed)[0][0]
-                surfacequants.append(surfaces[k]["data"][quant][curr]*factor)
-                coords[0].append(surfaces[k]["lons"][curr])
-                coords[1].append(surfaces[k]["lats"][curr])
-            plt.plot(progress,surfacequants,label = "ns: "+str(k))
-            quants.append(surfacequants)
-            surfacetransports= np.asarray(surfacequants)
- 
-            #print(np.sum(surfacetransports))
-    plt.legend()
-    plt.show()
-    mapy = Basemap(projection='ortho', lat_0=90,lon_0=-60)
-    mapy.drawmapboundary(fill_color='aqua')
-    mapy.fillcontinents(color='coral',lake_color='aqua')
-    mapy.drawcoastlines()
-    x,y = mapy(coords[0],coords[1])
-    plt.scatter(x,y)
-    mapy.colorbar()
-    plt.show()
-
- 
-#graph transport across a line given a surfaces object
-#coords of type ( lon,lat)
-def transportLine(surfaces,startcoord,endcoord,silldepth,uway=False,show=False):
-    transports=[]
-    inflows =[]
-    outflows = []
-    coords = [[],[]]
-    scales = []
-    for k in surfaces.keys():
-
-        ps,vec,progress = getLinePoints(surfaces,startcoord,endcoord,k)
-        surfacetransports = []
-
-        if k<silldepth and ps and vec and progress:
-            hs = []
-            for eyed in ps:
-                curr = np.where(np.asarray(surfaces[k]["ids"]) == eyed)[0][0]
-                hs.append(surfaces[k]["data"]["h"][curr])
-            h = np.nanmean(hs)
-            for i,eyed in enumerate(ps):
-                if uway:
-                    curr = np.where(np.asarray(surfaces[k]["ids"]) == eyed)[0][0]
-                    if i != len(ps)-1:
-                        nxt = np.where(np.asarray(surfaces[k]["ids"]) == ps[i+1])[0][0]
-                        dist = geodesic((surfaces[k]["lats"][curr],surfaces[k]["lons"][curr]),(surfaces[k]["lats"][nxt],surfaces[k]["lons"][nxt])).m
-                    uvec = (surfaces[k]["data"]["uabs"][curr],surfaces[k]["data"]["vabs"][curr])
-                    mag = np.sqrt(vec[0]**2 +vec[1]**2)
-                    proj = ((vec[0]*uvec[0],vec[1]*uvec[1])/(mag**2))*vec
-                    #print("#####")
-                    #print("set: ",uvec,vec,proj)
-                    perp = uvec-proj
-                    sign = np.sign(np.cross(vec,perp))
-                    perp = np.sqrt(perp[0]**2 + perp[1]**2)
-                    scales.append(sign)
-                    transport=sign*perp*dist*h*(10**-6)
-                    surfacetransports.append(transport)
-                    coords[0].append(surfaces[k]["lons"][curr])
-                    coords[1].append(surfaces[k]["lats"][curr])
-                else:
-                    if i != len(ps)-1:
-                        curr = np.where(np.asarray(surfaces[k]["ids"]) == eyed)[0][0]
-                        nxt = np.where(np.asarray(surfaces[k]["ids"]) == ps[i+1])[0][0]
-                        dpsi = surfaces[k]["data"]["psinew"][nxt]-surfaces[k]["data"]["psinew"][curr]
-                        f = gsw.f(surfaces[k]["lats"][curr])
-                        transport=dpsi*h*(10**-6)*(1/f)
-                        surfacetransports.append(transport)
-                        coords[0].append(surfaces[k]["lons"][curr])
-                        coords[1].append(surfaces[k]["lats"][curr])
-                        scales.append(transport)
-                    
-            if show:
-                if uway:
-                    plt.plot(progress[:],surfacetransports,label = "ns: "+str(k))
-                else: 
-                    plt.plot(progress[:-1],surfacetransports,label = "ns: "+str(k))
-            transports.append(surfacetransports)
-            surfacetransports= np.asarray(surfacetransports)
-            inflows.append(np.nansum(surfacetransports[surfacetransports>0]))
-            outflows.append(np.nansum(surfacetransports[surfacetransports<0]))
- 
-            #print(np.sum(surfacetransports))
-    inflow = np.nansum(inflows)
-    outflow = np.nansum(outflows)
-    print("inflow: ",np.nansum(inflows))
-    print("outflow: ",np.nansum(outflows))
-    if show:
-        plt.legend()
-        plt.show()
-        mapy = Basemap(projection='ortho', lat_0=90,lon_0=-60)
-        mapy.drawmapboundary(fill_color='aqua')
-        mapy.fillcontinents(color='coral',lake_color='aqua')
-        mapy.drawcoastlines()
-        x,y = mapy(coords[0],coords[1])
-        plt.scatter(x,y,c=scales)
-        mapy.colorbar()
-        plt.show()
-    return inflow,outflow
-
-
 def meridionalTransport(surfaces,lat,startlon,endlon,startpres,endpres,show=False,label="",ax=None):
     transportsums = {}
     for k in surfaces.keys():
@@ -1243,8 +1057,6 @@ def transportTempClass(surfaces,lat,startlon,endlon,startpres,endpres,hightemp,l
         return np.nansum(np.asarray(transports)*width*np.cos(np.deg2rad(lat))*111000 )
     return np.nan
 
-
-
 def meridionalHeatMap(surfaces,lat,startlon,endlon,startpres,endpres,quant="vabs",show=False,label="",ax=None):
     if not ax:
         ax = plt.gca()
@@ -1369,153 +1181,37 @@ def meridionalSurfaces(surfaces,lat,startlon,endlon,startpres,endpres,show=False
     ax.set_title(label)
     plt.show()
 
-def HTtransports(inv,ht = None):
-    fig,(ax1,ax2,ax3) = plt.subplots(3,1)
-    graph.meridionalTransport(inv,-30,-180,180,0,819,show=False,label="1-5",ax=ax1)
-    #ax1.set_ylim(-60,30)
-    ax1.set_xlabel("Longitude")
-    ax1.set_ylabel("Mass Transport in 10^9 kg*s^-1")
-    ax1.set_title("Accumulated mass transport in layers 1-6")
-    graph.meridionalTransport(inv,-30,-180,180,819,3600,show=False,label="6-9",ax=ax2)
-    #ax2.set_ylim(-50,20)
-    ax2.set_ylabel("Mass Transport in 10^9 kg*s^-1")
-    ax2.set_xlabel("Longitude")
-    ax2.set_title("Accumulated mass transport in layers 6-9")
-    graph.meridionalTransport(inv,-30,-180,180,3600,100000,show=False,label="9-",ax=ax3)
-    #ax3.set_ylim(-10,15)
-    ax3.set_ylabel("Mass Transport in 10^9 kg*s^-1")
-    ax3.set_xlabel("Longitude")
-    ax3.set_title("Accumulated mass transport in layers 9 to the bottom")
-    ax1.set_xlim(-47.5,-10)
-    ax2.set_xlim(-47.5,-10)
-    ax3.set_xlim(-47.5,-10)
-    styles = {"2003 - A":["blue","solid"],"2011 - A":["blue","dashed"],\
-              "2003 - B":["red","solid"],"2011 - B":["red","dashed"],\
-              "2003 - C":["green","solid"],"2011 - C":["green","dashed"],\
-              }
-    
-    if ht:
-        with open(ht,"rb") as f:
-            output = pickle.load(f)
-            for l in output:
-                print(l)
-                modelyear = l["year"] + " - "+ l["model"]
-                ax1.plot(l["lons"],l["upper"]*10**-9,c=styles[modelyear][0],\
-                         linestyle=styles[modelyear][1],label=modelyear,linewidth=1)
-                ax2.plot(l["lons"],l["middle"]*10**-9,c=styles[modelyear][0],\
-                         linestyle=styles[modelyear][1],label=modelyear,linewidth=1)
-                ax3.plot(l["lons"],l["lower"]*10**-9,c=styles[modelyear][0],\
-                         linestyle=styles[modelyear][1],label=modelyear,linewidth=1)
-    plt.legend()
-    plt.show()
-                
-##plot ts diagrams with neutral surfaces annotated
-def tsNeutralExploreProfiles(profiles):
-    fig,ax1 = plt.subplots()
-    ns = {}
-    for k in range(200,3900,200):
-        ns[k] = [[],[]]
-    for p in profiles[:]:
-        i = p.presIndex(200)
-        ax1.scatter(p.sals[i:],p.temps[i:],color="blue",s=0.2)
-        for k in p.neutraldepth.keys():
-            pres = p.neutraldepth[k]
-            t,s = p.atPres(pres)
-            ns[k][0].append(s)
-            ns[k][1].append(t)
-    flip = False
-    for k in ns.keys():
-        if flip:
-            ax1.scatter(ns[k][0],ns[k][1],s=2,color="orange")
-        else:
-            ax1.scatter(ns[k][0],ns[k][1],s=2,color="red")
-        flip = not flip
-    fig.set_size_inches(16.5,12)
-    fig.suptitle("Temperature and salinty with neutral surfaces overlayed in alternating orange and red")
-    ax1.set_xlabel("Salinity (PSU)")
-    ax1.set_ylabel("Temperature (C)")
-    plt.show()
-
-
-def tsNeutralExploreSurfaces(surfaces):
-    for k in surfaces.keys():
-        plt.plot(surfaces[k]["data"]["s"],surfaces[k]["data"]["t"])
-    plt.show()
-
-## graph a vector field given a surfaces object on a map
-## any quantity can be supplied as a background field
-def graphProfilesVectorField(region,profiles,depths=range(200,4000,200),savepath=False,show=True):
-
-    if savepath:
-        try:
-            os.makedirs(savepath+"eccouv")
-        except FileExistsError as e:
-            print(e)
-
-    for k in depths[::-1]:
-        urs=[]
-        uthetas=[]
-        lons = []
-        lats = []
-        bgfield = []
-        fig,ax,mapy = mapSetup([],region=region)
-        for p in profiles[::2]:
-            if k in p.neutraldepth.keys() and 1000 in p.neutraldepth.keys():
-                i = p.ipresIndex(p.neutraldepth[k])
-                urs.append(p.knownv[i]-p.knownv[p.ipresIndex(1000)])
-                uthetas.append(p.knownu[i]-p.knownu[p.ipresIndex(1000)])
-                #urs.append(1)
-                #uthetas.append(1)
-                lons.append(p.lon)
-                lats.append(p.lat)
-                bgfield.append(p.atPres(p.ipres[i])[1])
-
-        urs.append(0.01)
-        uthetas.append(0)
-        lons.append(region.mapbounds["lon_0"])
-        lats.append(region.mapbounds["lat_0"])
-        bgfield.append(np.nan)
-
-        urs.append(0)
-        uthetas.append(0.01)
-        lons.append(region.mapbounds["lon_0"])
-        lats.append(region.mapbounds["lat_0"])
-        bgfield.append(np.nan)
-
-        fig.suptitle("knownu,knownv NS: "+str(k))
-        urs = np.asarray(urs)
-        uthetas = np.asarray(uthetas)
-        lons = np.asarray(lons)
-        lats = np.asarray(lats)
-        u,v,x,y = mapy.rotate_vector(uthetas,urs,lons,lats,returnxy=True)
-        mag = np.sqrt(urs**2+uthetas**2)
-        fig.set_size_inches(16.5,12)
-
-        xpv,ypv = mapy(lons,lats)
-
-        #plt.scatter(xpv,ypv,bgfield)
-        #plt.clim(np.min(bgfield),np.max(bgfield))
-        mapy.colorbar()
-        mapy.quiver(x,y,u,v,mag,cmap="plasma",width = 0.002)
-        if savepath:
-            plt.savefig(savepath+"eccouv"+"/ns"+str(k)+".png")
-        if show:
-            plt.show()
-        plt.close()
-
-
-
-def distanceHist(distances):
-    for k in distances.keys():
-        plt.hist(distances[k].values())
-        plt.show()
-
 def saveAllQuants(region,surfaces,savepath,select=range(0,100000),contour=False,secondsurface=None):
     for d in Bar("Saving Fields").iter(surfaces[list(surfaces.keys())[0]]["data"].keys()):
         if len(surfaces[list(surfaces.keys())[0]]["data"][d])>0 and (~np.isnan(surfaces[list(surfaces.keys())[0]]["data"][d])).any():
             graphSurfaces(region,surfaces,d,show=False,savepath=savepath,select=select,contour=contour,secondsurface=secondsurface)
 
 
+def surfaceGammaRanges(surfaces):
+    bounds = []
+    for k in surfaces.keys():
+        upper = np.nanmax(surfaces[k]["data"]["gamma"])
+        lower = np.nanmin(surfaces[k]["data"]["gamma"])
+        bounds.append([lower,upper])
+        print(str(k) + str( bounds[-1]))
+        plt.plot([lower,upper],[k,k])
+    for b in range(len(bounds)-1):
+        print(bounds[b+1][0] - bounds[b][1])
+    plt.show()
+
+
+# Interpolation Error Histogram
+
+def AABWFinder(surf):
+    surf = nstools.addOldUnits(surf)
+    for k in surf.keys():
+        plt.scatter(surf[k]["data"]["psu"],surf[k]["data"]["pottemp"],label=str(k))
+    plt.axhline(2)
+    plt.axvline(34.86)
+    plt.legend()
+    plt.show()
+
+## Take a North South through a surfaces object
 def northSouthTransect(surfaces,quant,lat=None,lon=None,\
         show=False,savepath=None,maximize=True,\
         presrange=[1000,np.inf],cbarrange=None,coordrange=None):
@@ -1584,10 +1280,9 @@ def northSouthTransect(surfaces,quant,lat=None,lon=None,\
         if lon:
             plt.savefig(savepath+"/lon"+str(lon)+".png")
     plt.close()
- 
 
+## Plot how potential vorticity is changing over time across a zonal section
 def time_diagnostic(profiles,layer,lat,tol):
-    ## Plot change of values with time over neutral surface
     pressures = []
     times = []
     pvs = []
@@ -1614,47 +1309,44 @@ def time_diagnostic(profiles,layer,lat,tol):
     plt.savefig("/home/garrett/Projects/arcticcirc-pics/20.png")
     plt.show()
 
-def layerChooser(profile):
-    fig,((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2)
-    ax1.plot(profile.isals,-np.asarray(profile.ipres))
-    ax2.axvline(x=1031.53,c="g")
-    ax2.axvline(x=1031.98,c="g")
-    ax2.axvline(x=1032.30,c="yellow")
-    ax3.plot(profile.itemps,-np.asarray(profile.ipres))
-    ax3.axvline(x=2,c="blue")
-    ax1.plot(gsw.SA_from_SP([34.86]*len(profile.ipres),profile.ipres,profile.lon,profile.lat),-np.asarray(profile.ipres),c="blue")
-
-    ax2.plot(gsw.rho(profile.isals,profile.itemps,1000),-np.asarray(profile.ipres))
-    plt.show()
-    #ax3.plot(profile.isals,profile.ipres)
-
-def nsHist(surfaces):
+## Histograms of neutrality error by surface
+def nsErrorHist(surfaces):
     errors = []
     for k in surfaces.keys():
         errors += list(np.log10(surfaces[k]["data"]["nserror"]))
     plt.hist(errors)
     plt.show()
-        
-def AABWFinder(surf):
-    surf = nstools.addOldUnits(surf)
-    for k in surf.keys():
-        plt.scatter(surf[k]["data"]["psu"],surf[k]["data"]["pottemp"],label=str(k))
-    plt.axhline(2)
-    plt.axvline(34.86)
-    plt.legend()
-    plt.show()
 
-def surfaceGammaRanges(surfaces):
-    bounds = []
+def TSDiagram(surfaces):
     for k in surfaces.keys():
-        upper = np.nanmax(surfaces[k]["data"]["gamma"])
-        lower = np.nanmin(surfaces[k]["data"]["gamma"])
-        bounds.append([lower,upper])
-        print(str(k) + str( bounds[-1]))
-        plt.plot([lower,upper],[k,k])
-    for b in range(len(bounds)-1):
-        print(bounds[b+1][0] - bounds[b][1])
+        plt.plot(surfaces[k]["data"]["s"],surfaces[k]["data"]["t"])
+    plt.show()
+
+##plot ts diagrams with neutral surfaces annotated pre-Interpolation
+def tsNeutralExploreProfiles(profiles):
+    fig,ax1 = plt.subplots()
+    ns = {}
+    for k in range(200,3900,200):
+        ns[k] = [[],[]]
+    for p in profiles[:]:
+        i = p.presIndex(200)
+        ax1.scatter(p.sals[i:],p.temps[i:],color="blue",s=0.2)
+        for k in p.neutraldepth.keys():
+            pres = p.neutraldepth[k]
+            t,s = p.atPres(pres)
+            ns[k][0].append(s)
+            ns[k][1].append(t)
+    flip = False
+    for k in ns.keys():
+        if flip:
+            ax1.scatter(ns[k][0],ns[k][1],s=2,color="orange")
+        else:
+            ax1.scatter(ns[k][0],ns[k][1],s=2,color="red")
+        flip = not flip
+    fig.set_size_inches(16.5,12)
+    fig.suptitle("Temperature and salinty with neutral surfaces overlayed in alternating orange and red")
+    ax1.set_xlabel("Salinity (PSU)")
+    ax1.set_ylabel("Temperature (C)")
     plt.show()
 
 
-# Interpolation Error Histogram
