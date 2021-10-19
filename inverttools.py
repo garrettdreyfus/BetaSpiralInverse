@@ -417,7 +417,6 @@ def coupledInvert(surfaces,neighbors,distances,params={}):
                             us[columnindexs[i]] = surfaces[k]["data"]["psiref"][s[0]]
                             c.append(crow/n)
 
-                        
 
                 #######SALROW
                 ##make rows that can fit it 
@@ -689,17 +688,6 @@ def graphKs(prime,m):
 
 #routing command to perform inverse 
 def invert(kind,surfaces,neighbors=None,distances=None,params={},reflevel=1000,debug=False,lowlevel=2000,highlevel=1000):
-    if kind == "simple":
-        return simpleInvert(surfaces,reflevel,debug)
-    if kind == "simplesalt":
-        return simplesaltInvert(surfaces,reflevel,debug)
-    if kind == "complexsalt":
-        return complexSaltInvert(surfaces,reflevel,debug)
-    if kind == "complex":
-        return complexInvert(surfaces,reflevel,debug)
-    if kind == "coupled":
-        return coupledInvert(surfaces,neighbors,distances,params)
-    else:
-        print("Sorry I have no clue what inversion you are talking about")
+    return coupledInvert(surfaces,neighbors,distances,params)
 
 
