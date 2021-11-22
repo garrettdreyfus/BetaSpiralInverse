@@ -12,12 +12,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pdb
 from scipy.io import savemat
-import sensitivity
 
 ###############################
 #### GAM VS OBSERVATION COMPARE
 ###############################
-switch = {"fig1":False,"fig2":False,"fig3":True,"fig4":False,"fig5":False,}
+switch = {"fig1":False,"fig2":False,"fig3":False,"fig4":False,"fig5":False,}
 
 if switch["fig2"]:
     with open('data/run0/annotatedbrasilargowoce.pickle', 'rb') as outfile:
@@ -26,11 +25,14 @@ if switch["fig2"]:
     graph.NSGAMCompareCruise(preinterpsurfaces,"A23",brasil)
 
 
-# with open('data/brasilsurfaceswdata.pickle', 'rb') as outfile:
-#      preinterpsurfaces,profiles = pickle.load(outfile)
-# # with open('data/invertedbrasil.pickle', 'rb') as outfile:
+#with open('data/brasilsurfaceswdata.pickle', 'rb') as outfile:
+     #preinterpsurfaces,profiles = pickle.load(outfile)
+# with open('data/invertedbrasil.pickle', 'rb') as outfile:
 #      [inv,neighbors,distances] = pickle.load(outfile)
-
+# inv = nstools.twoCReference(inv)
+# inv = nstools.streamFuncToUV(inv,neighbors,distances)
+# inv = nstools.externalReference(inv,"data/yomaha_1000.nc")
+# print(nstools.transportDiagnostics(inv))
 #inv = nstools.addGammaN(inv)
 #graph.surfaceGammaRanges(inv)
 #graph.graphSurfaces(brasil,inv,"kvb",contour=True,secondsurface=preinterpsurfaces,select=range(4000,10000),show=False,savepath="../arcticcirc-pics/surfaces/finalgam/")
@@ -106,12 +108,17 @@ if switch ["fig4"]:
 ###############################
 #### Figure 4 - Our AABW schematic
 ###############################
-# with open('data/invertedbrasil.pickle', 'rb') as outfile:
-#     [inv,neighbors,distances] = pickle.load(outfile)
+with open('data/invertedbrasil.pickle', 'rb') as outfile:
+    [inv,neighbors,distances] = pickle.load(outfile)
 
 # graph.graphVectorField(brasil,inv,"uabs","vabs","pv",\
 #                         transform=False, scale=0.1,select=[3600])
-# inv = nstools.addOldUnits(inv)
+inv = nstools.addOldUnits(inv)
+graph.sigma4Plot(inv,-29.5,-180,-33)
+inv = nstools.twoCReference(inv)
+inv = nstools.streamFuncToUV(inv,neighbors,distances)
+inv = nstools.externalReference(inv,"data/yomaha_1000.nc")
+graph.transportRefIsotherm(inv,2,-29.5,-30,-9,1000,6000)
 # print(inv.keys())
 # graph.graphSurfaces(brasil,inv,"pv",contour=True,show=False, select=range(3600,3601),secondsurface=inv)
 # fig = plt.gcf()

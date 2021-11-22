@@ -24,12 +24,6 @@ if switch["reflevel"]:
     with open('data/withparams.pickle', 'rb') as outfile:
         [surfaces,neighbors,distances] = pickle.load(outfile)
     reflevels = surfaces.keys()
-    levels = []
-    hunters = []
-    vemas = []
-    conditions=[]
-    curls = []
-    errors = []
     for k in reflevels:
         if int(k) >1200 and int(k) < 4000:
             with open('data/run0/withparams.pickle', 'rb') as outfile:

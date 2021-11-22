@@ -793,7 +793,6 @@ def streamFuncToUV(surfaces,neighbors,distances):
                 surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psiref","vref","uref",(1/gsw.f(surfaces[k]["maplats"][s[0]])),(-1/gsw.f(surfaces[k]["maplats"][s[0]])))
                 surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psisol","vsol","usol",(1/gsw.f(surfaces[k]["maplats"][s[0]])),(-1/gsw.f(surfaces[k]["maplats"][s[0]])))
                 surfaces = setUVError(surfaces,surfaces,k,s,distances,"psierror","verror","uerror",(surfaces[k]["data"]["vsol"][s[0]]),(surfaces[k]["data"]["usol"][s[0]]))
-                
     return surfaces
 
 def findNeighborSet(neighbors,k,index):
@@ -1087,23 +1086,22 @@ def transportDiagnostics(surfaces,vector=["uabs","vabs"]):
     onepointtwo = transportAcross(surfaces,-29.5,-33,180,0,100000,"maplats","lons",vector[1],tempcriteria=1.2)
     zeropointeight = transportAcross(surfaces,-29.5,-33,180,0,100000,"maplats","lons",vector[1],tempcriteria=0.8)
 
+
     curl =0# regionCurl(surfaces,3600,-39,-36,-38,-27)
     print(curl)
 
-    results = {"vema":vema,\
-               "hunter":hunter,\
-               "curl":curl,\
-               "pt<1.6":onepointsix,\
-               "pt<1.2":onepointtwo,\
-               "pt<0.8":zeropointeight,\
-               "pt<2":two,\
-               }
+    results = {"1.6":onepointsix,\
+               "1.2":onepointtwo,\
+               "0.8":zeropointeight,\
+               "2":two}
     return results
 
 
 def transportAcross(surfaces,lat,startlon,endlon,startpres,endpres,normalcoord,alongcoord,normalvelocity,tempcriteria=100,unit="volume"):
     transportsums = {}
     surfaces = addOldUnits(surfaces)
+
+    lat = surfaces[list(surfaces.keys())[0]]["maplats"][np.nanargmin(np.abs(surfaces[list(surfaces.keys())[0]]["maplats"] - lat))]
     for k in surfaces.keys():
         if  startpres < int(k) < endpres:
             lons = []
@@ -1111,7 +1109,7 @@ def transportAcross(surfaces,lat,startlon,endlon,startpres,endpres,normalcoord,a
             height = []
             rhos = []
             for l in range(len(surfaces[k]["lats"])):
-                if np.abs(surfaces[k][normalcoord][l] - lat)<0.2 and  startlon< surfaces[k][alongcoord][l] <endlon\
+                if np.abs(surfaces[k][normalcoord][l] - lat)<0.01 and  startlon< surfaces[k][alongcoord][l] <endlon\
                    and (surfaces[k]["data"]["pottemp"][l]<tempcriteria):
                     lons.append(surfaces[k][alongcoord][l])
                     vabs.append(surfaces[k]["data"][normalvelocity][l])
@@ -1258,5 +1256,18 @@ def morrisMixing(hunter_transport=[-0.51, -0.31, -0.05]):
     mixing = (twt*(10**6))/np.multiply(surfacearea,-thetaz)
     print(mixing)
     return(mixing)
+
+def zenk1993Blend(surfaces):
+    ref = graph.transportRefIsotherm(inv,2,-29.5,-30,-9,1000,6000,ax=None)
+    transports = np.asarray([0,0.15,0.5])-ref
+    print(transports)
+    print(morrisMixing)
+
+def zenk1999Blend(transports):
+    pointeight = 0.47
+    morrisMixing([transports[0]+pointeight,transports[1]+pointeight,pointeight])
+
+
+
 
 

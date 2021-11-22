@@ -9,7 +9,6 @@ import rpy2.robjects as ro
 pandas2ri.activate()
 import pandas as pd
 from scipy.integrate import quad
-from graph-lite import *
 
 
 mgcv = importr("mgcv")
@@ -991,7 +990,7 @@ def isotherm(surfaces,therm,lat,startlon,endlon,startpres,endpres,ax,along="mapl
                 lons.append(surfaces[toplevel][normal][l])
     ax.plot(lons,therm_pres,c="green",zorder=6,linewidth=4)
 
-def transportRefIsotherm(surfaces,therm,lat,startlon,endlon,startpres,endpres,ax,along="maplats",normal="lons"):
+def transportRefIsotherm(surfaces,therm,lat,startlon,endlon,startpres,endpres,along="maplats",normal="lons"):
     toplevel = list(surfaces.keys())[0]
     lons = []
     therm_pres = []
@@ -1023,6 +1022,7 @@ def transportRefIsotherm(surfaces,therm,lat,startlon,endlon,startpres,endpres,ax
     print(width)
     print("ref transport",transports)
     print(np.nansum( np.asarray(transports)*width*np.cos(np.deg2rad(lat))*111000 ))
+    return np.nansum( np.asarray(transports)*width*np.cos(np.deg2rad(lat))*111000 )
 
 
 def transportTempClass(surfaces,lat,startlon,endlon,startpres,endpres,hightemp,lowtemp,along="maplats",normal="lons",vfield="vabs"):
@@ -1075,7 +1075,6 @@ def meridionalHeatMap(surfaces,lat,startlon,endlon,startpres,endpres,quant="vabs
                     lons.append(surfaces[k]["lons"][l])
                     vabs.append(surfaces[k]["data"][quant][l])
                     pres.append(-surfaces[k]["data"]["pres"][l])
-                    height.append(surfaces[k]["data"]["h"][l])
                     bottom.append(surfaces[k]["data"]["z"][l])
             ax.plot(lons[j:],pres[j:],c="gray",zorder=0)
     lons = np.asarray(lons)
@@ -1108,7 +1107,6 @@ def latitudinalHeatMap(surfaces,lon,startlat,endlat,startpres,endpres,quant="u",
     pres = []
     bottom=[]
     lon = surfaces[list(surfaces.keys())[0]]["lons"][np.nanargmin(np.abs(surfaces[list(surfaces.keys())[0]]["lons"] - lon))]
-    print(lon)
     for k in surfaces.keys():
         if  startpres < int(k) < endpres:
             j=len(lats)
@@ -1350,3 +1348,31 @@ def tsNeutralExploreProfiles(profiles):
     plt.show()
 
 
+def bubblePlot(inv,lon,lat):
+    fig,((ax1,ax2,ax5),(ax3,ax4,ax6))=plt.subplots(2,3,figsize=(12,8), dpi= 100)
+    graph.meridionalHeatMap(inv,lat,-47,-9,1000,6000,show=False,label="Inverse Velocity across 30S",quant="vabs",ax=ax1)
+    graph.isotherm(inv,2,lat,-47,-9,1000,6000,ax=ax1)
+    graph.isotherm(inv,1.2,lat,-47,-9,1000,6000,ax=ax1)
+    graph.isotherm(inv,2,lat,-47,-9,1000,6000,ax=ax2)
+    graph.isotherm(inv,1.2,lat,-47,-9,1000,6000,ax=ax2)
+    graph.isotherm(inv,2,lat,-47,-9,1000,6000,ax=ax5)
+    graph.isotherm(inv,1.2,lat,-47,-9,1000,6000,ax=ax5)
+    graph.meridionalHeatMap(inv,lat,-47,-9,1000,6000,show=False,label="Geostrophic Velocity Referenced to YOMAHA across 30S",quant="yomahav",ax=ax2)
+    graph.meridionalHeatMap(inv,lat,-47,-9,1000,6000,show=False,label="Geostrophic Velocity Referenced to 2C isotherm across 30S",quant="2CV",ax=ax5)
+    graph.latitudinalHeatMap(inv,lon,-40,-15,1000,6000,show=False,label="Inverse Velocity across 35W",quant="uabs",ax=ax3)
+    graph.latitudinalHeatMap(inv,lon,-40,-15,1000,6000,show=False,label="Geostrophic Velocity Referenced to YOMAHA across 35W",quant="yomahau",ax=ax4)
+    graph.latitudinalHeatMap(inv,lon,-40,-15,1000,6000,show=False,label="Geostrophic Velocity Referenced to 2C isotherm across 35W",quant="2CU",ax=ax6)
+    graph.isotherm(inv,2,lon,-40,-15,1000,6000,along="lons",normal="maplats",ax=ax3)
+    graph.isotherm(inv,1.2,lon,-40,-15,1000,6000,along="lons",normal="maplats",ax=ax3)
+    graph.isotherm(inv,2,lon,-40,-15,1000,6000,along="lons",normal="maplats",ax=ax4)
+    graph.isotherm(inv,1.2,lon,-40,-15,1000,6000,along="lons",normal="maplats",ax=ax4)
+    graph.isotherm(inv,2,lon,-40,-15,1000,6000,along="lons",normal="maplats",ax=ax6)
+    graph.isotherm(inv,1.2,lon,-40,-15,1000,6000,along="lons",normal="maplats",ax=ax6)
+    plt.show()
+
+def sigma4Plot(surfaces,lat,startlon,endlon):
+    for k in surfaces.keys():
+        sigma4 = gsw.rho(surfaces[k]["data"]["s"],surfaces[k]["data"]["t"],4000)
+        plt.scatter(surfaces[k]["data"]["pottemp"],sigma4)
+        plt.xlim(0,2)
+    plt.show()

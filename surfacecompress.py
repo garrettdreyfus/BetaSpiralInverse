@@ -1,7 +1,7 @@
 import pickle
 import os
 #Utility to pair down our model output to what we care about
-def surfaceCompress(surfaces,outpath):
+def surfaceCompress(surfaces):
     smallsurfaces = {}
     for k in surfaces.keys():
         smallsurfaces[k] = {}
@@ -9,7 +9,7 @@ def surfaceCompress(surfaces,outpath):
             if j != "data":
                 smallsurfaces[k][j]=surfaces[k][j]
         smallsurfaces[k]["data"]={}
-        for j in ["t","s","pres","pv","uabs","vabs","u","v","FQ","FS","kvb","kvo",'kvberror','kvoerror', 'kverror', 'usol', 'vsol', 'uerror', 'verror']:
+        for j in ["t","s","pres","pv","uabs","vabs","u","v","FQ","FS","kvb","kvo",'kvberror','kvoerror', 'kverror', 'usol', 'vsol', 'uerror', 'verror','h','z']:
             smallsurfaces[k]["data"][j] = surfaces[k]["data"][j]
     return smallsurfaces
 
@@ -25,5 +25,6 @@ def sensitivityRunCompress(infilename,outfilename):
 def compressFolder(foldername):
     for f in glob.glob(ncfolder+"*.pickle"):
         name, ext = os.path.splitext(f)
-        sensitivitiyRunCompress(f,name+"-small"+ext)
+        sensitivitiyRunCompress(f,"small-sens/"+name+"-small"+ext)
+
 
