@@ -750,7 +750,7 @@ def graphVectorField(region,surfaces,key1,key2,backgroundfield="pv",refarrow=0.0
 
 
 def fourpanelVectorField(region,surfaces,key1,key2,backgroundfield="pv",refarrow=0.01,select=None,stdevs=2,\
-        transform=True,savepath=False,show=True,metadata={},contour=True,scale=1,boundfunc=stdevBound):
+        transform=False,savepath=False,show=True,metadata={},contour=True,scale=1,boundfunc=stdevBound):
 
     if savepath:
         try:
@@ -759,7 +759,7 @@ def fourpanelVectorField(region,surfaces,key1,key2,backgroundfield="pv",refarrow
             print(e)
         writeInfoFile(savepath,metadata)
     
-    fig, axes = plt.subplots(2,2)
+    fig, axes = plt.subplots(2,2,figuresize=(10,5))
     axes = [axes[0][0],axes[0][1],axes[1][0],axes[1][1]]
     titles = ["AAIW","UCDW","NADW","AABW"]
     for j in range(len(select)):
@@ -1014,14 +1014,9 @@ def transportRefIsotherm(surfaces,therm,lat,startlon,endlon,startpres,endpres,al
                 therm_pres.append(-np.interp(therm,np.asarray(temps)[s],np.asarray(pres)[s]))
                 vref = -np.interp(therm,np.asarray(temps)[s],np.asarray(vs)[s])
                 depth = np.abs(therm_pres[-1] - surfaces[k]["data"]["z"][i])
-                print(therm_pres[-1] , surfaces[k]["data"]["z"][i])
-                print(vref)
                 transports.append(vref*depth)
                 lons.append(surfaces[toplevel][normal][l])
     width = np.nanmin(np.gradient(sorted(lons)))
-    print(width)
-    print("ref transport",transports)
-    print(np.nansum( np.asarray(transports)*width*np.cos(np.deg2rad(lat))*111000 ))
     return np.nansum( np.asarray(transports)*width*np.cos(np.deg2rad(lat))*111000 )
 
 
@@ -1065,13 +1060,15 @@ def meridionalHeatMap(surfaces,lat,startlon,endlon,startpres,endpres,quant="vabs
     vabs = []
     pres = []
     bottom=[]
+    toplevel = list(surfaces.keys())[0]
+    lat = surfaces[toplevel]["maplats"][np.nanargmin(np.abs(surfaces[toplevel]["maplats"] - lat))]
     for k in surfaces.keys():
         if  startpres < int(k) < endpres:
             j=len(lons)
             height = []
             rhos = []
             for l in range(len(surfaces[k]["lats"])):
-                if np.abs(surfaces[k]["maplats"][l] - lat)<0.2 and  startlon< surfaces[k]["lons"][l] <endlon:
+                if np.abs(surfaces[k]["maplats"][l] - lat)<0.01 and  startlon< surfaces[k]["lons"][l] <endlon:
                     lons.append(surfaces[k]["lons"][l])
                     vabs.append(surfaces[k]["data"][quant][l])
                     pres.append(-surfaces[k]["data"]["pres"][l])
@@ -1349,7 +1346,7 @@ def tsNeutralExploreProfiles(profiles):
 
 
 def bubblePlot(inv,lon,lat):
-    fig,((ax1,ax2,ax5),(ax3,ax4,ax6))=plt.subplots(2,3,figsize=(12,8), dpi= 100)
+    fig,((ax1,ax2,ax5),(ax3,ax4,ax6))=plt.subplots(2,3,figsize=(24,12), dpi= 100)
     graph.meridionalHeatMap(inv,lat,-47,-9,1000,6000,show=False,label="Inverse Velocity across 30S",quant="vabs",ax=ax1)
     graph.isotherm(inv,2,lat,-47,-9,1000,6000,ax=ax1)
     graph.isotherm(inv,1.2,lat,-47,-9,1000,6000,ax=ax1)
@@ -1376,3 +1373,4 @@ def sigma4Plot(surfaces,lat,startlon,endlon):
         plt.scatter(surfaces[k]["data"]["pottemp"],sigma4)
         plt.xlim(0,2)
     plt.show()
+
