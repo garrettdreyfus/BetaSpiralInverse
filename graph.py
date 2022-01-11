@@ -496,11 +496,16 @@ def NSGAMCompare(preinterpsurfaces,surfaces,lat,startlon,endlon):
     plt.fill_between(lons,-5000,bottom,color="black")
     plt.xlabel("Longitude")
     plt.ylabel("Pressure (dbar)")
-    plt.show()
+    fig = matplotlib.pyplot.gcf()
+    fig.set_size_inches(18.5, 10.5)
+    #plt.show()
 
 # Function to compare neutarl depths (pre-interpolation) to approximate neutral surfaces (post-interpolation)
 def NSGAMCompareCruise(preinterpsurfaces,cruise,region):
     variationaxis = None
+    alllons = []
+    alllats = []
+    fig,ax = plt.subplots(figsize=(20,15))
     for k in Bar("surface: ").iter(preinterpsurfaces.keys()):
         lons = []
         pres = []
@@ -537,6 +542,7 @@ def NSGAMCompareCruise(preinterpsurfaces,cruise,region):
             rawlon =[]
             rawlat =[]
             rawpres=[]
+            bottom = []
             for l in range(len(preinterpsurfaces[k]["maplats"])):
                 pointlon = preinterpsurfaces[k]["lons"][l]
                 pointlat = preinterpsurfaces[k]["maplats"][l]
@@ -554,22 +560,32 @@ def NSGAMCompareCruise(preinterpsurfaces,cruise,region):
                 else:
                     variationaxis = "lat"
             if variationaxis == "lon":
+                alllons+=rawlon
+                alllats+=rawlat
                 s=np.argsort(rawlon)
-                plt.plot(np.asarray(rawlon)[s],np.asarray(pres)[s],zorder=0)
-                plt.scatter(rawlon,rawpres,s=np.abs(rawlat),c=plt.gca().lines[-1].get_color())
+                ax.plot(np.asarray(rawlon)[s],np.asarray(pres)[s],zorder=0)
+                ax.scatter(rawlon,rawpres,s=np.abs(rawlat),c=plt.gca().lines[-1].get_color())
                 #plt.scatter(rawlon,rawpres,s=np.abs(rawlat))
             if variationaxis == "lat":
                 s=np.argsort(rawlat)
-                plt.plot(np.asarray(rawlat)[s],np.asarray(pres)[s],zorder=0)
-                plt.scatter(rawlat,rawpres,c=plt.gca().lines[-1].get_color())
+                ax.plot(np.asarray(rawlat)[s],np.asarray(pres)[s],zorder=0)
+                ax.scatter(rawlat,rawpres,c=plt.gca().lines[-1].get_color())
                 #plt.scatter(rawlat,rawpres)
-                
+    bottompres =  []
+    for l in range(len(alllons)):
+        bottom.append(gsw.p_from_z(bathtools.searchBath(alllats[l],alllons[l]),alllats[l]))
+    bottom = -np.asarray(bottom)
     if variationaxis == "lon":
-        plt.xlabel("Longitude")
+        s = np.argsort(alllons)
+        ax.fill_between(np.asarray(alllons)[s],-5500,bottom[s],color="black")
+        ax.set_xlabel("Longitude")
     else:
-        plt.xlabel("Latitude")
-    plt.suptitle("Comparison of Neutral Depth to GAM Prediction Along {}".format(cruise))
-    plt.ylabel("Pressure (dbar)")
+        s = np.argsort(alllats)
+        ax.fill_between(np.asarray(alllats)[s],-5500,bottom[s],color="black")
+        ax.set_xlabel("Latitude")
+    #ax.suptitle("Comparison of Neutral Depth to GAM Prediction Along {}".format(cruise))
+    ax.set_ylabel("Pressure (dbar)")
+    ax.set_xlim(-46,-15)
     plt.show()
 
 # Function to compare neutarl depths (pre-interpolation) to approximate neutral surfaces (post-interpolation)
@@ -759,7 +775,7 @@ def fourpanelVectorField(region,surfaces,key1,key2,backgroundfield="pv",refarrow
             print(e)
         writeInfoFile(savepath,metadata)
     
-    fig, axes = plt.subplots(2,2,figuresize=(10,5))
+    fig, axes = plt.subplots(2,2,figsize=(20,15))
     axes = [axes[0][0],axes[0][1],axes[1][0],axes[1][1]]
     titles = ["AAIW","UCDW","NADW","AABW"]
     for j in range(len(select)):
@@ -795,13 +811,13 @@ def fourpanelVectorField(region,surfaces,key1,key2,backgroundfield="pv",refarrow
 
         urs.append(refarrow)
         uthetas.append(0)
-        lons.append(-48)
-        lats.append(-11)
+        lons.append(-45)
+        lats.append(-15)
 
         urs.append(0)
         uthetas.append(refarrow)
-        lons.append(-48)
-        lats.append(-11)
+        lons.append(-45)
+        lats.append(-15)
         ax.annotate("0.01 m/s",mapy(-49,-13))
 
         urs = np.asarray(urs)
@@ -828,7 +844,12 @@ def fourpanelVectorField(region,surfaces,key1,key2,backgroundfield="pv",refarrow
             #plt.scatter(xpv,ypv,c=bgfield)
             #ax.set_clim(boundfunc(bgfield,stdevs))
             ax.set_title(titles[j])
-            ax.quiver(x,y,u,v,color="red",scale=scale,width = 0.006,zorder=3)
+            if j==0:
+                fact=2
+            else:
+                fact=1
+            ax.quiver(x,y,u,v,color="red",scale=fact*scale,width = 0.006,zorder=3,\
+                      headwidth=2,ec="black")
     plt.show()
 
 
@@ -1072,7 +1093,7 @@ def meridionalHeatMap(surfaces,lat,startlon,endlon,startpres,endpres,quant="vabs
                     lons.append(surfaces[k]["lons"][l])
                     vabs.append(surfaces[k]["data"][quant][l])
                     pres.append(-surfaces[k]["data"]["pres"][l])
-                    bottom.append(surfaces[k]["data"]["z"][l])
+                    bottom.append(-gsw.p_from_z(surfaces[k]["data"]["z"][l],lat))
             ax.plot(lons[j:],pres[j:],c="gray",zorder=0)
     lons = np.asarray(lons)
     bottom = np.asarray(bottom)
@@ -1117,7 +1138,7 @@ def latitudinalHeatMap(surfaces,lon,startlat,endlat,startpres,endpres,quant="u",
                     height.append(surfaces[k]["data"]["h"][l])
                     rho = gsw.rho(surfaces[k]["data"]["s"][l],surfaces[k]["data"]["t"][l],surfaces[k]["data"]["pres"][l])
                     rhos.append(rho)
-                    bottom.append(surfaces[k]["data"]["z"][l])
+                    bottom.append(-gsw.p_from_z(surfaces[k]["data"]["z"][l],surfaces[k]["lats"][l]))
             ax.plot(lats[j:],pres[j:],c="gray",zorder=0)
     lats = np.asarray(lats)
     bottom = np.asarray(bottom)
@@ -1374,3 +1395,68 @@ def sigma4Plot(surfaces,lat,startlon,endlon):
         plt.xlim(0,2)
     plt.show()
 
+def depth_integrated_transport(surfaces,eyed,component,therm=2):
+    temperatures = []
+    pressures = []
+    velocities = []
+    for k in surfaces.keys():
+        if k >2000:
+            if eyed in surfaces[k]["ids"]:
+                dex = surfaces[k]["ids"].index(eyed)
+                if ~np.isnan(surfaces[k]["data"][component][dex]):
+                    temperatures.append(surfaces[k]["data"]["pottemp"][dex])
+                    pressures.append(surfaces[k]["data"]["pres"][dex])
+                    velocities.append(surfaces[k]["data"][component][dex])
+    s = np.asarray(list(np.argsort(pressures))[::-1])
+    if len(pressures)>0:
+        therm_pres = np.interp(therm,np.asarray(temperatures)[s],np.asarray(pressures)[s])
+        therm_vel = np.interp(therm_pres,np.asarray(pressures)[s],np.asarray(velocities)[s],)
+        s = np.argsort(pressures)
+        velocities, pressures = np.asarray(velocities)[s], np.asarray(pressures)[s]
+        velocities = velocities[pressures>therm_pres]
+        print("*"*5)
+        print(velocities)
+        print(temperatures)
+        print(pressures)
+        print(therm_pres)
+        print("*"*5)
+        pressures = pressures[pressures>therm_pres]
+        velocities = [therm_vel] + list(velocities)
+        pressures = [therm_pres] + list(pressures)
+        integrated_v = np.trapz(velocities,pressures)
+        print(velocities)
+        print(integrated_v)
+        return integrated_v#/(max(pressures)-min(pressures))
+    else:
+        return np.nan
+    
+def average_velocity_temp_class(region,surfaces,lat,lon):
+    toplevel = min(list(surfaces.keys()))
+    lons = []
+    transports = []
+    lat = surfaces[toplevel]["maplats"][np.nanargmin(np.abs(surfaces[toplevel]["maplats"] - lat))]
+    lon = surfaces[toplevel]["lons"][np.nanargmin(np.abs(surfaces[toplevel]["lons"] - lon))]
+    alonglat_velocities,alonglat_longitudes = [],[]
+    alonglon_velocities,alonglon_latitudes = [],[]
+    for l in range(len(surfaces[toplevel]["ids"])):
+        eyed = surfaces[toplevel]["ids"][l]
+        if surfaces[toplevel]["maplats"][l]==lat:
+            v = depth_integrated_transport(surfaces,eyed,"vabs",therm=2)
+            if ~np.isnan(v):
+                alonglat_velocities.append(v)
+                alonglat_longitudes.append(surfaces[toplevel]["lons"][l])
+        if surfaces[toplevel]["lons"][l]==lon:
+            u = depth_integrated_transport(surfaces,eyed,"uabs",therm=2)
+            if ~np.isnan(u):
+                alonglon_velocities.append(u)
+                alonglon_latitudes.append(surfaces[toplevel]["maplats"][l])
+    fig,ax,mapy = mapSetup([],region=region)
+    print(len(alonglat_longitudes))
+    print(len(alonglon_latitudes))
+    u,v,x,y = mapy.rotate_vector(np.asarray([0]*len(alonglat_velocities)),np.asarray(alonglat_velocities),np.asarray(alonglat_longitudes),np.asarray([lat]*len(alonglat_longitudes)),returnxy=True)
+    ax.quiver(x,y,u,v)
+    u,v,x,y = mapy.rotate_vector(np.asarray(alonglon_velocities),np.asarray([0]*len(alonglon_velocities)),np.asarray([lon]*len(alonglon_latitudes)),np.asarray(alonglon_latitudes),returnxy=True)
+    ax.quiver(x,y,u,v)
+    fig.set_size_inches(16.5,12)
+    plt.savefig("/home/garrett/Downloads/inset.png")
+    

@@ -16,13 +16,13 @@ from scipy.io import savemat
 ###############################
 #### GAM VS OBSERVATION COMPARE
 ###############################
-switch = {"fig1":False,"fig2":False,"fig3":False,"fig4":False,"fig5":False,}
+switch = {"fig1":False,"fig2":False,"fig3":False,"fig4":True,"fig5":False,}
 
 if switch["fig2"]:
     with open('data/run0/annotatedbrasilargowoce.pickle', 'rb') as outfile:
         preinterpsurfaces,profiles = pickle.load(outfile)
     graph.NSGAMCompareCruise(preinterpsurfaces,"A10",brasil)
-    graph.NSGAMCompareCruise(preinterpsurfaces,"A23",brasil)
+    plt.savefig("fig1.eps")
 
 
 #with open('data/brasilsurfaceswdata.pickle', 'rb') as outfile:
@@ -50,12 +50,14 @@ if switch["fig3"]:
 
     kvs = []
     for l in inv.keys():
-        kvs += list(inv[l]["data"]["kv"])
+        kvs += list(inv[l]["data"]["kvb"])
     print("kv: ,",np.sum(((np.asarray(kvs).flatten()<0)))/len(np.asarray(kvs).flatten()))
 
     inv = nstools.twoCReference(inv)
     inv = nstools.streamFuncToUV(inv,neighbors,distances)
     inv = nstools.externalReference(inv,"data/yomaha_1000.nc")
+    graph.bubblePlot(inv,-35,-30)
+    plt.savefig("fig2.eps")
     #therms = list(np.linspace(0,2,11))[::-1]
     #transports = []
     #transports_2 = []
@@ -77,33 +79,18 @@ if switch["fig3"]:
     # graph.graphSurfaces(brasil,inv,"2CU")
 
 
-    fig,((ax1,ax2,ax5),(ax3,ax4,ax6))=plt.subplots(2,3)
-    graph.meridionalHeatMap(inv,-29.5,-47,-9,1000,6000,show=False,label="Inverse Velocity across 30S",quant="vabs",ax=ax1)
-    graph.isotherm(inv,2,-29.5,-47,-9,1000,6000,ax=ax1)
-    graph.isotherm(inv,1.2,-29.5,-47,-9,1000,6000,ax=ax1)
-    graph.isotherm(inv,2,-29.5,-47,-9,1000,6000,ax=ax2)
-    graph.isotherm(inv,1.2,-29.5,-47,-9,1000,6000,ax=ax2)
-    graph.isotherm(inv,2,-29.5,-47,-9,1000,6000,ax=ax5)
-    graph.isotherm(inv,1.2,-29.5,-47,-9,1000,6000,ax=ax5)
-    graph.meridionalHeatMap(inv,-29.5,-47,-9,1000,6000,show=False,label="Geostrophic Velocity Referenced to YOMAHA across 30S",quant="yomahav",ax=ax2)
-    graph.transportRefIsotherm(inv,2,-29.5,-47,-9,1000,6000,ax=ax5)
-    graph.meridionalHeatMap(inv,-29.5,-47,-9,1000,6000,show=False,label="Geostrophic Velocity Referenced to 2C isotherm across 30S",quant="2CV",ax=ax5)
-    graph.latitudinalHeatMap(inv,-35,-40,-15,1000,6000,show=False,label="Inverse Velocity across 35W",quant="uabs",ax=ax3)
-    graph.latitudinalHeatMap(inv,-35,-40,-15,1000,6000,show=False,label="Geostrophic Velocity Referenced to YOMAHA across 35W",quant="yomahau",ax=ax4)
-    graph.latitudinalHeatMap(inv,-35,-40,-15,1000,6000,show=False,label="Geostrophic Velocity Referenced to 2C isotherm across 35W",quant="2CU",ax=ax6)
-    graph.isotherm(inv,2,-35.17,-40,-15,1000,6000,along="lons",normal="maplats",ax=ax3)
-    graph.isotherm(inv,1.2,-35.17,-40,-15,1000,6000,along="lons",normal="maplats",ax=ax3)
-    graph.isotherm(inv,2,-35.17,-40,-15,1000,6000,along="lons",normal="maplats",ax=ax4)
-    graph.isotherm(inv,1.2,-35.17,-40,-15,1000,6000,along="lons",normal="maplats",ax=ax4)
-    graph.isotherm(inv,2,-35.17,-40,-15,1000,6000,along="lons",normal="maplats",ax=ax6)
-    graph.isotherm(inv,1.2,-35.17,-40,-15,1000,6000,along="lons",normal="maplats",ax=ax6)
     plt.show()
 
 if switch ["fig4"]:
-    print(nstools.transportDiagnostics(inv))
-    print(nstools.transportDiagnostics(inv,["2CU","2CV"]))
+
+    with open('data/invertedbrasil.pickle', 'rb') as outfile:
+        [inv,neighbors,distances] = pickle.load(outfile)
+    inv = nstools.twoCReference(inv)
+    inv = nstools.streamFuncToUV(inv,neighbors,distances)
+    inv = nstools.externalReference(inv,"data/yomaha_1000.nc")
     graph.fourpanelVectorField(brasil,inv,"uabs","vabs",backgroundfield="pres",\
                             select=[1000,1800,3400,4400],transform=False,scale=0.1)
+    plt.savefig("fig3.eps")
     # print(inv.keys())
 ###############################
 #### Figure 4 - Our AABW schematic
@@ -111,14 +98,17 @@ if switch ["fig4"]:
 with open('data/invertedbrasil.pickle', 'rb') as outfile:
     [inv,neighbors,distances] = pickle.load(outfile)
 
+inv = nstools.addOldUnits(inv)
+inv = nstools.streamFuncToUV(inv,neighbors,distances)
+graph.average_velocity_temp_class(brasil,inv,-30,-35)
 # graph.graphVectorField(brasil,inv,"uabs","vabs","pv",\
 #                         transform=False, scale=0.1,select=[3600])
-inv = nstools.addOldUnits(inv)
-graph.sigma4Plot(inv,-29.5,-180,-33)
-inv = nstools.twoCReference(inv)
-inv = nstools.streamFuncToUV(inv,neighbors,distances)
-inv = nstools.externalReference(inv,"data/yomaha_1000.nc")
-graph.transportRefIsotherm(inv,2,-29.5,-30,-9,1000,6000)
+# inv = nstools.addOldUnits(inv)
+# graph.sigma4Plot(inv,-29.5,-180,-33)
+# inv = nstools.twoCReference(inv)
+# inv = nstools.streamFuncToUV(inv,neighbors,distances)
+# inv = nstools.externalReference(inv,"data/yomaha_1000.nc")
+# graph.transportRefIsotherm(inv,2,-29.5,-30,-9,1000,6000)
 # print(inv.keys())
 # graph.graphSurfaces(brasil,inv,"pv",contour=True,show=False, select=range(3600,3601),secondsurface=inv)
 # fig = plt.gcf()

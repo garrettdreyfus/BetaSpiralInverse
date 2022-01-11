@@ -158,7 +158,7 @@ if switch["reference station"]:
 
     preinterpsurfaces = nstools.runPeerSearch(profiles,range(200,5000,200),profilechoice,False,10**10)
 
-    preinterpsurfaces = nstools.addDataToSurfaces(brasil,profiles,preinterpsurfaces,noise=noise*15)
+    preinterpsurfaces = nstools.addDataToSurfaces(brasil,profiles,preinterpsurfaces,noise=0)
 
     surfaces,neighbors,distances = \
         interptools.interpolateSurfaces(brasil,preinterpsurfaces,\
@@ -173,7 +173,7 @@ if switch["reference station"]:
 
     out= inverttools.invert("coupled",surfaces,neighbors,distances,params=params)
 
-    with open('sens/differentref-{}-{}.pickle'.format(profilechoice.lon,profilechoice.lat), 'wb') as outfile:
+    with open('data/sens/differentref-{}-{}.pickle'.format(profilechoice.lon,profilechoice.lat), 'wb') as outfile:
         pickle.dump([out,neighbors,distances], outfile)
 
 
