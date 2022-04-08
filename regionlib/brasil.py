@@ -206,7 +206,7 @@ def createMesh(xvals,yvals,coord="xy",spacingscale=1):
         print("This grid type is not supported", sys.exc_info()[0])
 
 
-mapbounds = {"lllon":-85,"urlon":16,"lllat":-50,"urlat":8,\
+mapbounds = {"lllon":-53,"urlon":-10,"lllat":-45,"urlat":-8,\
         "lat_0":-17,"lon_0":-33}
 
 

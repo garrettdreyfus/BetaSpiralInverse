@@ -793,7 +793,6 @@ def streamFuncToUV(surfaces,neighbors,distances):
                 surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psiref","vref","uref",(1/gsw.f(surfaces[k]["maplats"][s[0]])),(-1/gsw.f(surfaces[k]["maplats"][s[0]])))
                 surfaces = setSpatialGrad(surfaces,surfaces,k,s,distances,"psisol","vsol","usol",(1/gsw.f(surfaces[k]["maplats"][s[0]])),(-1/gsw.f(surfaces[k]["maplats"][s[0]])))
                 surfaces = setUVError(surfaces,surfaces,k,s,distances,"psierror","verror","uerror",(surfaces[k]["data"]["vsol"][s[0]]),(surfaces[k]["data"]["usol"][s[0]]))
-                
     return surfaces
 
 def findNeighborSet(neighbors,k,index):
@@ -1073,37 +1072,27 @@ def meridionalTransport(surfaces,lat,startlon,endlon,startpres,endpres):
     return totaltransport
 
 def transportDiagnostics(surfaces,vector=["uabs","vabs"]):
-    print("vema")
     vema = transportAcross(surfaces,-29.5,-180,-33,3600,100000,"maplats","lons",vector[1])
-    print("hunter")
     hunter = transportAcross(surfaces,-29.5,-33,180,3600,100000,"maplats","lons",vector[1])
-    print("northern")
     northern = transportAcross(surfaces,-35,-40,-30,3600,100000,"lons","maplats",vector[0])
-    print("southern")
     southern = transportAcross(surfaces,-35,-30,-20,3600,100000,"lons","maplats",vector[0])
 
     two = transportAcross(surfaces,-29.5,-33,180,0,100000,"maplats","lons",vector[1],tempcriteria=2)
     onepointsix = transportAcross(surfaces,-29.5,-33,180,0,100000,"maplats","lons",vector[1],tempcriteria=1.6)
     onepointtwo = transportAcross(surfaces,-29.5,-33,180,0,100000,"maplats","lons",vector[1],tempcriteria=1.2)
     zeropointeight = transportAcross(surfaces,-29.5,-33,180,0,100000,"maplats","lons",vector[1],tempcriteria=0.8)
-
-    curl =0# regionCurl(surfaces,3600,-39,-36,-38,-27)
-    print(curl)
-
-    results = {"vema":vema,\
-               "hunter":hunter,\
-               "curl":curl,\
-               "pt<1.6":onepointsix,\
-               "pt<1.2":onepointtwo,\
-               "pt<0.8":zeropointeight,\
-               "pt<2":two,\
-               }
+    results = {"1.6":onepointsix,\
+               "1.2":onepointtwo,\
+               "0.8":zeropointeight,\
+               "2":two}
     return results
 
 
 def transportAcross(surfaces,lat,startlon,endlon,startpres,endpres,normalcoord,alongcoord,normalvelocity,tempcriteria=100,unit="volume"):
     transportsums = {}
     surfaces = addOldUnits(surfaces)
+
+    lat = surfaces[list(surfaces.keys())[0]]["maplats"][np.nanargmin(np.abs(surfaces[list(surfaces.keys())[0]]["maplats"] - lat))]
     for k in surfaces.keys():
         if  startpres < int(k) < endpres:
             lons = []
@@ -1111,7 +1100,7 @@ def transportAcross(surfaces,lat,startlon,endlon,startpres,endpres,normalcoord,a
             height = []
             rhos = []
             for l in range(len(surfaces[k]["lats"])):
-                if np.abs(surfaces[k][normalcoord][l] - lat)<0.2 and  startlon< surfaces[k][alongcoord][l] <endlon\
+                if np.abs(surfaces[k][normalcoord][l] - lat)<0.01 and  startlon< surfaces[k][alongcoord][l] <endlon\
                    and (surfaces[k]["data"]["pottemp"][l]<tempcriteria):
                     lons.append(surfaces[k][alongcoord][l])
                     vabs.append(surfaces[k]["data"][normalvelocity][l])
@@ -1256,7 +1245,36 @@ def morrisMixing(hunter_transport=[-0.51, -0.31, -0.05]):
     twt += romanche_transport * (romanche_temp-isotherms)
     twt += equatorial_transport * (equatorial_temp-isotherms)
     mixing = (twt*(10**6))/np.multiply(surfacearea,-thetaz)
-    print(mixing)
     return(mixing)
+
+def zenk1993Blend(surfaces):
+    ref = graph.transportRefIsotherm(surfaces,2,-29.5,-30,-9,1000,6000)
+    transports = np.asarray([0,0.15,0.5])-ref*(10**-6)
+    return morrisMixing(transports)
+
+def zenk1999Blend(transports):
+    pointeight = 0.47
+    return morrisMixing([transports[0]+pointeight,transports[1]+pointeight,pointeight])
+
+def prettySummary(surfaces,meta):
+    print("Reference level: {} | Upper Bound: {} | Lower Bound: {}".format(meta["reflevel"],meta["upperbound"],meta["lowerbound"]))
+    print("mixing: {}".format(meta["modelmixing"]))
+    print("Condition: {} | Error: {}".format(meta["condition"],meta["error"]))
+    td = transportDiagnostics(surfaces,vector=["uabs","vabs"])
+    x = np.asarray([td["1.6"],td["1.2"],td["0.8"]])
+    print("Morris et al. mixing budgets")
+    print("Zenk 1999 Blend: " + '\t'.join(['{:.3e}'.format(x) for x in zenk1999Blend(x*(10**-6))]))
+    print("Zenk 1993 Blend: " + '\t'.join(['{:.3e}'.format(x) for x in zenk1993Blend(surfaces)]))
+
+def negativeDiffusivities(surfaces):
+    negative_count = 0
+    total_count = 0
+    for k in surfaces.keys():
+        if k > 2000:
+            kv = surfaces[k]["data"]["kvb"][~np.isnan(surfaces[k]["data"]["kvb"])] + surfaces[k]["data"]["kvo"][~np.isnan(surfaces[k]["data"]["kvo"])]
+            total_count += len(kv)
+            negative_count = len(kv[kv<0])
+    return (negative_count/total_count)*100
+
 
 

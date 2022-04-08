@@ -36,7 +36,7 @@ def compressFolder(infoldername,outfoldername):
         name = os.path.basename(f)
         sensitivityRunCompress(f,outfoldername+name+"-small"+ext)
 
-sensitivityRunCompress("sens/differentref--24-22.pickle","small-sens/differentref--24-22.pickle")
+#sensitivityRunCompress("sens/differentref--24-22.pickle","small-sens/differentref--24-22.pickle")
 #compressFolder("sens/","small-sens/")
 #compressFolder("sens/reflevel/","small-sens/reflevel/")
 #compressFolder("sens/H_0/","small-sens/H_0/")
