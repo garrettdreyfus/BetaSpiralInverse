@@ -11,10 +11,10 @@ from scipy.io import savemat
 
 switch = { "reflevel":False,
            "H_0":False,
-           "no mix":True,
-           "bounds":True,
-           "column weighting":True,
-           "gaussian noise": True,
+           "no mix":False,
+           "bounds":False,
+           "column weighting":False,
+           "gaussian noise": False,
            "reference station":True
 }
 if switch["reflevel"]:
@@ -164,7 +164,7 @@ if switch["reference station"]:
 
     preinterpsurfaces = nstools.runPeerSearch(profiles,range(200,5000,200),profilechoice,False,10**10)
 
-    preinterpsurfaces = nstools.addDataToSurfaces(brasil,profiles,preinterpsurfaces,noise=noise*15)
+    preinterpsurfaces = nstools.addDataToSurfaces(brasil,profiles,preinterpsurfaces,noise=0)
 
     surfaces,neighbors,distances = \
         interptools.interpolateSurfaces(brasil,preinterpsurfaces,\

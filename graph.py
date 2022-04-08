@@ -9,8 +9,6 @@ import rpy2.robjects as ro
 pandas2ri.activate()
 import pandas as pd
 from scipy.integrate import quad
-from graph-lite import *
-
 
 mgcv = importr("mgcv")
 base = importr("base")
